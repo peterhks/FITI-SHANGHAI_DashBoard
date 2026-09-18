@@ -10,7 +10,7 @@ import os
 # 1. 페이지 테마 및 커스텀 스타일 설정
 # =========================================================
 st.set_page_config(
-    page_title="FITI 상해지사 실적 종합 분석 시스템",
+    page_title="FITI SHANGHAI 지사 - 상해지사 실적 종합 분석",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -58,7 +58,7 @@ st.markdown("""
         color: #FFFFFF;
     }
     .fiti-sub-logo-en {
-        font-size: 10px;
+        font-size: 11px;
         color: #B0C4DE;
     }
     .fiti-title-area {
@@ -73,9 +73,9 @@ st.markdown("""
         margin-bottom: 3px;
     }
     .fiti-en-title {
-        font-size: 12px;
+        font-size: 13px;
         color: #D0E1FD;
-        font-weight: 400;
+        font-weight: 500;
     }
     .fiti-dept-title {
         font-size: 11px;
@@ -83,7 +83,7 @@ st.markdown("""
         margin-top: 2px;
     }
 
-    /* 카드 및 메트릭 스타일 */
+    /* 메트릭 카드 스타일 */
     .stMetric {
         background-color: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -101,21 +101,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 2. FITI 상해지사 공식 헤더 배너
+# 2. FITI SHANGHAI 지사 공식 상단 배너 헤더
 # =========================================================
 st.markdown("""
 <div class="fiti-header">
     <div class="fiti-logo-area">
         <div class="fiti-logo-text">FITI</div>
         <div class="fiti-sub-logo">
-            <span class="fiti-sub-logo-kr">FITI 상해시험연구원</span>
-            <span class="fiti-sub-logo-en">FITI Shanghai Branch</span>
+            <span class="fiti-sub-logo-kr">FITI시험연구원</span>
+            <span class="fiti-sub-logo-en">FITI SHANGHAI 지사</span>
         </div>
     </div>
     <div class="fiti-title-area">
-        <div class="fiti-main-title">FITI 상해지사 실적 종합 분석 시스템</div>
-        <div class="fiti-en-title">Shanghai Branch Business Performance & Testing Analytics System</div>
-        <div class="fiti-dept-title">사업팀 (Business Operations Team) · 제품평가팀 (Inspection Team)</div>
+        <div class="fiti-main-title">상해지사 실적 종합 분석</div>
+        <div class="fiti-en-title">상해지사 사업 실적 및 분석 시스템</div>
+        <div class="fiti-dept-title">상해지사 사업팀</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -125,9 +125,9 @@ st.markdown("""
 # =========================================================
 with st.expander("ℹ️ 사용 안내", expanded=True):
     st.markdown("""
-    * **실적 데이터 연동**: 저장소 내 실적 기본 파일(`performance_260825.xlsx`)이 자동 반영되며, 좌측 메뉴를 통해 최신 접수 실적(Excel/CSV)을 직접 업로드할 수 있습니다.
+    * **실적 데이터 연동**: 저장소 내 기본 실적 파일(`복사본 performance_260825.xlsx`)이 자동 반영되며, 좌측 메뉴에서 최신 실적 파일(Excel/CSV)을 직접 업로드할 수 있습니다.
     * **사업 영역별 다차원 집계**: 중국 국가표준(GB), 한국 수출 KC 인증, 글로벌 바이어 매뉴얼 시험 및 완제품 공장 검사(제품평가) 실적을 고객사·업무구분별로 통합 분석합니다.
-    * **시계열 추이 및 수요 예측**: 기간별 수수료 매출 및 성적서 발급 추이를 확인하고, 통계 모델(ARIMA $p, d, q$)을 통해 향후 시험 접수 수요를 선제적으로 예측합니다.
+    * **시계열 추이 및 수요 예측**: 기간별 수수료 매출 및 성적서 발급 추이를 확인하고, 통계 모델(ARIMA $p, d, q$)을 통해 향후 접수 수요를 선제적으로 예측합니다.
     * **고객사 기여도 및 이상 징후 진단**: 주요 고객사(브랜드)별 기여도 순위(Funnel)와 관리한계(±2σ)를 이탈한 이상 실적 패턴을 자동으로 추출하여 리포트합니다.
     """)
 
@@ -159,7 +159,6 @@ def load_sample_data():
         })
     return pd.DataFrame(data)
 
-# 사이드바 데이터 업로드
 st.sidebar.title("데이터 설정 & 필터")
 uploaded_file = st.sidebar.file_uploader("추가 실적 파일 업로드 (xlsx/csv)", type=["xlsx", "csv"])
 
@@ -195,7 +194,7 @@ cat_col = st.sidebar.selectbox("카테고리/차원 컬럼", cat_cols if cat_col
 val_col = st.sidebar.selectbox("핵심 측정값 (주요 지표)", num_cols, index=0)
 sec_val_col = st.sidebar.selectbox("보조 측정값 (비교 지표)", num_cols, index=1 if len(num_cols) > 1 else 0)
 
-# 시계열 정렬 및 숫자 변환 보장
+# 시계열 전처리
 df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
 df = df.dropna(subset=[date_col]).sort_values(by=date_col)
 df[val_col] = pd.to_numeric(df[val_col], errors='coerce').fillna(0)
@@ -216,7 +215,7 @@ recent_trend = ((end_v - start_v) / (start_v + 1e-5)) * 100
 with kpi1:
     st.metric(label=f"총 {val_col} 합계", value=f"{total_val:,.0f}")
 with kpi2:
-    st.metric(label=f"평균 {val_col}", value=f"{mean_val:,.1f}")
+    st.metric(label=f"일평균 {val_col}", value=f"{mean_val:,.1f}")
 with kpi3:
     st.metric(label="변동성 (표준편차)", value=f"{val_std:,.1f}")
 with kpi4:
