@@ -145,7 +145,7 @@ if df_summary is None:
     st.stop()
 
 # =========================================================
-# 4. 내부 자동 컬럼 인식 및 4대 사업구분 정제
+# 4. 명시적 사업별 파트 문구 매칭 로직 적용
 # =========================================================
 num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
 other_cols = [c for c in df_summary.columns if c not in num_cols]
@@ -153,30 +153,42 @@ other_cols = [c for c in df_summary.columns if c not in num_cols]
 col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
 col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
 
+# 사업 파트 텍스트가 존재하는 컬럼 탐색
 biz_col = other_cols[0] if other_cols else df_summary.columns[0]
 for c in other_cols:
-    sample_text = "".join(df_summary[c].dropna().astype(str).tolist())
-    if any(k in sample_text for k in ["글로벌", "패션", "GB", "제품평가"]):
+    sample_text = "".join(df_summary[c].dropna().astype(str).str.lower().tolist())
+    if any(k in sample_text for k in ["part", "kc", "gb", "inspection", "global", "원단", "가먼트", "글로벌", "패션"]):
         biz_col = c
         break
 
-def map_biz_category(val):
-    s = str(val).replace(" ", "").upper()
-    if "글로벌" in s or "GLOBAL" in s or "BUYER" in s:
-        return "글로벌 바이어"
-    elif "패션" in s or "잡화" in s or "FASHION" in s:
+# [핵심] 요청하신 매칭 규칙:
+# 1. 패션잡화 = KC part
+# 2. GB = GB part
+# 3. 글로벌바이어 = global part1 + global part2
+# 4. 제품평가 = inspection (원단) + inspection (가먼트)
+def map_biz_category_exact(val):
+    s = str(val).replace(" ", "").lower()
+    
+    # 1. 패션잡화: KC part
+    if "kc" in s:
         return "패션잡화"
-    elif "GB" in s or "중국" in s:
+    # 2. GB: GB part
+    elif "gb" in s:
         return "GB"
-    elif "제품평가" in s or "검사" in s or "INSPECTION" in s:
+    # 3. 글로벌바이어: global part1 + global part2
+    elif "global" in s or "바이어" in s or "part1" in s or "part2" in s:
+        return "글로벌바이어"
+    # 4. 제품평가: inspection (원단) + inspection (가먼트)
+    elif "inspection" in s or "원단" in s or "가먼트" in s or "제품평가" in s or "검사" in s:
         return "제품평가"
     return None
 
-df_summary["표준사업구분"] = df_summary[biz_col].apply(map_biz_category)
+df_summary["표준사업구분"] = df_summary[biz_col].apply(map_biz_category_exact)
 
-target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
+target_categories = ["글로벌바이어", "패션잡화", "GB", "제품평가"]
 summary_data = df_summary.dropna(subset=["표준사업구분"]).copy()
 
+# 파트별(예: global part1+part2, inspection 원단+가먼트) 실적 자동 합산 집계
 summary_chart = summary_data.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
@@ -292,7 +304,7 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
     biz_colors = {
-        "글로벌 바이어": "#2563EB",
+        "글로벌바이어": "#2563EB",
         "패션잡화": "#F59E0B",
         "GB": "#10B981",
         "제품평가": "#8B5CF6"
@@ -416,57 +428,51 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     selected_biz = st.selectbox("조회할 사업부문을 선택하세요:", unique_biz, index=0)
     
     # -------------------------------------------------------------
-    # 엑셀 파일 내 실제 시트 자동 탐색 (가짜 샘플 데이터 완전 제거)
+    # 엑셀 시트 매핑 (지정된 파트 키워드 지원)
     # -------------------------------------------------------------
     buyer_df = None
     if excel_obj is not None:
         sheet_names = excel_obj.sheet_names
-        biz_clean = selected_biz.replace(" ", "").upper()
+        matched_sheets = []
         
-        matched_sheet = None
+        # 사업별 대응 시트 키워드 목록
+        target_sheet_keywords = {
+            "패션잡화": ["KC", "패션", "잡화"],
+            "GB": ["GB"],
+            "글로벌바이어": ["GLOBAL", "PART1", "PART2", "BUYER", "바이어"],
+            "제품평가": ["INSPECTION", "원단", "가먼트", "제품평가", "검사"]
+        }
+        
+        keywords = target_sheet_keywords.get(selected_biz, [selected_biz])
         for s in sheet_names:
             s_clean = s.replace(" ", "").upper()
-            if biz_clean in s_clean or s_clean in biz_clean:
-                matched_sheet = s
-                break
+            if any(k.upper() in s_clean for k in keywords):
+                matched_sheets.append(s)
         
-        # 이름 매칭 시트가 없을 경우 별칭 매핑 시도
-        if not matched_sheet:
-            aliases = {
-                "글로벌 바이어": ["GLOBAL", "BUYER", "바이어", "글로벌"],
-                "패션잡화": ["패션", "잡화", "FASHION"],
-                "GB": ["GB", "중국", "국가표준"],
-                "제품평가": ["제품평가", "검사", "INSPECTION", "평가"]
-            }
-            for alias in aliases.get(selected_biz, []):
-                for s in sheet_names:
-                    if alias.upper() in s.replace(" ", "").upper():
-                        matched_sheet = s
-                        break
-                if matched_sheet:
-                    break
-        
-        if matched_sheet:
-            try:
-                buyer_df = clean_data(pd.read_excel(target_file, sheet_name=matched_sheet))
-            except Exception:
-                pass
+        if matched_sheets:
+            dfs = []
+            for ms in matched_sheets:
+                try:
+                    loaded = clean_data(pd.read_excel(target_file, sheet_name=ms))
+                    dfs.append(loaded)
+                except Exception:
+                    pass
+            if dfs:
+                buyer_df = pd.concat(dfs, ignore_index=True)
 
     if buyer_df is None or buyer_df.empty:
-        st.warning(f"선택하신 [{selected_biz}] 부문과 매칭되는 시트(예: {selected_biz})를 엑셀 파일 내에서 찾을 수 없습니다. 엑셀 시트 이름을 확인해 주세요.")
+        st.warning(f"선택하신 [{selected_biz}] 부문과 매칭되는 시트(예: {', '.join(keywords)})를 엑셀 파일 내에서 찾을 수 없습니다.")
     else:
-        # 실제 엑셀 시트 컬럼 인식
         b_nums = buyer_df.select_dtypes(include=['number']).columns.tolist()
         b_others = [c for c in buyer_df.columns if c not in b_nums]
         
         if not b_nums or not b_others:
-            st.warning(f"[{matched_sheet}] 시트에 바이어명(문자열) 또는 실적(숫자) 데이터가 올바르지 않습니다.")
+            st.warning("선택된 시트에 바이어명(문자열) 또는 실적(숫자) 데이터가 올바르지 않습니다.")
         else:
             b_col_25 = next((c for c in b_nums if "25" in str(c)), b_nums[0])
             b_col_26 = next((c for c in b_nums if "26" in str(c)), b_nums[1] if len(b_nums) > 1 else b_nums[0])
             b_name_col = next((c for c in b_others if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처", "브랜드"])), b_others[0])
             
-            # TOTAL / 합계 / 공란 행 철저히 제거
             exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
             clean_b_df = buyer_df[
                 (~buyer_df[b_name_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
@@ -474,17 +480,14 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 (buyer_df[b_name_col].astype(str).str.strip() != "")
             ].copy()
             
-            # 실제 바이어 기준 상위 10개 집계
             b_chart = clean_b_df.groupby(b_name_col, as_index=False)[[b_col_25, b_col_26]].sum()
             b_chart["증감액"] = b_chart[b_col_26] - b_chart[b_col_25]
             b_chart["증감률"] = ((b_chart["증감액"] / b_chart[b_col_25].replace(0, pd.NA)) * 100).fillna(0.0)
             b_chart = b_chart.sort_values(by=b_col_26, ascending=False).head(10).reset_index(drop=True)
 
-            # 2개 그래프 나란히 배치
             col3_l, col3_r = st.columns([6, 4])
             
             with col3_l:
-                # 상단 겹치던 타이틀 문구 완전히 삭제
                 fig3_bar = go.Figure()
                 fig3_bar.add_trace(go.Bar(
                     x=b_chart[b_name_col],
@@ -540,7 +543,6 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 )
                 st.plotly_chart(fig3_diff, use_container_width=True)
 
-            # 오와 열이 정돈된 바이어별 실적 요약 테이블
             st.markdown(f"##### 📋 [{selected_biz}] 바이어별 실적 세부 요약표")
             
             table_buyer_df = pd.DataFrame({
