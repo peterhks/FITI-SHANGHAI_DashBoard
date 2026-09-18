@@ -4,165 +4,238 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 
-# 1. 브라우저 탭 및 레이아웃 설정
-st.set_page_config(page_title="상해지사 실적 대시보드", layout="wide", page_icon="📈")
+# 1. 페이지 레이아웃 및 브라우저 탭 설정
+st.set_page_config(
+    page_title="FITI 상해지사 경영 실적 분석 대시보드",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-DEFAULT_FILE_PATH = "복사본 performance_260825.xlsx"
+# 2. 고급 카드 및 폰트 디자인 커스텀 CSS
+st.markdown("""
+<style>
+    /* 전체 폰트 및 배경 정돈 */
+    .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 2rem;
+    }
+    /* KPI 카드 스타일 */
+    .metric-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid #eef2f6;
+        transition: transform 0.2s ease-in-out;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+    }
+    .metric-title {
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    .metric-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+    .metric-delta-pos {
+        font-size: 13px;
+        font-weight: 700;
+        color: #10b981;
+    }
+    .metric-delta-neg {
+        font-size: 13px;
+        font-weight: 700;
+        color: #ef4444;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 2. 사이드바 - 실시간 파일 업로드 영역
-st.sidebar.title("📌 상해지사 실적 분석")
+# 3. 데이터 로딩 설정
+DEFAULT_FILE = "복사본 performance_260825.xlsx"
+# 대체 파일명 지원 (플레이어 성능 등 번역 파일명 대비)
+if not os.path.exists(DEFAULT_FILE):
+    for f in os.listdir("."):
+        if f.endswith(".xlsx") and ("performance" in f or "성능" in f):
+            DEFAULT_FILE = f
+            break
+
+# 사이드바 설정
+st.sidebar.markdown("### 🏢 FITI 상해지사")
+st.sidebar.caption("글로벌 시험 & 제품평가 사업 실적")
 st.sidebar.markdown("---")
 
 uploaded_file = st.sidebar.file_uploader(
-    "📂 최신 엑셀 파일 업로드", 
+    "📂 최신 실적 엑셀 업로드", 
     type=["xlsx", "xls"],
-    help="새로 업데이트된 엑셀 파일을 여기에 끌어다 놓으면 즉시 반영됩니다."
+    help="새로운 엑셀 파일을 올리면 화면이 실시간으로 갱신됩니다."
 )
 
-# 업로드된 파일이 있으면 그것을 쓰고, 없으면 기본 로컬 파일 사용
-if uploaded_file is not None:
-    source_file = uploaded_file
-    st.sidebar.success(f"✔️ 업로드 파일 반영됨:\n{uploaded_file.name}")
-else:
-    if os.path.exists(DEFAULT_FILE_PATH):
-        source_file = DEFAULT_FILE_PATH
-        st.sidebar.info(f"📁 기본 파일 사용 중:\n{DEFAULT_FILE_PATH}")
-    else:
-        st.sidebar.error(f"기본 파일을 찾을 수 없습니다: {DEFAULT_FILE_PATH}")
-        st.stop()
+active_file = uploaded_file if uploaded_file is not None else DEFAULT_FILE
 
-st.sidebar.markdown("---")
-
-# 3. 데이터 로딩 및 전처리 함수
 @st.cache_data
-def get_sheet_names(file):
+def load_all_sheets(file):
     xls = pd.ExcelFile(file)
     return xls.sheet_names
 
 @st.cache_data
-def load_sheet_data(file, sheet_name):
-    return pd.read_excel(file, sheet_name=sheet_name)
+def get_summary_df(file):
+    df_raw = pd.read_excel(file, sheet_name='종합', skiprows=1)
+    df_raw.columns = ['구분', '세부구분', '매출_25', '매출_26', '증감수수료', '증감율']
+    return df_raw.dropna(subset=['매출_25']).copy()
 
 @st.cache_data
-def load_summary_data(file):
-    try:
-        df_raw = pd.read_excel(file, sheet_name='종합', skiprows=1)
-        df_raw.columns = ['구분', '세부구분', '매출_25년', '매출_26년', '증감수수료', '증감율']
-        df_summary = df_raw.dropna(subset=['매출_25년']).copy()
-        return df_summary
-    except Exception as e:
-        st.error(f"'종합' 시트를 처리하는 중 오류가 발생했습니다: {e}")
-        return pd.DataFrame()
+def get_sheet_df(file, s_name):
+    return pd.read_excel(file, sheet_name=s_name)
 
-# 데이터 로드
 try:
-    sheet_names = get_sheet_names(source_file)
-    df_summary = load_summary_data(source_file)
+    sheet_names = load_all_sheets(active_file)
+    df_summary = get_summary_df(active_file)
 except Exception as e:
-    st.error(f"엑셀 파일 로드 실패: {e}")
+    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
     st.stop()
 
-# 4. 사이드바 메뉴 선택
-menu = st.sidebar.radio("화면 메뉴 선택", ["1. 전체 경영 실적 요약", "2. 부문별 세부 분석", "3. 데이터 원본 조회"])
+# 4. 헤더 영역
+st.title("📊 FITI 상해지사 사업 실적 대시보드")
+st.markdown("2025년 누적 대비 **2026년 경영 실적, 고객사별 추이 및 사업 부문별 성장률** 분석 리포트입니다.")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# -------------------------------------------------------------
-# 메뉴 1: 전체 실적 요약
-# -------------------------------------------------------------
-if menu == "1. 전체 경영 실적 요약":
-    st.title("🏢 상해지사 시험 및 제품평가 사업 실적 대시보드")
-    st.caption("2025년 대비 2026년 누적 실적 및 부문별 포트폴리오 요약")
-    st.markdown("---")
-    
-    if not df_summary.empty and 'TOTAL' in df_summary['구분'].values:
-        total_data = df_summary[df_summary['구분'] == 'TOTAL'].iloc[0]
-        rev_25 = int(total_data['매출_25년'])
-        rev_26 = int(total_data['매출_26년'])
-        growth = float(total_data['증감율']) * 100
-        diff = int(total_data['증감수수료'])
-        
-        # 최상단 핵심 KPI 카드
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        kpi1.metric("2025년 총 매출", f"₩ {rev_25:,.0f}")
-        kpi2.metric("2026년 총 매출", f"₩ {rev_26:,.0f}")
-        kpi3.metric("전년 대비 증감액", f"₩ {diff:+,.0f}", delta=f"{diff:+,.0f}")
-        kpi4.metric("전체 성장률", f"{growth:+.2f}%", delta=f"{growth:+.2f}%")
-        
-        st.markdown("---")
-        
-        # 부문별 비교 (SUB TOTAL, TOTAL 제외)
-        main_dept = df_summary[~df_summary['구분'].isin(['SUB TOTAL', 'TOTAL'])].copy()
-        main_dept['부문'] = main_dept['구분'].fillna('') + ' ' + main_dept['세부구분'].fillna('')
-        main_dept['부문'] = main_dept['부문'].str.strip()
-        
-        col1, col2 = st.columns([6, 4])
-        
-        with col1:
-            st.subheader("📊 부문별 25년 vs 26년 매출 비교")
-            fig_bar = go.Figure(data=[
-                go.Bar(name='2025년', x=main_dept['부문'], y=main_dept['매출_25년'], marker_color='#2b5c8f'),
-                go.Bar(name='2026년', x=main_dept['부문'], y=main_dept['매출_26년'], marker_color='#2ca02c')
-            ])
-            fig_bar.update_layout(
-                barmode='group', 
-                height=420, 
-                margin=dict(l=10, r=10, t=30, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-            
-        with col2:
-            st.subheader("🥧 2026년 사업 부문별 비중")
-            fig_pie = px.pie(main_dept, values='매출_26년', names='부문', hole=0.4,
-                             color_discrete_sequence=px.colors.qualitative.Safe)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            fig_pie.update_layout(height=420, margin=dict(l=10, r=10, t=30, b=10), showlegend=False)
-            st.plotly_chart(fig_pie, use_container_width=True)
-    else:
-        st.warning("'종합' 시트의 데이터를 읽을 수 없습니다.")
+# 5. 상단 KPI 카드 지표
+total_row = df_summary[df_summary['구분'] == 'TOTAL']
+if not total_row.empty:
+    row = total_row.iloc[0]
+    rev_25 = int(row['매출_25'])
+    rev_26 = int(row['매출_26'])
+    diff = int(row['증감수수료'])
+    rate = float(row['증감율']) * 100
 
-# -------------------------------------------------------------
-# 메뉴 2: 부문별 세부 분석
-# -------------------------------------------------------------
-elif menu == "2. 부문별 세부 분석":
-    st.title("🔍 부문별 고객사 / 벤더 실적 분석")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">2025년 누적 실적</div>
+            <div class="metric-value">₩ {rev_25:,.0f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">2026년 누적 실적</div>
+            <div class="metric-value">₩ {rev_26:,.0f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        delta_class = "metric-delta-pos" if diff >= 0 else "metric-delta-neg"
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">전년 대비 증감액</div>
+            <div class="metric-value">₩ {diff:+,.0f}</div>
+            <span class="{delta_class}">{'▲' if diff >= 0 else '▼'} {abs(diff):,.0f} 원</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        delta_class = "metric-delta-pos" if rate >= 0 else "metric-delta-neg"
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">전년 대비 성장률</div>
+            <div class="metric-value">{rate:+.2f}%</div>
+            <span class="{delta_class}">{'▲' if rate >= 0 else '▼'} {abs(rate):.2f}%</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 6. 인터랙티브 탭 레이아웃
+tab1, tab2, tab3 = st.tabs(["📈 종합 부문 분석", "🏆 부문별 Top 고객사 / 벤더", "📋 시트별 원본 데이터"])
+
+with tab1:
+    main_dept = df_summary[~df_summary['구분'].isin(['SUB TOTAL', 'TOTAL'])].copy()
+    main_dept['부문'] = (main_dept['구분'].fillna('') + ' ' + main_dept['세부구분'].fillna('')).str.strip()
+
+    c1, c2 = st.columns([6, 4])
     
-    # 엑셀 내 존재하는 시트 중 상세 분석 대상 필터링
-    candidate_sheets = ['global part1 ', 'global part2', 'KC part', 'GB part', 'inspection (원단)', 'inspection (가먼트)']
-    available_sheets = [s for s in candidate_sheets if s in sheet_names]
-    
-    if not available_sheets:
-        available_sheets = sheet_names
+    with c1:
+        st.subheader("📊 부문별 25년 vs 26년 매출 비교")
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            name='2025년', 
+            x=main_dept['부문'], 
+            y=main_dept['매출_25'],
+            marker_color='#94a3b8',
+            text=main_dept['매출_25'],
+            texttemplate='₩ %{text:,.0f}',
+            textposition='outside'
+        ))
+        fig_bar.add_trace(go.Bar(
+            name='2026년', 
+            x=main_dept['부문'], 
+            y=main_dept['매출_26'],
+            marker_color='#2563eb',
+            text=main_dept['매출_26'],
+            texttemplate='₩ %{text:,.0f}',
+            textposition='outside'
+        ))
+        fig_bar.update_layout(
+            template='plotly_white',
+            barmode='group',
+            height=460,
+            margin=dict(l=10, r=10, t=30, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with c2:
+        st.subheader("🥧 2026년 부문별 매출 비중")
+        fig_pie = px.pie(
+            main_dept, 
+            values='매출_26', 
+            names='부문', 
+            hole=0.55,
+            color_discrete_sequence=['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#38bdf8', '#0ea5e9']
+        )
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#ffffff', width=2)))
+        fig_pie.update_layout(template='plotly_white', height=460, margin=dict(l=10, r=10, t=30, b=10), showlegend=False)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+with tab2:
+    st.subheader("🔎 사업 부문별 실적 순위")
+    target_options = ['global part1 ', 'global part2', 'KC part', 'GB part', 'inspection (원단)', 'inspection (가먼트)']
+    valid_options = [s for s in target_options if s in sheet_names]
+    selected_sheet = st.selectbox("분석 대상 선택", valid_options if valid_options else sheet_names)
+
+    df_detail = get_sheet_df(active_file, selected_sheet)
+
+    if '26년 합계' in df_detail.columns and '업체명' in df_detail.columns:
+        slider_col, _ = st.columns([3, 7])
+        with slider_col:
+            top_limit = st.slider("조회 업체 수", 5, 20, 10)
+
+        df_rank = df_detail.dropna(subset=['26년 합계']).sort_values(by='26년 합계', ascending=False).head(top_limit)
         
-    selected_sheet = st.selectbox("분석할 사업 부문 선택", available_sheets)
-    df_part = load_sheet_data(source_file, selected_sheet)
-    
-    if '26년 합계' in df_part.columns and '업체명' in df_part.columns:
-        top_n = st.slider("표시할 상위 업체 수", min_value=5, max_value=25, value=10)
-        top_df = df_part.dropna(subset=['26년 합계']).sort_values(by='26년 합계', ascending=False).head(top_n)
-        
-        fig_rank = px.bar(
-            top_df,
+        fig_hbar = px.bar(
+            df_rank,
             x='26년 합계',
             y='업체명',
             orientation='h',
             text='26년 합계',
-            color='증감율' if '증감율' in top_df.columns else None,
-            color_continuous_scale='Bluered',
-            labels={'26년 합계': '2026년 실적 (KRW)', '업체명': '업체명'},
-            title=f"[{selected_sheet}] 실적 상위 Top {top_n} 업체"
+            color='증감율' if '증감율' in df_rank.columns else None,
+            color_continuous_scale='Tealgrn',
+            labels={'26년 합계': '2026년 매출(원)', '업체명': '업체명'},
+            title=f"[{selected_sheet}] 실적 상위 {top_limit}개 사"
         )
-        fig_rank.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
-        fig_rank.update_layout(yaxis={'categoryorder':'total ascending'}, height=520)
-        st.plotly_chart(fig_rank, use_container_width=True)
+        fig_hbar.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+        fig_hbar.update_layout(template='plotly_white', yaxis={'categoryorder':'total ascending'}, height=520)
+        st.plotly_chart(fig_hbar, use_container_width=True)
     else:
-        st.info("해당 시트에는 '업체명' 또는 '26년 합계' 컬럼이 없어 차트를 생성하지 않고 테이블로 표시합니다.")
-        st.dataframe(df_part, use_container_width=True)
+        st.dataframe(df_detail, use_container_width=True)
 
-# -------------------------------------------------------------
-# 메뉴 3: 데이터 원본 조회
-# -------------------------------------------------------------
-elif menu == "3. 데이터 원본 조회":
-    st.title("📋 엑셀 시트별 원본 데이터 조회")
-    target_sheet = st.selectbox("조회할 시트 선택", sheet_names)
-    df_show = load_sheet_data(source_file, target_sheet)
-    st.dataframe(df_show, use_container_width=True)
+with tab3:
+    st.subheader("📋 전체 원본 데이터 테이블")
+    view_sheet = st.selectbox("조회할 시트 선택", sheet_names)
+    df_raw_view = get_sheet_df(active_file, view_sheet)
+    st.dataframe(df_raw_view, use_container_width=True)
