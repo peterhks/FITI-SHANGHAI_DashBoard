@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import os
 
 # =========================================================
@@ -21,31 +22,33 @@ st.markdown("""
     
     /* 상단 네이비 공식 배너 */
     .fiti-header {
-        background-color: #003876;
-        padding: 20px 26px;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
+        padding: 22px 28px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
-        gap: 20px;
+        gap: 22px;
         color: #FFFFFF;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0, 56, 118, 0.15);
+        margin-bottom: 22px;
+        box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
     }
     .fiti-logo-text {
-        font-size: 26px;
+        font-size: 28px;
         font-weight: 900;
         letter-spacing: -0.5px;
         border-right: 1.5px solid rgba(255, 255, 255, 0.25);
         padding-right: 22px;
     }
     .fiti-title-main {
-        font-size: 20px;
+        font-size: 21px;
         font-weight: 800;
-        margin-bottom: 3px;
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
     }
     .fiti-title-sub {
-        font-size: 12px;
+        font-size: 13px;
         color: #D0E1FD;
+        font-weight: 400;
     }
 
     /* 입체형 KPI 카드 스타일 */
@@ -54,7 +57,7 @@ st.markdown("""
         border: 1px solid #E2E8F0;
         border-radius: 12px;
         padding: 20px 22px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         border-top: 4px solid #CBD5E1;
     }
@@ -141,8 +144,8 @@ if not target_file:
     df = pd.DataFrame({
         "사업구분": ["글로벌 바이어", "패션잡화", "GB", "제품평가"],
         "바이어명": ["POLO RALPH LAUREN", "F&F", "무신사", "삼성물산"],
-        "25년 1월": [120000000, 95000000, 65000000, 25000000],
-        "26년 1월": [140000000, 105000000, 72000000, 28000000]
+        "25년 1월": [2100000000, 1720000000, 1150000000, 360000000],
+        "26년 1월": [2150000000, 1870000000, 1890000000, 480000000]
     })
 
 num_cols = df.select_dtypes(include=['number']).columns.tolist()
@@ -161,7 +164,6 @@ st.sidebar.markdown("### ⚙️ 기준 컬럼 설정")
 col_25 = st.sidebar.selectbox("2025년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "25" in str(c)), 0))
 col_26 = st.sidebar.selectbox("2026년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "26" in str(c)), 1 if len(num_cols) > 1 else 0))
 
-# 사업구분 컬럼 식별
 default_biz_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["사업", "구분", "분류", "항목", "대분류"])), 0)
 default_buyer_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["바이어", "고객", "거래처", "업체", "브랜드"])), 1 if len(other_cols) > 1 else 0)
 
@@ -169,7 +171,7 @@ biz_col = st.sidebar.selectbox("사업 구분 기준 컬럼", other_cols if othe
 buyer_col = st.sidebar.selectbox("바이어(고객사) 기준 컬럼", other_cols if other_cols else df.columns, index=default_buyer_idx)
 
 # =========================================================
-# 5. 불필요 행 제거 및 4대 사업 카테고리 표준화
+# 5. 불필요 행 제거 및 4대 사업 카테고리 매핑
 # =========================================================
 exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
 
@@ -181,7 +183,6 @@ calc_df = df[
 if calc_df.empty:
     calc_df = df.copy()
 
-# 4대 카테고리(글로벌 바이어, 패션잡화, GB, 제품평가) 표준 매핑 함수
 def standardize_biz_category(val):
     s = str(val).replace(" ", "").upper()
     if "글로벌" in s or "GLOBAL" in s or "BUYER" in s or "바이어" in s:
@@ -196,7 +197,6 @@ def standardize_biz_category(val):
 
 calc_df["표준사업구분"] = calc_df[biz_col].apply(standardize_biz_category)
 
-# 4대 사업에 매칭된 데이터만 추출 (그 외 잡음 행 완벽 배제)
 filtered_biz_df = calc_df.dropna(subset=["표준사업구분"]).copy()
 if filtered_biz_df.empty:
     filtered_biz_df = calc_df.copy()
@@ -257,7 +257,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 7. 사이드바 메뉴
+# 7. 사이드바 메뉴: 3가지 카테고리
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -278,81 +278,133 @@ page_menu = st.sidebar.radio(
 if page_menu == "첫번째장 : 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
     
-    # 4대 카테고리 기준 집계 및 순서 고정
     target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
     chart_data = filtered_biz_df.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
-    
-    # 순서 보정
     chart_data["정렬순서"] = chart_data["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
     chart_data = chart_data.sort_values("정렬순서")
     
-    chart_data_renamed = chart_data.rename(columns={
-        col_25: "2025년 총 실적", 
-        col_26: "2026년 총 실적",
-        "표준사업구분": "사업 구분"
-    })
+    # -------------------------------------------------------------
+    # 개선된 세련된 막대 차트 (모서리 라운딩, 프리미엄 컬러, 슬림한 비율)
+    # -------------------------------------------------------------
+    fig_bar = go.Figure()
     
-    fig1_bar = px.bar(
-        chart_data_renamed,
-        x="사업 구분",
-        y=["2025년 총 실적", "2026년 총 실적"],
-        barmode='group',
-        labels={"value": "실적금액 (원)", "variable": "실적 구분"},
-        color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
-    )
-    fig1_bar.update_layout(
-        height=440,
-        yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
-        xaxis=dict(title="사업 구분", categoryorder='array', categoryarray=target_categories),
+    # 2025년 바 (차분한 Slate Grey)
+    fig_bar.add_trace(go.Bar(
+        x=chart_data["표준사업구분"],
+        y=chart_data[col_25],
+        name="2025년 총 실적",
+        marker=dict(
+            color="#94A3B8",
+            line=dict(color="#64748B", width=1),
+            cornerradius=6
+        ),
+        text=chart_data[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+        textposition="outside",
+        textfont=dict(size=12, color="#475569", family="Pretendard")
+    ))
+    
+    # 2026년 바 (세련된 Deep Royal Blue)
+    fig_bar.add_trace(go.Bar(
+        x=chart_data["표준사업구분"],
+        y=chart_data[col_26],
+        name="2026년 총 실적",
+        marker=dict(
+            color="#1D4ED8",
+            line=dict(color="#1E40AF", width=1),
+            cornerradius=6
+        ),
+        text=chart_data[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+        textposition="outside",
+        textfont=dict(size=12, color="#0F172A", family="Pretendard", weight="bold")
+    ))
+    
+    fig_bar.update_layout(
+        height=450,
+        bargap=0.32,          # 막대 그룹 간격 (적당히 슬림하게 조절)
+        bargroupgap=0.10,     # 막대 간 간격
+        yaxis=dict(
+            rangemode='tozero',
+            title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")),
+            gridcolor="#F1F5F9",
+            zerolinecolor="#E2E8F0"
+        ),
+        xaxis=dict(
+            categoryorder='array',
+            categoryarray=target_categories,
+            tickfont=dict(size=14, weight="bold", color="#1E293B")
+        ),
         template="plotly_white",
-        legend=dict(orientation="h", y=1.12, x=0)
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.05,
+            xanchor="left",
+            x=0,
+            font=dict(size=12, color="#334155")
+        ),
+        margin=dict(t=50, b=20, l=10, r=10)
     )
-    st.plotly_chart(fig1_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
     st.write("")
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
-    # 4대 카테고리 원형 차트 생성
+    # 현대적인 Soft Muted 팔레트
+    biz_colors = {
+        "글로벌 바이어": "#2563EB",  # 블루
+        "패션잡화": "#F59E0B",      # 앰버
+        "GB": "#10B981",            # 에메랄드
+        "제품평가": "#8B5CF6"       # 퍼플
+    }
+    
     pie_col1, pie_col2 = st.columns(2)
     
     with pie_col1:
         fig_pie_25 = px.pie(
-            chart_data_renamed,
-            names="사업 구분",
-            values="2025년 총 실적",
-            hole=0.45,
+            chart_data,
+            names="표준사업구분",
+            values=col_25,
+            hole=0.55,
             title="2025년 사업별 실적 점유율",
-            category_orders={"사업 구분": target_categories},
-            color="사업 구분",
-            color_discrete_map={
-                "글로벌 바이어": "#4F81BD",
-                "패션잡화": "#C0504D",
-                "GB": "#9BBB59",
-                "제품평가": "#8064A2"
-            }
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분",
+            color_discrete_map=biz_colors
         )
-        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label')
-        fig_pie_25.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
+        fig_pie_25.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            textfont=dict(size=13, family="Pretendard"),
+            marker=dict(line=dict(color='#FFFFFF', width=2))
+        )
+        fig_pie_25.update_layout(
+            height=430,
+            margin=dict(t=50, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+        )
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
     with pie_col2:
         fig_pie_26 = px.pie(
-            chart_data_renamed,
-            names="사업 구분",
-            values="2026년 총 실적",
-            hole=0.45,
+            chart_data,
+            names="표준사업구분",
+            values=col_26,
+            hole=0.55,
             title="2026년 사업별 실적 점유율",
-            category_orders={"사업 구분": target_categories},
-            color="사업 구분",
-            color_discrete_map={
-                "글로벌 바이어": "#4F81BD",
-                "패션잡화": "#C0504D",
-                "GB": "#9BBB59",
-                "제품평가": "#8064A2"
-            }
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분",
+            color_discrete_map=biz_colors
         )
-        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label')
-        fig_pie_26.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
+        fig_pie_26.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            textfont=dict(size=13, family="Pretendard"),
+            marker=dict(line=dict(color='#FFFFFF', width=2))
+        )
+        fig_pie_26.update_layout(
+            height=430,
+            margin=dict(t=50, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+        )
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
 # [두번째장] 각 사업별 년도 대비 실적 비교
@@ -374,10 +426,10 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
             y=["2025년 실적", "2026년 실적"],
             barmode='group',
             labels={"value": "실적금액 (원)", "variable": "연도 구분"},
-            color_discrete_map={"2025년 실적": "#CBD5E1", "2026년 실적": "#2563EB"}
+            color_discrete_map={"2025년 실적": "#94A3B8", "2026년 실적": "#1D4ED8"}
         )
         fig2_bar.update_layout(
-            height=450,
+            height=440,
             yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
             template="plotly_white",
             legend=dict(orientation="h", y=1.12, x=0)
@@ -394,7 +446,7 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
             color="증감액",
             color_continuous_scale=["#2563EB", "#CBD5E1", "#E11D48"]
         )
-        fig2_diff.update_layout(height=450, template="plotly_white")
+        fig2_diff.update_layout(height=440, template="plotly_white")
         st.plotly_chart(fig2_diff, use_container_width=True)
         
     st.markdown("##### 📋 사업별 세부 실적 요약 테이블")
@@ -427,11 +479,11 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             y=["2025년 실적", "2026년 실적"],
             barmode='group',
             labels={"value": "실적금액 (원)", "variable": "연도 구분"},
-            color_discrete_map={"2025년 실적": "#93C5FD", "2026년 실적": "#003876"}
+            color_discrete_map={"2025년 실적": "#94A3B8", "2026년 실적": "#1D4ED8"}
         )
         fig3_bar.update_layout(
             title=f"[{selected_biz}] 상위 협력사 실적 비교",
-            height=450,
+            height=440,
             xaxis_tickangle=-45,
             yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
             template="plotly_white",
@@ -444,11 +496,11 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             buyer_group.head(6),
             names=buyer_col,
             values=col_26,
-            hole=0.4,
+            hole=0.45,
             title=f"[{selected_biz}] 2026년 협력사별 비중"
         )
         fig3_pie.update_traces(textposition='inside', textinfo='percent+label')
-        fig3_pie.update_layout(height=450, margin=dict(t=40, b=20, l=10, r=10))
+        fig3_pie.update_layout(height=440, margin=dict(t=40, b=20, l=10, r=10))
         st.plotly_chart(fig3_pie, use_container_width=True)
 
     st.markdown(f"##### 📋 [{selected_biz}] 협력사별 실적 상세표")
