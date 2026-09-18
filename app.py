@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 엔진
+# 3. 데이터 로드 및 정제 유틸리티
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -567,7 +567,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트 (15px/14px Bold & 증감률 뱃지)
+# 9. 공통 렌더러: 전폭 상하 배치 차트
 # =========================================================
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -720,7 +720,7 @@ def render_fullwidth_vertical_dashboard(
 # 10. 본문 페이지 분기 실행
 # =========================================================
 
-# [페이지 1] [접수기준] 종합 실적 현황 (X축에 증감금액, 증감률 라벨 및 15px/14px Bold 적용)
+# [페이지 1] [접수기준] 종합 실적 현황 (도넛 차트 글씨 확대 적용)
 if page_menu == "[접수기준] 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")
     
@@ -794,6 +794,9 @@ if page_menu == "[접수기준] 종합 실적 현황":
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
+    # -------------------------------------------------------------
+    # [요청 반영] 도넛 차트 글씨 대폭 확대
+    # -------------------------------------------------------------
     st.write("")
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
@@ -807,22 +810,66 @@ if page_menu == "[접수기준] 종합 실적 현황":
     pie_col1, pie_col2 = st.columns(2)
     with pie_col1:
         fig_pie_25 = px.pie(
-            summary_chart, names="표준사업구분", values=col_25, hole=0.55,
-            title="2025년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
-            color="표준사업구분", color_discrete_map=biz_colors
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_25, 
+            hole=0.55,
+            title="2025년 사업별 실적 점유율", 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
         )
-        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=14, family="Pretendard", weight="bold"), marker=dict(line=dict(color='#FFFFFF', width=2)))
-        fig_pie_25.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
+        fig_pie_25.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=16, family="Pretendard", color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_25.update_layout(
+            height=460, 
+            title=dict(font=dict(size=18, family="Pretendard", color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=-0.18, 
+                xanchor="center", 
+                x=0.5,
+                font=dict(size=14, family="Pretendard", color="#1E293B", weight="bold")
+            )
+        )
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
     with pie_col2:
         fig_pie_26 = px.pie(
-            summary_chart, names="표준사업구분", values=col_26, hole=0.55,
-            title="2026년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
-            color="표준사업구분", color_discrete_map=biz_colors
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_26, 
+            hole=0.55,
+            title="2026년 사업별 실적 점유율", 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
         )
-        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=14, family="Pretendard", weight="bold"), marker=dict(line=dict(color='#FFFFFF', width=2)))
-        fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
+        fig_pie_26.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=16, family="Pretendard", color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_26.update_layout(
+            height=460, 
+            title=dict(font=dict(size=18, family="Pretendard", color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=-0.18, 
+                xanchor="center", 
+                x=0.5,
+                font=dict(size=14, family="Pretendard", color="#1E293B", weight="bold")
+            )
+        )
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
 # [페이지 2] [접수기준] 사업별 실적 현황
