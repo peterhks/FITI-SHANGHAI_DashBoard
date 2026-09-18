@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 유틸리티
+# 3. 데이터 로드 및 정제 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -206,6 +206,10 @@ target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"
 summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
+
+# 증감액 및 증감률 계산
+summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
+summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
 
 # =========================================================
 # 5. 세부 파트 시트 우측 피벗 블록 정밀 파싱
@@ -444,7 +448,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴 (라벨 삭제 및 6개 메뉴)
+# 7. 사이드바 메뉴
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -457,7 +461,7 @@ page_menu = st.sidebar.radio(
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
     ],
-    index=1,
+    index=0,
     label_visibility="collapsed"
 )
 
@@ -582,7 +586,6 @@ def render_fullwidth_vertical_dashboard(
     if "증감률" not in df.columns or df["증감률"].isnull().all():
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
-    # 텍스트 라벨 포맷팅
     label_25 = []
     label_26 = []
     diff_texts = []
@@ -594,7 +597,6 @@ def render_fullwidth_vertical_dashboard(
         diff_v = r["증감액"]
         rt = r["증감률"]
 
-        # 금액 축약 표기
         if scale_div == 1e8:
             s25 = f"{v25/1e8:.1f}억" if v25 >= 1e8 else (f"{v25/1e4:.0f}만" if v25 >= 1e4 else f"{v25:,.0f}")
             s26 = f"{v26/1e8:.1f}억" if v26 >= 1e8 else (f"{v26/1e4:.0f}만" if v26 >= 1e4 else f"{v26:,.0f}")
@@ -718,38 +720,77 @@ def render_fullwidth_vertical_dashboard(
 # 10. 본문 페이지 분기 실행
 # =========================================================
 
-# [페이지 1] [접수기준] 종합 실적 현황
+# [페이지 1] [접수기준] 종합 실적 현황 (X축에 증감금액, 증감률 라벨 및 15px/14px Bold 적용)
 if page_menu == "[접수기준] 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")
     
+    # X축 라벨: 사업명 (+증감액, +증감률%)
+    x_axis_custom_labels = []
+    for _, r in summary_chart.iterrows():
+        b_name = r["표준사업구분"]
+        d_val = r["증감액"]
+        d_rate = r["증감률"]
+        
+        sign_v = "+" if d_val >= 0 else ""
+        sign_r = "+" if d_rate >= 0 else ""
+        
+        if abs(d_val) >= 1e8:
+            d_str = f"{sign_v}{d_val/1e8:.1f}억"
+        elif abs(d_val) >= 1e4:
+            d_str = f"{sign_v}{d_val/1e4:.0f}만"
+        else:
+            d_str = f"{sign_v}{d_val:,.0f}"
+            
+        x_axis_custom_labels.append(f"{b_name} ({d_str}, {sign_r}{d_rate:.1f}%)")
+        
+    summary_chart_view = summary_chart.copy()
+    summary_chart_view["X축라벨"] = x_axis_custom_labels
+
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
-        x=summary_chart["표준사업구분"],
-        y=summary_chart[col_25],
+        x=summary_chart_view["X축라벨"],
+        y=summary_chart_view[col_25],
         name="2025년 총 실적",
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
-        text=summary_chart[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+        text=summary_chart_view[col_25].apply(lambda x: f"<span style='font-size:14px; font-weight:700;'>{x/1e8:.1f}억</span>" if x >= 1e8 else f"<span style='font-size:14px; font-weight:700;'>{x/1e4:.0f}만</span>"),
         textposition="outside",
-        textfont=dict(size=12, color="#475569", family="Pretendard")
+        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
     ))
     fig_bar.add_trace(go.Bar(
-        x=summary_chart["표준사업구분"],
-        y=summary_chart[col_26],
+        x=summary_chart_view["X축라벨"],
+        y=summary_chart_view[col_26],
         name="2026년 총 실적",
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
-        text=summary_chart[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+        text=summary_chart_view[col_26].apply(lambda x: f"<span style='font-size:15px; font-weight:800;'>{x/1e8:.1f}억</span>" if x >= 1e8 else f"<span style='font-size:15px; font-weight:800;'>{x/1e4:.0f}만</span>"),
         textposition="outside",
-        textfont=dict(size=12, color="#0F172A", family="Pretendard", weight="bold")
+        textfont=dict(size=15, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig_bar.update_layout(
-        height=450,
+        height=500,
         bargap=0.32,
         bargroupgap=0.10,
-        yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#E2E8F0"),
-        xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=14, weight="bold", color="#1E293B")),
+        yaxis=dict(
+            rangemode='tozero', 
+            title=dict(text="실적금액 (원)", font=dict(size=15, color="#1E293B", weight="bold")), 
+            gridcolor="#F1F5F9", 
+            zerolinecolor="#E2E8F0",
+            tickfont=dict(size=14, color="#475569", weight="bold")
+        ),
+        xaxis=dict(
+            categoryorder='array', 
+            categoryarray=x_axis_custom_labels, 
+            tickfont=dict(size=15, weight="bold", color="#0F172A")
+        ),
         template="plotly_white",
-        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0, font=dict(size=12, color="#334155")),
-        margin=dict(t=50, b=20, l=10, r=10)
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.05, 
+            xanchor="left", 
+            x=0, 
+            font=dict(size=14, color="#1E293B", weight="bold")
+        ),
+        margin=dict(t=50, b=30, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -770,7 +811,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
             title="2025년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
             color="표준사업구분", color_discrete_map=biz_colors
         )
-        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2)))
+        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=14, family="Pretendard", weight="bold"), marker=dict(line=dict(color='#FFFFFF', width=2)))
         fig_pie_25.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
@@ -780,11 +821,11 @@ if page_menu == "[접수기준] 종합 실적 현황":
             title="2026년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
             color="표준사업구분", color_discrete_map=biz_colors
         )
-        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2)))
+        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=14, family="Pretendard", weight="bold"), marker=dict(line=dict(color='#FFFFFF', width=2)))
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [페이지 2] [접수기준] 사업별 실적 현황 (요청: 사진과 동일한 상하 전폭 레이아웃 적용)
+# [페이지 2] [접수기준] 사업별 실적 현황
 elif page_menu == "[접수기준] 사업별 실적 현황":
     biz_filter_options = ["전체 사업 보기"] + target_categories
     current_idx = biz_filter_options.index(st.session_state.get("selected_biz_view", "전체 사업 보기"))
@@ -829,7 +870,7 @@ elif page_menu == "[접수기준] 사업별 실적 현황":
         scale_text="억"
     )
 
-# [페이지 3] [접수기준] 바이어 실적 현황 (요청: 사진과 동일한 상하 전폭 레이아웃 적용)
+# [페이지 3] [접수기준] 바이어 실적 현황
 elif page_menu == "[접수기준] 바이어 실적 현황":
     current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
     current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
@@ -915,12 +956,42 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
 
 # [페이지 4] [BI_종합] 사업별 실적 현황
 elif page_menu == "[BI_종합] 사업별 실적 현황":
-    render_bi_8cat_page("📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교", bi_total_charts)
+    render_fullwidth_vertical_dashboard(
+        title_top=f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
+        table_title=f"[BI_종합] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        data_df=bi_total_charts["월계" if "월계" in bi_period_mode else "누계"],
+        x_col_name="표준사업구분",
+        cat_order=BI_8_CATEGORIES,
+        unit_label="천원",
+        scale_div=1e4,
+        scale_text="만"
+    )
 
 # [페이지 5] [BI_상해] 사업별 실적 현황
 elif page_menu == "[BI_상해] 사업별 실적 현황":
-    render_bi_8cat_page("🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교", bi_shanghai_charts)
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
+        table_title=f"[BI_상해] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        data_df=bi_shanghai_charts["월계" if "월계" in bi_period_mode else "누계"],
+        x_col_name="표준사업구분",
+        cat_order=BI_8_CATEGORIES,
+        unit_label="천원",
+        scale_div=1e4,
+        scale_text="만"
+    )
 
 # [페이지 6] [BI_광주] 사업별 실적 현황
 elif page_menu == "[BI_광주] 사업별 실적 현황":
-    render_bi_8cat_page("🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교", bi_guangzhou_charts)
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
+        table_title=f"[BI_광주] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
+        data_df=bi_guangzhou_charts["월계" if "월계" in bi_period_mode else "누계"],
+        x_col_name="표준사업구분",
+        cat_order=BI_8_CATEGORIES,
+        unit_label="천원",
+        scale_div=1e4,
+        scale_text="만"
+    )
