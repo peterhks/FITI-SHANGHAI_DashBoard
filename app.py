@@ -317,12 +317,11 @@ if page_menu == "첫번째장 : 종합 실적 현황":
             title="2026년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
             color="표준사업구분", color_discrete_map=biz_colors
         )
-        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2))
-        )
+        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2)))
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교 (첫번째장 룩앤필 완벽 동기화)
+# [두번째장] 각 사업별 년도 대비 실적 비교
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
@@ -333,7 +332,7 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     col2_l, col2_r = st.columns([6, 4])
     
     with col2_l:
-        # 좌측: 첫번째장과 동일한 라운드 & 폰트 스타일의 2025 vs 2026 비교 바
+        # 좌측: '사업별 2개년 실적 비교' 타이틀 문구 삭제 완료
         fig2_bar = go.Figure()
         fig2_bar.add_trace(go.Bar(
             x=biz_df["표준사업구분"],
@@ -354,7 +353,6 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
             textfont=dict(size=11, color="#0F172A", family="Pretendard", weight="bold")
         ))
         fig2_bar.update_layout(
-            title="사업별 2개년 실적 비교",
             height=440,
             bargap=0.30,
             bargroupgap=0.10,
@@ -367,7 +365,6 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         st.plotly_chart(fig2_bar, use_container_width=True)
 
     with col2_r:
-        # 우측: 깔끔하고 모던한 증감액 바 차트 (증가: 레드, 감소: 블루, 라운딩 적용)
         diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in biz_df["증감액"]]
         diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in biz_df["증감액"]]
         
