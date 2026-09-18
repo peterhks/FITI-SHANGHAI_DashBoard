@@ -175,7 +175,6 @@ for c in other_cols:
         cat_col = c
         break
 
-# 병합 셀 빈칸 채우기
 df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
 df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
 
@@ -199,7 +198,6 @@ calc_summary = df_summary[
     (df_summary["표준사업구분"].notnull())
 ].copy()
 
-# 세부 항목명 정돈
 if sub_cat_col:
     calc_summary["세부항목"] = calc_summary[sub_cat_col].fillna(calc_summary["표준사업구분"]).astype(str)
 else:
@@ -211,7 +209,7 @@ summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: ta
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 파트별 세부 데이터 로드 및 검증
+# 5. 세부 파트 데이터 로드 및 검증
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -289,7 +287,7 @@ for cat in target_categories:
 audit_df = pd.DataFrame(audit_results)
 
 # =========================================================
-# 6. 사이드바 메뉴: 3가지 카테고리
+# 6. 사이드바 메뉴
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -303,38 +301,28 @@ page_menu = st.sidebar.radio(
 )
 
 # =========================================================
-# 7. 상단 종합 KPI 카드 (두번째장 및 세번째장 필터와 완벽 연동)
+# 7. 상단 종합 KPI 카드 (두번째장 & 세번째장 모두 사업별 선택과 연동)
 # =========================================================
-card_sub_desc = "종합 TOTAL 합계 (정상 일치)"
+selected_view_for_card = "전체 사업 보기"
 
 if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     if "selected_biz_view" not in st.session_state:
         st.session_state["selected_biz_view"] = "전체 사업 보기"
-    current_selected = st.session_state["selected_biz_view"]
-    
-    if current_selected != "전체 사업 보기":
-        target_row = summary_chart[summary_chart["표준사업구분"] == current_selected]
-        total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
-        total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
-        card_sub_desc = f"[{current_selected}] 실적 합계"
-    else:
-        total_25 = float(summary_chart[col_25].sum())
-        total_26 = float(summary_chart[col_26].sum())
-
+    selected_view_for_card = st.session_state["selected_biz_view"]
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
-    if "selected_buyer_biz" not in st.session_state:
-        st.session_state["selected_buyer_biz"] = target_categories[0]
-    current_selected = st.session_state["selected_buyer_biz"]
-    
-    target_row = summary_chart[summary_chart["표준사업구분"] == current_selected]
+    if "selected_tab3_biz" not in st.session_state:
+        st.session_state["selected_tab3_biz"] = target_categories[0]
+    selected_view_for_card = st.session_state["selected_tab3_biz"]
+
+if selected_view_for_card != "전체 사업 보기" and selected_view_for_card in target_categories:
+    target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
     total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
     total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
-    card_sub_desc = f"[{current_selected}] 실적 합계"
-
+    card_sub_desc = f"[{selected_view_for_card}] 실적 합계"
 else:
-    # 첫번째장: 종합 전체 실적
     total_25 = float(summary_chart[col_25].sum())
     total_26 = float(summary_chart[col_26].sum())
+    card_sub_desc = "종합 TOTAL 합계 (정상 일치)"
 
 diff_val = total_26 - total_25
 diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
@@ -588,47 +576,71 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         use_container_width=True
     )
 
-# [세번째장] 각 사업별 협력사(바이어) 비교 (상위 6개 + 기타 그룹화 & 상단 KPI 연동)
+# [세번째장] 각 사업별 협력사(바이어) 비교 (상위 6개 + 기타 통합 집계)
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화")
     
-    current_idx_3 = target_categories.index(st.session_state.get("selected_buyer_biz", target_categories[0]))
+    # 세 번째 장 전용 사업부문 셀렉트박스 (상단 카드와 실시간 동기화)
+    current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
+    current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
+    
     selected_biz = st.selectbox(
         "조회할 사업부문을 선택하세요:", 
         target_categories, 
-        index=current_idx_3,
-        key="selected_buyer_selectbox"
+        index=current_idx3,
+        key="tab3_biz_selectbox"
     )
     
-    if selected_biz != st.session_state.get("selected_buyer_biz"):
-        st.session_state["selected_buyer_biz"] = selected_biz
+    if selected_biz != st.session_state.get("selected_tab3_biz"):
+        st.session_state["selected_tab3_biz"] = selected_biz
         st.rerun()
     
-    b_chart_raw = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
+    raw_b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
     
-    if b_chart_raw.empty:
+    if raw_b_chart.empty:
         st.warning(f"선택하신 [{selected_biz}] 부문에 해당하는 세부 파트 시트의 데이터를 찾을 수 없습니다.")
     else:
         # -------------------------------------------------------------
-        # 2026년 실적 기준 상위 6개 바이어 + 기타 합산 로직
+        # 상위 6개 바이어 + 기타("-" 및 7위 이하 포함) 집계 로직
         # -------------------------------------------------------------
-        sorted_b = b_chart_raw.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        # '-' 하이픈, 공란, 결측치인 바이어는 바로 '기타' 대상으로 분류
+        is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE"])
         
-        if len(sorted_b) > 6:
-            top_6 = sorted_b.iloc[:6].copy()
-            etc_part = sorted_b.iloc[6:]
+        valid_buyers = raw_b_chart[~is_dash].copy()
+        dash_buyers = raw_b_chart[is_dash].copy()
+        
+        # 2026년 실적 기준 상위 6개 추출
+        valid_buyers = valid_buyers.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        
+        if len(valid_buyers) > 6:
+            top6 = valid_buyers.iloc[:6].copy()
+            rest = valid_buyers.iloc[6:].copy()
+            
+            etc_25 = rest["2025년 실적"].sum() + dash_buyers["2025년 실적"].sum()
+            etc_26 = rest["2026년 실적"].sum() + dash_buyers["2026년 실적"].sum()
             
             etc_row = pd.DataFrame([{
                 "바이어명": "기타",
-                "2025년 실적": etc_part["2025년 실적"].sum(),
-                "2026년 실적": etc_part["2026년 실적"].sum()
+                "2025년 실적": etc_25,
+                "2026년 실적": etc_26
             }])
-            top_buyers = pd.concat([top_6, etc_row], ignore_index=True)
+            top_buyers = pd.concat([top6, etc_row], ignore_index=True)
         else:
-            top_buyers = sorted_b.copy()
-            
+            if not dash_buyers.empty:
+                etc_row = pd.DataFrame([{
+                    "바이어명": "기타",
+                    "2025년 실적": dash_buyers["2025년 실적"].sum(),
+                    "2026년 실적": dash_buyers["2026년 실적"].sum()
+                }])
+                top_buyers = pd.concat([valid_buyers, etc_row], ignore_index=True)
+            else:
+                top_buyers = valid_buyers.copy()
+
         top_buyers["증감액"] = top_buyers["2026년 실적"] - top_buyers["2025년 실적"]
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
+        # X축 순서: 상위 6개사 + '기타'를 맨 뒤로 배치
+        x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타"] + (["기타"] if "기타" in top_buyers["바이어명"].values else [])
 
         col3_l, col3_r = st.columns([6, 4])
         
@@ -639,7 +651,7 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 y=top_buyers["2025년 실적"],
                 name="2025년 실적",
                 marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
-                text=top_buyers["2025년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0")),
+                text=top_buyers["2025년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0만")),
                 textposition="outside",
                 textfont=dict(size=10, color="#475569", family="Pretendard")
             ))
@@ -648,7 +660,7 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 y=top_buyers["2026년 실적"],
                 name="2026년 실적",
                 marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
-                text=top_buyers["2026년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0")),
+                text=top_buyers["2026년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0만")),
                 textposition="outside",
                 textfont=dict(size=10, color="#0F172A", family="Pretendard", weight="bold")
             ))
@@ -657,7 +669,7 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 bargap=0.30,
                 bargroupgap=0.10,
                 yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9"),
-                xaxis=dict(tickangle=-30, tickfont=dict(size=12, weight="bold", color="#1E293B")),
+                xaxis=dict(categoryorder='array', categoryarray=x_buyer_names, tickangle=-30, tickfont=dict(size=12, weight="bold", color="#1E293B")),
                 template="plotly_white",
                 legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
                 margin=dict(t=50, b=20, l=10, r=10)
@@ -682,13 +694,13 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 height=440,
                 bargap=0.45,
                 yaxis=dict(title=dict(text="증감액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
-                xaxis=dict(tickangle=-30, tickfont=dict(size=12, weight="bold", color="#1E293B")),
+                xaxis=dict(categoryorder='array', categoryarray=x_buyer_names, tickangle=-30, tickfont=dict(size=12, weight="bold", color="#1E293B")),
                 template="plotly_white",
                 margin=dict(t=50, b=20, l=10, r=10)
             )
             st.plotly_chart(fig3_diff, use_container_width=True)
 
-        st.markdown(f"##### 📋 [{selected_biz}] 주요 바이어 실적 요약표 (상위 6개사 + 기타)")
+        st.markdown(f"##### 📋 [{selected_biz}] 상위 6개 바이어 및 기타 실적 요약표")
         
         table_buyer_df = pd.DataFrame({
             "바이어명": top_buyers["바이어명"],
