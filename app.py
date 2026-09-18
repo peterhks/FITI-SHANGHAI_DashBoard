@@ -658,10 +658,9 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트 (긴 업체명 자동 줄바꿈 포맷터 적용)
+# 9. 공통 렌더러: 전폭 상하 배치 차트 (긴 협력사명 자동 2~3줄 줄바꿈 적용)
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
-    """긴 업체명이나 이름을 2~3줄로 보기 좋게 자동 줄바꿈(<br>) 처리합니다."""
     text_str = str(text)
     if len(text_str) <= max_len:
         return text_str
@@ -696,7 +695,6 @@ def render_fullwidth_vertical_dashboard(
     if "증감률" not in df.columns or df["증감률"].isnull().all():
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
-    # X축 카테고리명 자동 줄바꿈 적용 컬럼 생성
     display_x_col = f"{x_col_name}_wrapped"
     df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=13))
     wrapped_cat_order = [wrap_text_for_axis(c, max_len=13) for c in cat_order]
@@ -736,7 +734,7 @@ def render_fullwidth_vertical_dashboard(
         diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
         diff_colors.append("#E11D48" if diff_v >= 0 else "#2563EB")
 
-    # 1. 상단 전폭 실적 비교 바 차트
+    # 1. 상단 실적 비교 차트
     st.subheader(title_top)
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
@@ -785,7 +783,7 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 2. 하단 전폭 증감액 및 증감률 바 차트
+    # 2. 하단 증감액 차트
     st.write("")
     st.markdown(f"##### {title_bottom}")
     fig_diff = go.Figure()
@@ -816,7 +814,7 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표
+    # 3. 요약표
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
     st.dataframe(
@@ -1148,7 +1146,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
             cat_order=x_buyer_names
         )
 
-# [페이지 4] [접수기준] 협력사 실적 현황 (요청 반영: 2단계 조회 + 업체명 기준 파싱)
+# [페이지 4] [접수기준] 협력사 실적 현황 (요청 반영: 2단계 조회 + 2~3줄 자동 줄바꿈)
 elif page_menu == "[접수기준] 협력사 실적 현황":
     c_biz, c_vendor = st.columns([4, 6])
     
@@ -1170,9 +1168,9 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         vendor_list = ["전체 협력사(상위 6개사+기타) 보기"] + v_summary["협력사명"].tolist()
         
         with c_vendor:
-            # 요청하신 라벨명 적용
+            # 요청하신 2개 분리 명령어 적용 ([cite: 23])
             selected_vendor = st.selectbox(
-                "조회할 협력사를 선택하세요:",
+                "조회할 협력사를 선택하세요:",[cite: 23]
                 vendor_list,
                 key="tab4_vendor_select"
             )
@@ -1193,8 +1191,9 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
                 
             x_orders = [v for v in display_v_df["협력사명"] if v != "기타 협력사"] + (["기타 협력사"] if "기타 협력사" in display_v_df["협력사명"].values else [])
             
+            # 1분류: 주요 협력사 실적 비교 카테고리
             render_fullwidth_vertical_dashboard(
-                title_top=f"🏢 [{selected_biz}] 주요 협력사 2025년 vs 2026년 실적 비교 (접수기준)",
+                title_top=f"🏢 [{selected_biz}] 주요 협력사 실적 비교 카테고리 (접수기준)",
                 title_bottom=f"📈 [{selected_biz}] 협력사별 실적 증감액 및 증감률 (26년 - 25년)",
                 table_title=f"[{selected_biz}] 협력사 실적 상세 요약표",
                 data_df=display_v_df,
@@ -1206,8 +1205,9 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
             b_breakdown = b_breakdown.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             
+            # 2분류: 주요 협력사 바이어별 납품 실적
             render_fullwidth_vertical_dashboard(
-                title_top=f"🏢 [{selected_vendor}] 바이어별 2025년 vs 2026년 납품 실적 비교 (접수기준)",
+                title_top=f"🏢 [{selected_vendor}] 주요 협력사 바이어별 납품 실적 (접수기준)",
                 title_bottom=f"📈 [{selected_vendor}] 바이어별 증감액 및 증감률 (26년 - 25년)",
                 table_title=f"[{selected_vendor}] 바이어별 실적 상세 요약표",
                 data_df=b_breakdown,
