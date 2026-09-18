@@ -658,7 +658,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트 (긴 협력사명 자동 2~3줄 줄바꿈 적용)
+# 9. 공통 렌더러: 전폭 상하 배치 차트
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1168,9 +1168,8 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         vendor_list = ["전체 협력사(상위 6개사+기타) 보기"] + v_summary["협력사명"].tolist()
         
         with c_vendor:
-            # 요청하신 2개 분리 명령어 적용 ([cite: 23])
             selected_vendor = st.selectbox(
-                "조회할 협력사를 선택하세요:",[cite: 23]
+                "조회할 협력사를 선택하세요:",
                 vendor_list,
                 key="tab4_vendor_select"
             )
@@ -1191,7 +1190,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
                 
             x_orders = [v for v in display_v_df["협력사명"] if v != "기타 협력사"] + (["기타 협력사"] if "기타 협력사" in display_v_df["협력사명"].values else [])
             
-            # 1분류: 주요 협력사 실적 비교 카테고리
+            # - 주요 협력사 실적 비교 카테고리
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 [{selected_biz}] 주요 협력사 실적 비교 카테고리 (접수기준)",
                 title_bottom=f"📈 [{selected_biz}] 협력사별 실적 증감액 및 증감률 (26년 - 25년)",
@@ -1205,7 +1204,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
             b_breakdown = b_breakdown.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             
-            # 2분류: 주요 협력사 바이어별 납품 실적
+            # - 주요 협력사 바이어별 납품 실적
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 [{selected_vendor}] 주요 협력사 바이어별 납품 실적 (접수기준)",
                 title_bottom=f"📈 [{selected_vendor}] 바이어별 증감액 및 증감률 (26년 - 25년)",
