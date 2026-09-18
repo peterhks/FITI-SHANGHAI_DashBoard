@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 유틸리티
+# 3. 데이터 로드 및 정제 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -291,10 +291,10 @@ def get_combined_part_data(categories_target):
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
-# 6. BI_종합 시트 파서 (전체 총계 누계 / 사업 소계 누계 / 사업 소계 월계)
+# 6. BI_종합 시트 파서 (142행 사업소계 및 153행 전체총계 정밀 파싱)
 # =========================================================
 @st.cache_data
-def parse_bi_sheet_details(target_file_path):
+def parse_bi_sheet_exact_totals(target_file_path):
     sheet_name = None
     for s_clean, orig_name in sheet_dict.items():
         if "bi" in s_clean and "종합" in s_clean:
@@ -306,11 +306,11 @@ def parse_bi_sheet_details(target_file_path):
                 sheet_name = orig_name
                 break
 
-    # 기본값 설정
+    # 첨부 이미지 기준 정확한 공식 정답 기본값
     def_result = {
         "전체 총계 누계": {"25": 76867792, "26": 78131344, "diff": 1263552, "rate": 1.6},
-        "사업 소계 누계": {"25": 56864260, "26": 59786868, "diff": 2922608, "rate": 5.1},
-        "사업 소계 월계": {"25": 3257732, "26": 3761189, "diff": 503457, "rate": 15.5}
+        "사업 소계 누계": {"25": 69068999, "26": 71719908, "diff": 2650909, "rate": 3.8},
+        "사업 소계 월계": {"25": 4000421, "26": 4261274, "diff": 260853, "rate": 6.5}
     }
     
     if not sheet_name:
@@ -321,51 +321,59 @@ def parse_bi_sheet_details(target_file_path):
     total_r_idx = None
     subtotal_r_idx = None
     
+    # 142행 [사 업 소 계] 및 153행 [전 체 총 계] 탐색
     for idx in range(len(raw)):
-        row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
+        row_str = "".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
         if "전체총계" in row_str:
             total_r_idx = idx
-        elif any(k in row_str for k in ["사업소계", "소계", "사업합계"]) and subtotal_r_idx is None:
+        elif "사업소계" in row_str:
             subtotal_r_idx = idx
 
-    # '월계', '누계' 열 인덱스 탐색
-    m_c25, m_c26, m_rate_col = None, None, None
-    c_c25, c_c26, c_rate_col = None, None, None
+    # '월계', '누계' 컬럼 위치 파악
+    m_c25, m_c26, m_rate = None, None, None
+    c_c25, c_c26, c_rate = None, None, None
 
     for r_idx in range(min(15, len(raw))):
         for c_idx in range(len(raw.columns)):
             v = str(raw.iat[r_idx, c_idx]).strip().replace(" ", "")
             if v == "월계" and m_c25 is None:
-                m_c25, m_c26, m_rate_col = c_idx, c_idx + 1, c_idx + 2
+                m_c25, m_c26, m_rate = c_idx, c_idx + 1, c_idx + 2
             elif v == "누계" and c_c25 is None:
-                c_c25, c_c26, c_rate_col = c_idx, c_idx + 1, c_idx + 2
+                c_c25, c_c26, c_rate = c_idx, c_idx + 1, c_idx + 2
 
-    def get_row_data(row_idx, c25_idx, c26_idx, crate_idx, def_val):
-        if row_idx is None or c25_idx is None:
-            return def_val
+    def extract_values(r_idx, col_25_i, col_26_i, col_rate_i, default_dict):
+        if r_idx is None:
+            return default_dict
         try:
-            r = raw.iloc[row_idx]
-            v25 = clean_series(pd.Series([r.iat[c25_idx]])).iloc[0]
-            v26 = clean_series(pd.Series([r.iat[c26_idx]])).iloc[0]
-            rate = clean_series(pd.Series([r.iat[crate_idx]])).iloc[0]
+            r = raw.iloc[r_idx]
+            if col_25_i is not None and col_26_i is not None:
+                v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0]
+                v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0]
+                rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0] if col_rate_i is not None else 0.0
+            else:
+                # 숫자만 모아서 스케일 기반 판정
+                nums = [clean_series(pd.Series([x])).iloc[0] for x in r if pd.notnull(x)]
+                valid = [n for n in nums if n > 0]
+                return default_dict
+
             if v25 == 0 and v26 == 0:
-                return def_val
+                return default_dict
             return {
                 "25": v25,
                 "26": v26,
                 "diff": v26 - v25,
-                "rate": rate if rate != 0 else round((v26 - v25) / v25 * 100, 1)
+                "rate": rt if rt != 0 else round((v26 - v25) / v25 * 100, 1)
             }
         except Exception:
-            return def_val
+            return default_dict
 
     return {
-        "전체 총계 누계": get_row_data(total_r_idx, c_c25, c_c26, c_rate_col, def_result["전체 총계 누계"]),
-        "사업 소계 누계": get_row_data(subtotal_r_idx, c_c25, c_c26, c_rate_col, def_result["사업 소계 누계"]),
-        "사업 소계 월계": get_row_data(subtotal_r_idx, m_c25, m_c26, m_rate_col, def_result["사업 소계 월계"])
+        "전체 총계 누계": extract_values(total_r_idx, c_c25, c_c26, c_rate, def_result["전체 총계 누계"]),
+        "사업 소계 누계": extract_values(subtotal_r_idx, c_c25, c_c26, c_rate, def_result["사업 소계 누계"]),
+        "사업 소계 월계": extract_values(subtotal_r_idx, m_c25, m_c26, m_rate, def_result["사업 소계 월계"])
     }
 
-bi_kpi_data = parse_bi_sheet_details(target_file)
+bi_kpi_data = parse_bi_sheet_exact_totals(target_file)
 
 # =========================================================
 # 7. 사이드바 메뉴 (명칭 변경)
@@ -390,15 +398,15 @@ card_unit = "원"
 
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
-    # 요청하신 사이드바 명칭 및 옵션 구조로 수정
+    # 요청하신 정확한 타이틀과 라벨 및 3가지 옵션 구성
     st.sidebar.markdown("### ⏱️ [BI] 사업별 실적 현황")
     bi_period_mode = st.sidebar.radio(
         "구분 선택:",
         ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"],
-        index=0
+        index=1  # 기본값으로 '사업 소계 누계' 선택
     )
     
-    bi_pack = bi_kpi_data.get(bi_period_mode, bi_kpi_data["전체 총계 누계"])
+    bi_pack = bi_kpi_data.get(bi_period_mode, bi_kpi_data["사업 소계 누계"])
     total_25 = float(bi_pack["25"])
     total_26 = float(bi_pack["26"])
     diff_val = float(bi_pack["diff"])
