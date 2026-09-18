@@ -4,7 +4,7 @@ import plotly.express as px
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 스타일 정의
+# 1. 화면 기본 설정 및 디자인 스타일
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -104,7 +104,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 결측치/형식 정제
+# 3. 데이터 로드 및 결측치/문자형 숫자 정제
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -116,9 +116,9 @@ def get_data():
         except Exception:
             pass
     return pd.DataFrame({
-        "구분": ["중국 GB시험", "KC인증", "바이어 매뉴얼", "공장 완제품검사", "위생용품"],
-        "25년 실적": [45000000, 32000000, 28000000, 19000000, 12000000],
-        "26년 실적": [48000000, 31000000, 33000000, 22000000, 15000000]
+        "바이어명": ["코오롱스포츠", "F&F", "무신사", "삼성물산", "FILA"],
+        "25년 1월": [45000000, 32000000, 28000000, 19000000, 12000000],
+        "26년 1월": [48000000, 31000000, 33000000, 22000000, 15000000]
     })
 
 uploaded_file = st.sidebar.file_uploader("엑셀/CSV 파일 업로드", type=["xlsx", "csv"])
@@ -130,7 +130,7 @@ if uploaded_file:
 else:
     df = get_data()
 
-# 쉼표(,) 포함 문자열 숫자 자동 변환
+# 쉼표(,) 포함 문자열 숫자 자동 변환 (연산 에러 방지)
 for col in df.columns:
     if df[col].dtype == object:
         cleaned = df[col].astype(str).str.replace(',', '').str.strip()
@@ -154,9 +154,9 @@ st.sidebar.subheader("📊 실적 비교 및 축 선택")
 default_25_idx = next((i for i, c in enumerate(num_cols) if "25" in str(c)), 0)
 default_26_idx = next((i for i, c in enumerate(num_cols) if "26" in str(c)), 1 if len(num_cols) > 1 else 0)
 
-col_25 = st.sidebar.selectbox("25년 실적 컬럼", num_cols, index=default_25_idx)
-col_26 = st.sidebar.selectbox("26년 실적 컬럼", num_cols, index=default_26_idx)
-x_axis = st.sidebar.selectbox("기준 축 (항목 / 고객사)", other_cols if other_cols else df.columns, index=0)
+col_25 = st.sidebar.selectbox("2025년 실적 컬럼", num_cols, index=default_25_idx)
+col_26 = st.sidebar.selectbox("2026년 실적 컬럼", num_cols, index=default_26_idx)
+x_axis = st.sidebar.selectbox("기준 축 (바이어명 / 항목)", other_cols if other_cols else df.columns, index=0)
 
 # =========================================================
 # 5. 상단 실적 비교 지표 (입체 카드 디자인)
@@ -217,32 +217,44 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 핵심 그래프 2종 (25년 vs 26년 비교 막대 & 비중 차트)
+# 6. 핵심 그래프 2종 (실적 비교 막대 & 비중 파이 차트)
 # =========================================================
 col_left, col_right = st.columns([6, 4])
 
 with col_left:
-    st.subheader(f"📌 {x_axis}별 25년 vs 26년 실적 비교")
+    # 요청하신 타이틀로 정확히 변경
+    st.subheader(f"📌 {x_axis}별 2025년 총 실적 vs 2026년 총 실적 비교")
+    
+    # 상위 15개 항목 집계
     chart_data = df.groupby(x_axis, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     
+    # 범례 명칭을 통일된 '2025년 총 실적', '2026년 총 실적'으로 변경
+    chart_data_renamed = chart_data.rename(columns={
+        col_25: "2025년 총 실적",
+        col_26: "2026년 총 실적"
+    })
+    
     fig_bar = px.bar(
-        chart_data,
+        chart_data_renamed,
         x=x_axis,
-        y=[col_25, col_26],
+        y=["2025년 총 실적", "2026년 총 실적"],
         barmode='group',
-        labels={"value": "실적금액", "variable": "연도 구분"},
-        color_discrete_map={col_25: "#93C5FD", col_26: "#003876"}
+        labels={"value": "실적금액 (원)", "variable": "실적 구분"},
+        color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
     )
+    
+    # 막대가 뭉개지지 않도록 Y축을 0원부터 정상 표기되도록 rangemode 설정
     fig_bar.update_layout(
         height=450,
         xaxis_tickangle=-45,
+        yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
         template="plotly_white",
         legend=dict(orientation="h", y=1.12, x=0)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
 with col_right:
-    st.subheader(f"🥧 26년 {x_axis} 점유율 비중")
+    st.subheader(f"🥧 2026년 {x_axis} 점유율 비중")
     fig_pie = px.pie(
         chart_data.head(8),
         names=x_axis,
@@ -254,7 +266,7 @@ with col_right:
     st.plotly_chart(fig_pie, use_container_width=True)
 
 # =========================================================
-# 7. 원본 데이터 간략 확인 (접이식)
+# 7. 원본 데이터 확인
 # =========================================================
 with st.expander("📄 데이터 테이블 확인"):
     st.dataframe(df, use_container_width=True)
