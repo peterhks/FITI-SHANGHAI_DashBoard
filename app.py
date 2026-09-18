@@ -104,7 +104,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 다중 시트 지원
+# 3. 데이터 로드 및 정제
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -129,8 +129,6 @@ if target_file:
         else:
             xl = pd.ExcelFile(target_file)
             sheet_names = xl.sheet_names
-            
-            # 시트가 여러 개일 경우 선택 가능하도록 지원
             if len(sheet_names) > 1:
                 selected_sheet = st.sidebar.selectbox("분석할 시트 선택", sheet_names, index=0)
                 df = clean_data(pd.read_excel(target_file, sheet_name=selected_sheet))
@@ -140,12 +138,11 @@ if target_file:
         target_file = None
 
 if not target_file:
-    # 예시 샘플 데이터
     df = pd.DataFrame({
-        "사업구분": ["중국 GB시험", "KC인증", "바이어 매뉴얼", "공장 완제품검사", "위생용품/기구용기"],
+        "사업구분": ["글로벌바이어", "패션잡화", "GB", "제품평가", "기타 사업"],
         "바이어명": ["POLO RALPH LAUREN", "F&F", "무신사", "삼성물산", "FILA"],
-        "25년 1월": [305000000, 180000000, 120000000, 85000000, 35000000],
-        "26년 1월": [362000000, 195000000, 140000000, 92000000, 41000000]
+        "25년 1월": [120000000, 95000000, 65000000, 25000000, 15000000],
+        "26년 1월": [140000000, 105000000, 72000000, 28000000, 18000000]
     })
 
 num_cols = df.select_dtypes(include=['number']).columns.tolist()
@@ -164,7 +161,6 @@ st.sidebar.markdown("### ⚙️ 기준 컬럼 설정")
 col_25 = st.sidebar.selectbox("2025년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "25" in str(c)), 0))
 col_26 = st.sidebar.selectbox("2026년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "26" in str(c)), 1 if len(num_cols) > 1 else 0))
 
-# 업체명이 아닌 '사업구분'과 '바이어명' 분리 선택
 default_biz_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["사업", "구분", "분류", "항목", "대분류"])), 0)
 default_buyer_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["바이어", "고객", "거래처", "브랜드"])), 1 if len(other_cols) > 1 else 0)
 
@@ -172,12 +168,22 @@ biz_col = st.sidebar.selectbox("사업 구분 기준 컬럼", other_cols if othe
 buyer_col = st.sidebar.selectbox("바이어(고객사) 기준 컬럼", other_cols if other_cols else df.columns, index=default_buyer_idx)
 
 # =========================================================
-# 5. 상단 종합 KPI 카드 (TOTAL 행 제외 집계)
+# 5. TOTAL / SUB TOTAL 전역 제외 필터링 (가장 핵심)
 # =========================================================
-calc_df = df[~df[buyer_col].astype(str).str.upper().str.contains("TOTAL|합계|소계", na=False)]
-if calc_df.empty:
-    calc_df = df
+# 사업구분 및 바이어명 컬럼 모두에서 TOTAL, SUB TOTAL, 합계, 소계 패턴 완전 배제
+exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계"
 
+calc_df = df[
+    (~df[biz_col].astype(str).str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
+    (~df[buyer_col].astype(str).str.upper().str.contains(exclude_pattern, regex=True, na=False))
+].copy()
+
+if calc_df.empty:
+    calc_df = df.copy()
+
+# =========================================================
+# 6. 상단 종합 KPI 카드
+# =========================================================
 total_25 = float(calc_df[col_25].sum())
 total_26 = float(calc_df[col_26].sum())
 diff_val = total_26 - total_25
@@ -195,7 +201,7 @@ with c1:
     <div class="kpi-card" style="border-top-color: #64748B;">
         <div class="kpi-title">📅 25년 총 실적</div>
         <div class="kpi-num">{total_25:,.0f}</div>
-        <div class="kpi-sub">전년 누적 집계액</div>
+        <div class="kpi-sub">순수 사업 누적액</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -204,7 +210,7 @@ with c2:
     <div class="kpi-card" style="border-top-color: #003876;">
         <div class="kpi-title">🚀 26년 총 실적</div>
         <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
-        <div class="kpi-sub">당해 누적 집계액</div>
+        <div class="kpi-sub">순수 사업 누적액</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -230,7 +236,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 사이드바 메뉴: 3가지 카테고리
+# 7. 사이드바 메뉴: 3가지 카테고리
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -244,7 +250,7 @@ page_menu = st.sidebar.radio(
 )
 
 # =========================================================
-# 7. 본문 페이지 렌더링
+# 8. 본문 페이지 렌더링
 # =========================================================
 
 # [첫번째장] 종합 실적 현황
@@ -273,13 +279,13 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     st.plotly_chart(fig1_bar, use_container_width=True)
 
     st.write("")
-    # 2. 사업별 점유율 비중 (수십 개 업체명이 아닌, 사업/대분류 단위로 상위 7개 + 기타로 묶어 표기)
+    # 2. 사업별 점유율 비중 (TOTAL, SUB TOTAL이 완전 배제된 순수 사업별 점유율)
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
     biz_df = calc_df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
     
-    # 사업이 너무 많을 경우 상위 6개 외에는 '기타'로 합산하여 깔끔하게 정리
-    def group_top_categories(data_frame, target_col, val_column, top_n=6):
+    # 상위 6개 사업 외에는 '기타 사업'으로 묶음
+    def filter_and_group(data_frame, target_col, val_column, top_n=6):
         sorted_df = data_frame.sort_values(by=val_column, ascending=False)
         if len(sorted_df) > top_n:
             top_part = sorted_df.head(top_n).copy()
@@ -288,8 +294,8 @@ if page_menu == "첫번째장 : 종합 실적 현황":
             return pd.concat([top_part[[target_col, val_column]], etc_row], ignore_index=True)
         return sorted_df[[target_col, val_column]]
 
-    pie_25_data = group_top_categories(biz_df, biz_col, col_25)
-    pie_26_data = group_top_categories(biz_df, biz_col, col_26)
+    pie_25_data = filter_and_group(biz_df, biz_col, col_25)
+    pie_26_data = filter_and_group(biz_df, biz_col, col_26)
     
     pie_col1, pie_col2 = st.columns(2)
     
@@ -300,7 +306,7 @@ if page_menu == "첫번째장 : 종합 실적 현황":
             values=col_25,
             hole=0.45,
             title="2025년 사업별 실적 점유율",
-            color_discrete_sequence=px.colors.qualitative.Prism
+            color_discrete_sequence=px.colors.qualitative.Safe
         )
         fig_pie_25.update_traces(textposition='inside', textinfo='percent+label')
         fig_pie_25.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
@@ -313,7 +319,7 @@ if page_menu == "첫번째장 : 종합 실적 현황":
             values=col_26,
             hole=0.45,
             title="2026년 사업별 실적 점유율",
-            color_discrete_sequence=px.colors.qualitative.Safe
+            color_discrete_sequence=px.colors.qualitative.Prism
         )
         fig_pie_26.update_traces(textposition='inside', textinfo='percent+label')
         fig_pie_26.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
