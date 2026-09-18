@@ -90,43 +90,6 @@ st.markdown("""
         font-weight: 700;
         margin-top: 6px;
     }
-
-    /* 오와 열이 완벽히 정렬된 프리미엄 요약 테이블 스타일 */
-    .custom-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        overflow: hidden;
-        margin-top: 12px;
-        background-color: #FFFFFF;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .custom-table th {
-        background-color: #F8FAFC;
-        color: #475569;
-        font-size: 13px;
-        font-weight: 700;
-        padding: 13px 18px;
-        border-bottom: 1.5px solid #E2E8F0;
-        letter-spacing: -0.2px;
-    }
-    .custom-table td {
-        padding: 13px 18px;
-        font-size: 14px;
-        color: #1E293B;
-        border-bottom: 1px solid #F1F5F9;
-    }
-    .custom-table tr:last-child td {
-        border-bottom: none;
-    }
-    .custom-table tr:hover td {
-        background-color: #F8FAFC;
-    }
-    .align-center { text-align: center !important; }
-    .align-right { text-align: right !important; }
-    .align-left { text-align: left !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -364,7 +327,7 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     
     biz_df = summary_chart.copy()
     biz_df["증감액"] = biz_df[col_26] - biz_df[col_25]
-    biz_df["증감률(%)"] = (biz_df["증감액"] / biz_df[col_25].replace(0, pd.NA) * 100).fillna(0)
+    biz_df["증감률"] = ((biz_df["증감액"] / biz_df[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
     
     col2_l, col2_r = st.columns([6, 4])
     
@@ -427,48 +390,29 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.markdown("##### 📋 사업별 세부 실적 요약 테이블")
     
     # -------------------------------------------------------------
-    # 오와 열이 완벽히 일치하는 정렬된 프리미엄 HTML 테이블 생성
-    # (헤더와 데이터 행의 text-align을 완벽히 동기화)
+    # Streamlit 공식 st.dataframe + column_config 적용
+    # (HTML 코드 오류 완전 해결 + 오와 열 정렬 완벽 일치 + 인덱스 숨김)
     # -------------------------------------------------------------
-    table_rows_html = ""
-    for _, row in biz_df.iterrows():
-        cat = row["표준사업구분"]
-        v25 = f"{row[col_25]:,.0f}"
-        v26 = f"{row[col_26]:,.0f}"
-        diff = f"{row['증감액']:+,.0f}"
-        rate_val = row['증감률(%)']
-        rate_color = "#E11D48" if rate_val >= 0 else "#2563EB"
-        rate_bg = "#FFE4E6" if rate_val >= 0 else "#DBEAFE"
-        rate = f"<span style='background-color:{rate_bg}; color:{rate_color}; padding:2px 8px; border-radius:4px; font-weight:700;'>{rate_val:+.2f}%</span>"
-        
-        table_rows_html += f"""
-        <tr>
-            <td class="align-left" style="font-weight:600; padding-left:24px;">{cat}</td>
-            <td class="align-right">{v25}</td>
-            <td class="align-right" style="font-weight:700; color:#003876;">{v26}</td>
-            <td class="align-right" style="color:{rate_color}; font-weight:600;">{diff}</td>
-            <td class="align-center">{rate}</td>
-        </tr>
-        """
-        
-    custom_table_html = f"""
-    <table class="custom-table">
-        <thead>
-            <tr>
-                <th class="align-left" style="width:22%; padding-left:24px;">사업구분</th>
-                <th class="align-right" style="width:20%;">2025년 실적 (원)</th>
-                <th class="align-right" style="width:20%;">2026년 실적 (원)</th>
-                <th class="align-right" style="width:20%;">증감액 (원)</th>
-                <th class="align-center" style="width:18%;">증감률(%)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {table_rows_html}
-        </tbody>
-    </table>
-    """
-    st.markdown(custom_table_html, unsafe_allow_html=True)
-    st.write("")
+    table_df = pd.DataFrame({
+        "사업구분": biz_df["표준사업구분"],
+        "2025년 실적 (원)": biz_df[col_25],
+        "2026년 실적 (원)": biz_df[col_26],
+        "증감액 (원)": biz_df["증감액"],
+        "증감률(%)": biz_df["증감률"]
+    })
+    
+    st.dataframe(
+        table_df,
+        column_config={
+            "사업구분": st.column_config.TextColumn("사업구분", width="medium"),
+            "2025년 실적 (원)": st.column_config.NumberColumn("2025년 실적 (원)", format="₩%,d"),
+            "2026년 실적 (원)": st.column_config.NumberColumn("2026년 실적 (원)", format="₩%,d"),
+            "증감액 (원)": st.column_config.NumberColumn("증감액 (원)", format="₩%+d"),
+            "증감률(%)": st.column_config.NumberColumn("증감률(%)", format="%+.2f%%"),
+        },
+        hide_index=True,
+        use_container_width=True
+    )
 
 # [세번째장] 각 사업별 협력사 비교
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
