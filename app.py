@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 엔진
+# 3. 데이터 로드 및 정제 유틸리티
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -220,7 +220,6 @@ PART_SHEET_MAPPINGS = {
     "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
 }
 
-# (1) 바이어 피벗 블록 파싱
 def extract_pivot_block(sheet_name):
     raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
     pivot_r, pivot_c = None, None
@@ -282,7 +281,6 @@ def get_combined_part_data(categories_target):
 
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
-# (2) [업체명] 기준 협력사 상세 데이터 파싱
 @st.cache_data
 def extract_vendor_data_from_sheet(sheet_name):
     raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
@@ -660,8 +658,30 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트
+# 9. 공통 렌더러: 전폭 상하 배치 차트 (긴 업체명 자동 줄바꿈 포맷터 적용)
 # =========================================================
+def wrap_text_for_axis(text, max_len=14):
+    """긴 업체명이나 이름을 2~3줄로 보기 좋게 자동 줄바꿈(<br>) 처리합니다."""
+    text_str = str(text)
+    if len(text_str) <= max_len:
+        return text_str
+    
+    words = text_str.split(' ')
+    lines = []
+    current_line = ""
+    for word in words:
+        if current_line == "":
+            current_line = word
+        elif len(current_line) + 1 + len(word) <= max_len:
+            current_line += " " + word
+        else:
+            lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+        
+    return "<br>".join(lines)
+
 def render_fullwidth_vertical_dashboard(
     title_top, 
     title_bottom, 
@@ -675,6 +695,11 @@ def render_fullwidth_vertical_dashboard(
         df["증감액"] = df["2026년 실적"] - df["2025년 실적"]
     if "증감률" not in df.columns or df["증감률"].isnull().all():
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
+    # X축 카테고리명 자동 줄바꿈 적용 컬럼 생성
+    display_x_col = f"{x_col_name}_wrapped"
+    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=13))
+    wrapped_cat_order = [wrap_text_for_axis(c, max_len=13) for c in cat_order]
 
     def format_krw_scale(val):
         abs_v = abs(val)
@@ -715,7 +740,7 @@ def render_fullwidth_vertical_dashboard(
     st.subheader(title_top)
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
-        x=df[x_col_name],
+        x=df[display_x_col],
         y=df["2025년 실적"],
         name="2025년 실적",
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
@@ -724,7 +749,7 @@ def render_fullwidth_vertical_dashboard(
         textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
     ))
     fig_bar.add_trace(go.Bar(
-        x=df[x_col_name],
+        x=df[display_x_col],
         y=df["2026년 실적"],
         name="2026년 실적",
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
@@ -733,7 +758,7 @@ def render_fullwidth_vertical_dashboard(
         textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig_bar.update_layout(
-        height=480,
+        height=520,
         bargap=0.30,
         bargroupgap=0.08,
         yaxis=dict(
@@ -744,8 +769,8 @@ def render_fullwidth_vertical_dashboard(
         ),
         xaxis=dict(
             categoryorder='array',
-            categoryarray=cat_order,
-            tickfont=dict(size=15, weight="bold", color="#0F172A")
+            categoryarray=wrapped_cat_order,
+            tickfont=dict(size=14, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         legend=dict(
@@ -756,7 +781,7 @@ def render_fullwidth_vertical_dashboard(
             x=0,
             font=dict(size=14, color="#1E293B", weight="bold")
         ),
-        margin=dict(t=50, b=25, l=10, r=10)
+        margin=dict(t=50, b=40, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -765,7 +790,7 @@ def render_fullwidth_vertical_dashboard(
     st.markdown(f"##### {title_bottom}")
     fig_diff = go.Figure()
     fig_diff.add_trace(go.Bar(
-        x=df[x_col_name],
+        x=df[display_x_col],
         y=df["증감액"],
         marker=dict(color=diff_colors, cornerradius=6),
         text=diff_texts,
@@ -773,7 +798,7 @@ def render_fullwidth_vertical_dashboard(
         textfont=dict(size=14, family="Pretendard", weight="bold")
     ))
     fig_diff.update_layout(
-        height=400,
+        height=450,
         bargap=0.38,
         yaxis=dict(
             title=dict(text="증감액 (원)", font=dict(size=15, color="#1E293B", weight="bold")),
@@ -783,11 +808,11 @@ def render_fullwidth_vertical_dashboard(
         ),
         xaxis=dict(
             categoryorder='array',
-            categoryarray=cat_order,
-            tickfont=dict(size=15, weight="bold", color="#0F172A")
+            categoryarray=wrapped_cat_order,
+            tickfont=dict(size=14, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
-        margin=dict(t=30, b=25, l=10, r=10)
+        margin=dict(t=30, b=40, l=10, r=10)
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
@@ -1145,6 +1170,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         vendor_list = ["전체 협력사(상위 6개사+기타) 보기"] + v_summary["협력사명"].tolist()
         
         with c_vendor:
+            # 요청하신 라벨명 적용
             selected_vendor = st.selectbox(
                 "조회할 협력사를 선택하세요:",
                 vendor_list,
