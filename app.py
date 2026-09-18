@@ -211,61 +211,7 @@ summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: ta
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 상단 종합 KPI 카드
-# =========================================================
-total_25 = float(summary_chart[col_25].sum())
-total_26 = float(summary_chart[col_26].sum())
-diff_val = total_26 - total_25
-diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
-
-is_positive = diff_val >= 0
-diff_color = "#E11D48" if is_positive else "#2563EB"
-badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
-diff_sign = "+" if is_positive else ""
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #64748B;">
-        <div class="kpi-title">📅 25년 총 실적</div>
-        <div class="kpi-num">{total_25:,.0f}</div>
-        <div class="kpi-sub">종합 TOTAL 합계 (정상 일치)</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #003876;">
-        <div class="kpi-title">🚀 26년 총 실적</div>
-        <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
-        <div class="kpi-sub">종합 TOTAL 합계 (정상 일치)</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: {diff_color};">
-        <div class="kpi-title">📈 실적 증감액</div>
-        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_val:,.0f}</div>
-        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 실적차</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c4:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: {diff_color};">
-        <div class="kpi-title">📊 증감 퍼센트</div>
-        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_rate:0.2f}%</div>
-        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 성장률</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.write("")
-st.markdown("---")
-
-# =========================================================
-# 6. 파트별 세부 데이터 로드 및 검증
+# 5. 세부 파트 데이터 로드 및 검증
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -343,7 +289,7 @@ for cat in target_categories:
 audit_df = pd.DataFrame(audit_results)
 
 # =========================================================
-# 7. 사이드바 메뉴: 3가지 카테고리
+# 6. 사이드바 메뉴: 3가지 카테고리
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -355,6 +301,80 @@ page_menu = st.sidebar.radio(
     ],
     index=0
 )
+
+# =========================================================
+# 7. 상단 종합 KPI 카드 (두번째장에서만 필터와 연동되도록 조건부 계산)
+# =========================================================
+selected_view_for_card = "전체 사업 보기"
+
+# 두 번째 장인 경우, 본문에서 선택될 사업부문 필터를 선행 확인
+if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
+    biz_filter_options = ["전체 사업 보기"] + target_categories
+    # session_state에 저장된 필터값 확인 (기본값: 전체 사업 보기)
+    if "selected_biz_view" not in st.session_state:
+        st.session_state["selected_biz_view"] = "전체 사업 보기"
+    selected_view_for_card = st.session_state["selected_biz_view"]
+
+if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교" and selected_view_for_card != "전체 사업 보기":
+    # 선택된 특정 사업 기준 집계
+    target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
+    total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
+    total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
+    card_sub_desc = f"[{selected_view_for_card}] 실적 합계"
+else:
+    # 첫번째장, 세번째장, 또는 두번째장 전체보기 시 전체 실적 집계
+    total_25 = float(summary_chart[col_25].sum())
+    total_26 = float(summary_chart[col_26].sum())
+    card_sub_desc = "종합 TOTAL 합계 (정상 일치)"
+
+diff_val = total_26 - total_25
+diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
+
+is_positive = diff_val >= 0
+diff_color = "#E11D48" if is_positive else "#2563EB"
+badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
+diff_sign = "+" if is_positive else ""
+
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #64748B;">
+        <div class="kpi-title">📅 25년 총 실적</div>
+        <div class="kpi-num">{total_25:,.0f}</div>
+        <div class="kpi-sub">{card_sub_desc}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c2:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #003876;">
+        <div class="kpi-title">🚀 26년 총 실적</div>
+        <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
+        <div class="kpi-sub">{card_sub_desc}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c3:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📈 실적 증감액</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_val:,.0f}</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 실적차</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📊 증감 퍼센트</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_rate:0.2f}%</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 성장률</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.write("")
+st.markdown("---")
 
 # =========================================================
 # 8. 본문 페이지 렌더링
@@ -426,16 +446,26 @@ if page_menu == "첫번째장 : 종합 실적 현황":
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교 (사업별 선택 필터 추가)
+# [두번째장] 각 사업별 년도 대비 실적 비교
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
-    # -------------------------------------------------------------
-    # [추가] 사업별 선택 필터 셀렉트박스
-    # -------------------------------------------------------------
+    # 사업부문 선택 필터
     biz_filter_options = ["전체 사업 보기"] + target_categories
-    selected_view = st.selectbox("조회할 사업부문을 선택하세요:", biz_filter_options, index=0)
+    current_idx = biz_filter_options.index(st.session_state.get("selected_biz_view", "전체 사업 보기"))
     
+    # 선택 변경 시 session_state 업데이트 후 리런하여 상단 카드와 동기화
+    selected_view = st.selectbox(
+        "조회할 사업부문을 선택하세요:", 
+        biz_filter_options, 
+        index=current_idx,
+        key="selected_biz_selectbox"
+    )
+    
+    if selected_view != st.session_state.get("selected_biz_view"):
+        st.session_state["selected_biz_view"] = selected_view
+        st.rerun()
+
     # 선택에 따른 데이터 분기
     if selected_view == "전체 사업 보기":
         display_df = summary_chart.copy()
@@ -443,7 +473,6 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         x_categories = target_categories
         sub_title_diff = "사업별 실적 증감액 (26년 - 25년)"
     else:
-        # 특정 사업 선택 시: 하위 세부파트 비교 (예: part1 vs part2, 원단 vs 가먼트 등)
         display_df = calc_summary[calc_summary["표준사업구분"] == selected_view].copy()
         x_col = "세부항목"
         x_categories = display_df["세부항목"].unique().tolist()
