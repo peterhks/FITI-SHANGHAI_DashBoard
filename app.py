@@ -4,7 +4,7 @@ import plotly.express as px
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 스타일 정의
+# 1. 화면 기본 설정 및 디자인 스타일
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -87,17 +87,6 @@ st.markdown("""
         font-weight: 700;
         margin-top: 6px;
     }
-    
-    /* 탭 메뉴 스타일 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 16px;
-        font-weight: 700;
-        padding: 10px 20px;
-        border-radius: 6px 6px 0 0;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -133,7 +122,9 @@ def get_data():
         "26년 1월": [48000000, 31000000, 33000000, 22000000, 15000000, 9500000]
     })
 
-uploaded_file = st.sidebar.file_uploader("엑셀/CSV 파일 업로드", type=["xlsx", "csv"])
+# 사이드바 데이터 업로드
+st.sidebar.markdown("### 📁 데이터 관리")
+uploaded_file = st.sidebar.file_uploader("실적 엑셀/CSV 파일 업로드", type=["xlsx", "csv"])
 if uploaded_file:
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
@@ -158,26 +149,30 @@ if not num_cols:
     st.stop()
 
 # =========================================================
-# 4. 사이드바 컬럼 및 축 선택
+# 4. 사이드바 메뉴: 요청하신 3가지 카테고리로 변경
 # =========================================================
 st.sidebar.markdown("---")
-st.sidebar.subheader("📊 실적 비교 및 축 선택")
+st.sidebar.markdown("### 📑 분석 페이지 선택")
 
-default_25_idx = next((i for i, c in enumerate(num_cols) if "25" in str(c)), 0)
-default_26_idx = next((i for i, c in enumerate(num_cols) if "26" in str(c)), 1 if len(num_cols) > 1 else 0)
+# 요청하신 3개 카테고리 메뉴 배치
+page_menu = st.sidebar.radio(
+    "이동할 카테고리를 선택하세요:",
+    [
+        "첫번째장 : 종합 실적 현황",
+        "두번째장 : 각 사업별 년도 대비 실적 비교",
+        "세번째장 : 각 사업별 협력사 비교"
+    ],
+    index=0
+)
 
-col_25 = st.sidebar.selectbox("2025년 실적 컬럼", num_cols, index=default_25_idx)
-col_26 = st.sidebar.selectbox("2026년 실적 컬럼", num_cols, index=default_26_idx)
-
-# 바이어명 및 사업구분 축 자동 감지
-buyer_default_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처"])), 0)
-biz_default_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["사업", "구분", "분류", "항목"])), 1 if len(other_cols) > 1 else 0)
-
-buyer_col = st.sidebar.selectbox("바이어(협력사) 컬럼", other_cols if other_cols else df.columns, index=buyer_default_idx)
-biz_col = st.sidebar.selectbox("사업 구분 컬럼", other_cols if other_cols else df.columns, index=biz_default_idx)
+# 데이터 내부 컬럼 자동 감지
+col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0])
+col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
+buyer_col = next((c for c in other_cols if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처"])), other_cols[0] if other_cols else df.columns[0])
+biz_col = next((c for c in other_cols if any(k in str(c) for k in ["사업", "구분", "분류", "항목"])), other_cols[1] if len(other_cols) > 1 else other_cols[0])
 
 # =========================================================
-# 5. 상단 종합 KPI 카드
+# 5. 상단 실적 비교 카드 (모든 페이지 공통 노출)
 # =========================================================
 total_25 = float(df[col_25].sum())
 total_26 = float(df[col_26].sum())
@@ -231,18 +226,11 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 3개 카테고리 탭 화면 구성
+# 6. 선택된 카테고리별 본문 화면 렌더링
 # =========================================================
-tab1, tab2, tab3 = st.tabs([
-    "📊 첫번째장 : 종합 실적 현황",
-    "🏢 두번째장 : 각 사업별 연도 대비 실적 비교",
-    "🤝 세번째장 : 각 사업별 협력사 비교"
-])
 
-# ---------------------------------------------------------
-# [첫번째장] 종합 현재 나오는 인터페이스
-# ---------------------------------------------------------
-with tab1:
+# [첫번째장] 종합 현재 나오는 인터페이스로 구성
+if page_menu == "첫번째장 : 종합 실적 현황":
     st.subheader(f"📌 {buyer_col}별 2025년 총 실적 vs 2026년 총 실적 비교")
     col1_l, col1_r = st.columns([6, 4])
     
@@ -259,7 +247,7 @@ with tab1:
             color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
         )
         fig1_bar.update_layout(
-            height=450,
+            height=460,
             xaxis_tickangle=-45,
             yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
             template="plotly_white",
@@ -276,13 +264,11 @@ with tab1:
             title=f"2026년 {buyer_col} 점유율 비중"
         )
         fig1_pie.update_traces(textposition='inside', textinfo='percent+label')
-        fig1_pie.update_layout(height=450, margin=dict(t=40, b=20, l=10, r=10))
+        fig1_pie.update_layout(height=460, margin=dict(t=40, b=20, l=10, r=10))
         st.plotly_chart(fig1_pie, use_container_width=True)
 
-# ---------------------------------------------------------
 # [두번째장] 각 사업별 년도 대비 실적 비교
-# ---------------------------------------------------------
-with tab2:
+elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader(f"🏢 {biz_col}별 2025년 vs 2026년 실적 증감 비교")
     
     biz_df = df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
@@ -303,7 +289,7 @@ with tab2:
             color_discrete_map={"2025년 실적": "#CBD5E1", "2026년 실적": "#2563EB"}
         )
         fig2_bar.update_layout(
-            height=430,
+            height=450,
             xaxis_tickangle=-30,
             yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
             template="plotly_white",
@@ -321,10 +307,10 @@ with tab2:
             color="증감액",
             color_continuous_scale=["#2563EB", "#CBD5E1", "#E11D48"]
         )
-        fig2_diff.update_layout(height=430, xaxis_tickangle=-30, template="plotly_white")
+        fig2_diff.update_layout(height=450, xaxis_tickangle=-30, template="plotly_white")
         st.plotly_chart(fig2_diff, use_container_width=True)
         
-    st.markdown("**📋 사업별 세부 실적 요약 테이블**")
+    st.markdown("##### 📋 사업별 세부 실적 요약 테이블")
     st.dataframe(biz_df.style.format({
         col_25: "{:,.0f}",
         col_26: "{:,.0f}",
@@ -332,17 +318,13 @@ with tab2:
         "증감률(%)": "{:+.2f}%"
     }), use_container_width=True)
 
-# ---------------------------------------------------------
 # [세번째장] 각 사업별 협력사 비교
-# ---------------------------------------------------------
-with tab3:
+elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader(f"🤝 각 사업별 {buyer_col}(협력사) 실적 현황")
     
-    # 사업부문 선택 셀렉트박스
     unique_biz = df[biz_col].dropna().unique().tolist()
     selected_biz = st.selectbox("조회할 사업부문을 선택하세요:", unique_biz)
     
-    # 선택된 사업의 데이터 필터링
     filtered_df = df[df[biz_col] == selected_biz]
     buyer_group = filtered_df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     buyer_group["증감액"] = buyer_group[col_26] - buyer_group[col_25]
@@ -362,7 +344,7 @@ with tab3:
         )
         fig3_bar.update_layout(
             title=f"[{selected_biz}] 상위 협력사 실적 비교",
-            height=430,
+            height=450,
             xaxis_tickangle=-45,
             yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
             template="plotly_white",
@@ -379,10 +361,10 @@ with tab3:
             title=f"[{selected_biz}] 2026년 협력사별 비중"
         )
         fig3_pie.update_traces(textposition='inside', textinfo='percent+label')
-        fig3_pie.update_layout(height=430, margin=dict(t=40, b=20, l=10, r=10))
+        fig3_pie.update_layout(height=450, margin=dict(t=40, b=20, l=10, r=10))
         st.plotly_chart(fig3_pie, use_container_width=True)
 
-    st.markdown(f"**📋 [{selected_biz}] 협력사별 실적 상세표**")
+    st.markdown(f"##### 📋 [{selected_biz}] 협력사별 실적 상세표")
     st.dataframe(buyer_group.style.format({
         col_25: "{:,.0f}",
         col_26: "{:,.0f}",
