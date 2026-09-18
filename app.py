@@ -104,7 +104,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 결측치/문자형 숫자 정제
+# 3. 데이터 로드 및 전처리
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -117,12 +117,11 @@ def get_data():
             pass
     return pd.DataFrame({
         "사업구분": ["GB시험", "GB시험", "KC인증", "바이어 매뉴얼", "완제품검사", "위생용품"],
-        "바이어명": ["코오롱스포츠", "F&F", "무신사", "삼성물산", "FILA", "데상트"],
-        "25년 1월": [45000000, 32000000, 28000000, 19000000, 12000000, 8000000],
-        "26년 1월": [48000000, 31000000, 33000000, 22000000, 15000000, 9500000]
+        "바이어명": ["POLO RALPH LAUREN", "CLUB MONACO", "무신사", "삼성물산", "FILA", "데상트"],
+        "25년 1월": [304000000, 3500000, 28000000, 19000000, 12000000, 8000000],
+        "26년 1월": [363000000, 2800000, 33000000, 22000000, 15000000, 9500000]
     })
 
-# 사이드바 데이터 업로드
 st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀/CSV 파일 업로드", type=["xlsx", "csv"])
 if uploaded_file:
@@ -133,7 +132,7 @@ if uploaded_file:
 else:
     df = get_data()
 
-# 쉼표(,) 포함 문자열 숫자 자동 변환
+# 쉼표(,) 포함 문자열 숫자 변환
 for col in df.columns:
     if df[col].dtype == object:
         cleaned = df[col].astype(str).str.replace(',', '').str.strip()
@@ -149,7 +148,7 @@ if not num_cols:
     st.stop()
 
 # =========================================================
-# 4. 사이드바 메뉴: 3가지 카테고리 선택
+# 4. 사이드바 메뉴 (3가지 카테고리)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📑 분석 페이지 선택")
@@ -164,17 +163,22 @@ page_menu = st.sidebar.radio(
     index=0
 )
 
-# 데이터 내부 컬럼 자동 감지
+# 컬럼 자동 감지
 col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0])
 col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
 buyer_col = next((c for c in other_cols if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처"])), other_cols[0] if other_cols else df.columns[0])
 biz_col = next((c for c in other_cols if any(k in str(c) for k in ["사업", "구분", "분류", "항목"])), other_cols[1] if len(other_cols) > 1 else other_cols[0])
 
+# 그래프 왜곡을 일으키는 TOTAL/합계 행 제외 데이터 생성
+clean_df = df[~df[buyer_col].astype(str).str.upper().str.contains("TOTAL|합계|소계")].copy()
+if biz_col in clean_df.columns:
+    clean_df = clean_df[~clean_df[biz_col].astype(str).str.upper().str.contains("TOTAL|합계|소계")]
+
 # =========================================================
 # 5. 상단 실적 비교 카드 (공통 노출)
 # =========================================================
-total_25 = float(df[col_25].sum())
-total_26 = float(df[col_26].sum())
+total_25 = float(clean_df[col_25].sum())
+total_26 = float(clean_df[col_26].sum())
 diff_val = total_26 - total_25
 diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
@@ -225,52 +229,75 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 선택된 카테고리별 본문 화면 렌더링
+# 6. 선택된 카테고리별 본문 화면
 # =========================================================
 
 # [첫번째장] 종합 실적 현황
 if page_menu == "첫번째장 : 종합 실적 현황":
-    st.subheader(f"📌 {buyer_col}별 2025년 총 실적 vs 2026년 총 실적 비교")
-    col1_l, col1_r = st.columns([6, 4])
+    # 1. 2025년 총 실적 vs 2026년 총 실적 비교 막대 그래프
+    st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
     
-    chart_data = df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
+    chart_data = clean_df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     chart_data_renamed = chart_data.rename(columns={col_25: "2025년 총 실적", col_26: "2026년 총 실적"})
     
-    with col1_l:
-        fig1_bar = px.bar(
-            chart_data_renamed,
-            x=buyer_col,
-            y=["2025년 총 실적", "2026년 총 실적"],
-            barmode='group',
-            labels={"value": "실적금액 (원)", "variable": "실적 구분"},
-            color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
-        )
-        fig1_bar.update_layout(
-            height=460,
-            xaxis_tickangle=-45,
-            yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
-            template="plotly_white",
-            legend=dict(orientation="h", y=1.12, x=0)
-        )
-        st.plotly_chart(fig1_bar, use_container_width=True)
+    fig1_bar = px.bar(
+        chart_data_renamed,
+        x=buyer_col,
+        y=["2025년 총 실적", "2026년 총 실적"],
+        barmode='group',
+        labels={"value": "실적금액 (원)", "variable": "실적 구분"},
+        color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
+    )
+    fig1_bar.update_layout(
+        height=430,
+        xaxis_tickangle=-30,
+        yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
+        template="plotly_white",
+        legend=dict(orientation="h", y=1.12, x=0)
+    )
+    st.plotly_chart(fig1_bar, use_container_width=True)
 
-    with col1_r:
-        fig1_pie = px.pie(
-            chart_data.head(8),
-            names=buyer_col,
+    st.write("")
+    
+    # 2. 사업별 점유율 비중 (2025년 vs 2026년 2가지 원형 그래프)
+    st.subheader("🥧 사업별 점유율 비중")
+    pie_col1, pie_col2 = st.columns(2)
+    
+    # 사업구분 기준 집계 (없을 시 바이어 기준)
+    pie_group_col = biz_col if biz_col in clean_df.columns and clean_df[biz_col].nunique() > 1 else buyer_col
+    pie_data = clean_df.groupby(pie_group_col, as_index=False)[[col_25, col_26]].sum()
+    
+    with pie_col1:
+        fig_pie_25 = px.pie(
+            pie_data,
+            names=pie_group_col,
+            values=col_25,
+            hole=0.4,
+            title=f"2025년 기준 {pie_group_col} 점유율",
+            color_discrete_sequence=px.colors.sequential.Blues_r
+        )
+        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie_25.update_layout(height=420, margin=dict(t=50, b=20, l=10, r=10))
+        st.plotly_chart(fig_pie_25, use_container_width=True)
+
+    with pie_col2:
+        fig_pie_26 = px.pie(
+            pie_data,
+            names=pie_group_col,
             values=col_26,
             hole=0.4,
-            title=f"2026년 {buyer_col} 점유율 비중"
+            title=f"2026년 기준 {pie_group_col} 점유율",
+            color_discrete_sequence=px.colors.sequential.Teal_r
         )
-        fig1_pie.update_traces(textposition='inside', textinfo='percent+label')
-        fig1_pie.update_layout(height=460, margin=dict(t=40, b=20, l=10, r=10))
-        st.plotly_chart(fig1_pie, use_container_width=True)
+        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie_26.update_layout(height=420, margin=dict(t=50, b=20, l=10, r=10))
+        st.plotly_chart(fig_pie_26, use_container_width=True)
 
 # [두번째장] 각 사업별 년도 대비 실적 비교
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader(f"🏢 {biz_col}별 2025년 vs 2026년 실적 증감 비교")
     
-    biz_df = df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
+    biz_df = clean_df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
     biz_df["증감액"] = biz_df[col_26] - biz_df[col_25]
     biz_df["증감률(%)"] = (biz_df["증감액"] / biz_df[col_25].replace(0, pd.NA) * 100).fillna(0)
     biz_df = biz_df.sort_values(by=col_26, ascending=False)
@@ -321,10 +348,10 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader(f"🤝 각 사업별 {buyer_col}(협력사) 실적 현황")
     
-    unique_biz = df[biz_col].dropna().unique().tolist()
+    unique_biz = clean_df[biz_col].dropna().unique().tolist()
     selected_biz = st.selectbox("조회할 사업부문을 선택하세요:", unique_biz)
     
-    filtered_df = df[df[biz_col] == selected_biz]
+    filtered_df = clean_df[clean_df[biz_col] == selected_biz]
     buyer_group = filtered_df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     buyer_group["증감액"] = buyer_group[col_26] - buyer_group[col_25]
     buyer_group["증감률(%)"] = (buyer_group["증감액"] / buyer_group[col_25].replace(0, pd.NA) * 100).fillna(0)
