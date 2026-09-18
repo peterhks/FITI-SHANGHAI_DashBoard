@@ -139,10 +139,10 @@ if target_file:
 
 if not target_file:
     df = pd.DataFrame({
-        "사업구분": ["글로벌바이어", "패션잡화", "GB", "제품평가", "기타 사업"],
-        "바이어명": ["POLO RALPH LAUREN", "F&F", "무신사", "삼성물산", "FILA"],
-        "25년 1월": [120000000, 95000000, 65000000, 25000000, 15000000],
-        "26년 1월": [140000000, 105000000, 72000000, 28000000, 18000000]
+        "사업구분": ["글로벌바이어", "패션잡화", "GB", "제품평가"],
+        "바이어명": ["POLO RALPH LAUREN", "F&F", "무신사", "삼성물산"],
+        "25년 1월": [120000000, 95000000, 65000000, 25000000],
+        "26년 1월": [140000000, 105000000, 72000000, 28000000]
     })
 
 num_cols = df.select_dtypes(include=['number']).columns.tolist()
@@ -168,14 +168,14 @@ biz_col = st.sidebar.selectbox("사업 구분 기준 컬럼", other_cols if othe
 buyer_col = st.sidebar.selectbox("바이어(고객사) 기준 컬럼", other_cols if other_cols else df.columns, index=default_buyer_idx)
 
 # =========================================================
-# 5. TOTAL / SUB TOTAL 전역 제외 필터링 (가장 핵심)
+# 5. TOTAL / SUB TOTAL / 구분 / 상해지사 사업코드 제외 필터링
 # =========================================================
-# 사업구분 및 바이어명 컬럼 모두에서 TOTAL, SUB TOTAL, 합계, 소계 패턴 완전 배제
-exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계"
+# 요청하신 '구분', '상해지사 사업코드', 'TOTAL', 'SUB TOTAL', '합계' 등 불필요한 메타/합계 행 완벽 제거
+exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
 
 calc_df = df[
-    (~df[biz_col].astype(str).str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
-    (~df[buyer_col].astype(str).str.upper().str.contains(exclude_pattern, regex=True, na=False))
+    (~df[biz_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
+    (~df[buyer_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False))
 ].copy()
 
 if calc_df.empty:
@@ -257,7 +257,6 @@ page_menu = st.sidebar.radio(
 if page_menu == "첫번째장 : 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
     
-    # 1. 상위 바이어 실적 비교 막대 차트
     chart_data = calc_df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     chart_data_renamed = chart_data.rename(columns={col_25: "2025년 총 실적", col_26: "2026년 총 실적"})
     
@@ -279,23 +278,14 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     st.plotly_chart(fig1_bar, use_container_width=True)
 
     st.write("")
-    # 2. 사업별 점유율 비중 (TOTAL, SUB TOTAL이 완전 배제된 순수 사업별 점유율)
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
+    # 순수 사업명만 추출하여 집계
     biz_df = calc_df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
     
-    # 상위 6개 사업 외에는 '기타 사업'으로 묶음
-    def filter_and_group(data_frame, target_col, val_column, top_n=6):
-        sorted_df = data_frame.sort_values(by=val_column, ascending=False)
-        if len(sorted_df) > top_n:
-            top_part = sorted_df.head(top_n).copy()
-            etc_sum = sorted_df.iloc[top_n:][val_column].sum()
-            etc_row = pd.DataFrame([{target_col: "기타 사업", val_column: etc_sum}])
-            return pd.concat([top_part[[target_col, val_column]], etc_row], ignore_index=True)
-        return sorted_df[[target_col, val_column]]
-
-    pie_25_data = filter_and_group(biz_df, biz_col, col_25)
-    pie_26_data = filter_and_group(biz_df, biz_col, col_26)
+    # 값이 0보다 큰 정상적인 사업 항목만 필터링
+    pie_25_data = biz_df[biz_df[col_25] > 0].sort_values(by=col_25, ascending=False)
+    pie_26_data = biz_df[biz_df[col_26] > 0].sort_values(by=col_26, ascending=False)
     
     pie_col1, pie_col2 = st.columns(2)
     
