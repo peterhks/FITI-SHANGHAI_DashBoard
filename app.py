@@ -151,7 +151,6 @@ def get_sheet_by_keyword(keywords):
 summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
 raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name)
 
-# '상해지사 사업코드' 같은 상단 타이틀 행 제거하고 '구분'이 있는 헤더 행 자동 검색
 header_row_idx = 0
 for idx, row in raw_summary.iterrows():
     row_text = "".join(row.dropna().astype(str).tolist())
@@ -159,30 +158,27 @@ for idx, row in raw_summary.iterrows():
         header_row_idx = idx
         break
 
-# 정확한 헤더로 다시 로드
 df_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, skiprows=header_row_idx)
 df_summary = clean_data(df_summary)
 
-# 25년/26년 실적 컬럼 식별
 num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
 col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
 col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
 
-# '구분' 컬럼 식별
 other_cols = [c for c in df_summary.columns if c not in num_cols]
 cat_col = other_cols[0] if other_cols else df_summary.columns[0]
+sub_cat_col = other_cols[1] if len(other_cols) > 1 else None
+
 for c in other_cols:
     sample_str = "".join(df_summary[c].dropna().astype(str).tolist())
     if any(k in sample_str for k in ["패션잡화", "GB", "글로벌", "제품평가"]):
         cat_col = c
         break
 
-# ★ 핵심: 병합 셀로 인해 생긴 빈칸(NaN)을 바로 위 사업명으로 채워넣음 (ffill)
-# 단, SUB TOTAL과 TOTAL은 채워지지 않도록 정돈
+# 병합 셀 빈칸 채우기
 df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
 df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
 
-# 4대 표준 카테고리 매핑 함수
 def map_biz_category(val):
     s = str(val).replace(" ", "").upper()
     if "글로벌" in s or "GLOBAL" in s:
@@ -197,21 +193,25 @@ def map_biz_category(val):
 
 df_summary["표준사업구분"] = df_summary["사업구분_채움"].apply(map_biz_category)
 
-# SUB TOTAL, TOTAL 행은 사업별 합산에서 제외 (중복 방지)
 exclude_pattern = r"SUB\s*TOTAL|TOTAL|합계|소계"
 calc_summary = df_summary[
     (~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
     (df_summary["표준사업구분"].notnull())
 ].copy()
 
-# 4대 사업별 완벽 집계 (part1+part2, 원단+가먼트 완전 합산)
+# 세부 항목명 정돈
+if sub_cat_col:
+    calc_summary["세부항목"] = calc_summary[sub_cat_col].fillna(calc_summary["표준사업구분"]).astype(str)
+else:
+    calc_summary["세부항목"] = calc_summary["표준사업구분"]
+
 target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
 summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 상단 종합 KPI 카드 (엑셀 TOTAL 행과 100% 일치)
+# 5. 상단 종합 KPI 카드
 # =========================================================
 total_25 = float(summary_chart[col_25].sum())
 total_26 = float(summary_chart[col_26].sum())
@@ -265,7 +265,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 세부 파트 시트 로드 및 검증 함수
+# 6. 파트별 세부 데이터 로드 및 검증
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -312,7 +312,6 @@ def load_part_data(categories_target):
         return combined.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
     return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
 
-# 4대 사업별 검증 결과 생성
 audit_results = []
 part_data_cache = {}
 
@@ -427,33 +426,51 @@ if page_menu == "첫번째장 : 종합 실적 현황":
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교
+# [두번째장] 각 사업별 년도 대비 실적 비교 (사업별 선택 필터 추가)
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
-    biz_df = summary_chart.copy()
-    biz_df["증감액"] = biz_df[col_26] - biz_df[col_25]
-    biz_df["증감률"] = ((biz_df["증감액"] / biz_df[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
+    # -------------------------------------------------------------
+    # [추가] 사업별 선택 필터 셀렉트박스
+    # -------------------------------------------------------------
+    biz_filter_options = ["전체 사업 보기"] + target_categories
+    selected_view = st.selectbox("조회할 사업부문을 선택하세요:", biz_filter_options, index=0)
+    
+    # 선택에 따른 데이터 분기
+    if selected_view == "전체 사업 보기":
+        display_df = summary_chart.copy()
+        x_col = "표준사업구분"
+        x_categories = target_categories
+        sub_title_diff = "사업별 실적 증감액 (26년 - 25년)"
+    else:
+        # 특정 사업 선택 시: 하위 세부파트 비교 (예: part1 vs part2, 원단 vs 가먼트 등)
+        display_df = calc_summary[calc_summary["표준사업구분"] == selected_view].copy()
+        x_col = "세부항목"
+        x_categories = display_df["세부항목"].unique().tolist()
+        sub_title_diff = f"[{selected_view}] 세부항목별 실적 증감액 (26년 - 25년)"
+        
+    display_df["증감액"] = display_df[col_26] - display_df[col_25]
+    display_df["증감률"] = ((display_df["증감액"] / display_df[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
     
     col2_l, col2_r = st.columns([6, 4])
     
     with col2_l:
         fig2_bar = go.Figure()
         fig2_bar.add_trace(go.Bar(
-            x=biz_df["표준사업구분"],
-            y=biz_df[col_25],
+            x=display_df[x_col],
+            y=display_df[col_25],
             name="2025년 실적",
             marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
-            text=biz_df[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            text=display_df[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
             textposition="outside",
             textfont=dict(size=11, color="#475569", family="Pretendard")
         ))
         fig2_bar.add_trace(go.Bar(
-            x=biz_df["표준사업구분"],
-            y=biz_df[col_26],
+            x=display_df[x_col],
+            y=display_df[col_26],
             name="2026년 실적",
             marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
-            text=biz_df[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            text=display_df[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
             textposition="outside",
             textfont=dict(size=11, color="#0F172A", family="Pretendard", weight="bold")
         ))
@@ -462,7 +479,7 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
             bargap=0.30,
             bargroupgap=0.10,
             yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9"),
-            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            xaxis=dict(categoryorder='array', categoryarray=x_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
             template="plotly_white",
             legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
             margin=dict(t=50, b=20, l=10, r=10)
@@ -470,43 +487,43 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         st.plotly_chart(fig2_bar, use_container_width=True)
 
     with col2_r:
-        diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in biz_df["증감액"]]
-        diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in biz_df["증감액"]]
+        diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in display_df["증감액"]]
+        diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in display_df["증감액"]]
         
         fig2_diff = go.Figure()
         fig2_diff.add_trace(go.Bar(
-            x=biz_df["표준사업구분"],
-            y=biz_df["증감액"],
+            x=display_df[x_col],
+            y=display_df["증감액"],
             marker=dict(color=diff_colors, cornerradius=6),
             text=diff_texts,
             textposition="outside",
             textfont=dict(size=11, weight="bold", family="Pretendard")
         ))
         fig2_diff.update_layout(
-            title="사업별 실적 증감액 (26년 - 25년)",
+            title=sub_title_diff,
             height=440,
             bargap=0.45,
             yaxis=dict(title=dict(text="증감액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
-            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            xaxis=dict(categoryorder='array', categoryarray=x_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
             template="plotly_white",
             margin=dict(t=50, b=20, l=10, r=10)
         )
         st.plotly_chart(fig2_diff, use_container_width=True)
         
-    st.markdown("##### 📋 사업별 세부 실적 요약 테이블")
+    st.markdown(f"##### 📋 [{'전체 사업' if selected_view == '전체 사업 보기' else selected_view}] 실적 요약 테이블")
     
     table_df = pd.DataFrame({
-        "사업구분": biz_df["표준사업구분"],
-        "2025년 실적 (원)": biz_df[col_25],
-        "2026년 실적 (원)": biz_df[col_26],
-        "증감액 (원)": biz_df["증감액"],
-        "증감률(%)": biz_df["증감률"]
+        "구분": display_df[x_col],
+        "2025년 실적 (원)": display_df[col_25],
+        "2026년 실적 (원)": display_df[col_26],
+        "증감액 (원)": display_df["증감액"],
+        "증감률(%)": display_df["증감률"]
     })
     
     st.dataframe(
         table_df,
         column_config={
-            "사업구분": st.column_config.TextColumn("사업구분", width="medium"),
+            "구분": st.column_config.TextColumn("구분", width="medium"),
             "2025년 실적 (원)": st.column_config.NumberColumn("2025년 실적 (원)", format="₩%,d"),
             "2026년 실적 (원)": st.column_config.NumberColumn("2026년 실적 (원)", format="₩%,d"),
             "증감액 (원)": st.column_config.NumberColumn("증감액 (원)", format="₩%+d"),
@@ -536,7 +553,7 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         use_container_width=True
     )
 
-# [세번째장] 각 사업별 협력사(바이어) 비교 (실제 파트 시트 데이터 직접 연동)
+# [세번째장] 각 사업별 협력사(바이어) 비교
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화")
     
@@ -551,7 +568,6 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
         b_chart["증감액"] = b_chart["2026년 실적"] - b_chart["2025년 실적"]
         b_chart["증감률"] = ((b_chart["증감액"] / b_chart["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
         
-        # 2026년 실적 기준 상위 10개 추출
         top_buyers = b_chart.sort_values(by="2026년 실적", ascending=False).head(10).reset_index(drop=True)
 
         col3_l, col3_r = st.columns([6, 4])
