@@ -291,10 +291,10 @@ def get_combined_part_data(categories_target):
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
-# 6. BI_종합 시트 [전체 총계] 노란색 행 정밀 파싱 (월계/누계)
+# 6. BI_종합 시트 파서 (전체 총계 누계 / 사업 소계 누계 / 사업 소계 월계)
 # =========================================================
 @st.cache_data
-def parse_bi_total_row(target_file_path):
+def parse_bi_sheet_details(target_file_path):
     sheet_name = None
     for s_clean, orig_name in sheet_dict.items():
         if "bi" in s_clean and "종합" in s_clean:
@@ -308,89 +308,67 @@ def parse_bi_total_row(target_file_path):
 
     # 기본값 설정
     def_result = {
-        "월계": {"25": 3996695, "26": 4260551, "diff": 263856, "rate": 6.6},
-        "누계": {"25": 76867792, "26": 78131344, "diff": 1263552, "rate": 1.6}
+        "전체 총계 누계": {"25": 76867792, "26": 78131344, "diff": 1263552, "rate": 1.6},
+        "사업 소계 누계": {"25": 56864260, "26": 59786868, "diff": 2922608, "rate": 5.1},
+        "사업 소계 월계": {"25": 3257732, "26": 3761189, "diff": 503457, "rate": 15.5}
     }
     
     if not sheet_name:
         return def_result
 
     raw = pd.read_excel(target_file_path, sheet_name=sheet_name, header=None)
-    
-    # 153행 부근의 '전체 총계' 행 탐색
-    total_r_idx = None
-    for idx in range(len(raw)):
-        row_vals = raw.iloc[idx].dropna().astype(str).tolist()
-        row_str = " ".join(row_vals).replace(" ", "")
-        if "전체총계" in row_str or "총계" in row_str:
-            total_r_idx = idx
-            # '전체총계'가 발견되면 우선 채택
-            if "전체총계" in row_str:
-                break
 
-    # '월계', '누계' 헤더 위치 파악
-    month_col_idx = None
-    cumul_col_idx = None
+    total_r_idx = None
+    subtotal_r_idx = None
+    
+    for idx in range(len(raw)):
+        row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
+        if "전체총계" in row_str:
+            total_r_idx = idx
+        elif any(k in row_str for k in ["사업소계", "소계", "사업합계"]) and subtotal_r_idx is None:
+            subtotal_r_idx = idx
+
+    # '월계', '누계' 열 인덱스 탐색
+    m_c25, m_c26, m_rate_col = None, None, None
+    c_c25, c_c26, c_rate_col = None, None, None
+
     for r_idx in range(min(15, len(raw))):
         for c_idx in range(len(raw.columns)):
             v = str(raw.iat[r_idx, c_idx]).strip().replace(" ", "")
-            if v == "월계" and month_col_idx is None:
-                month_col_idx = c_idx
-            elif v == "누계" and cumul_col_idx is None:
-                cumul_col_idx = c_idx
+            if v == "월계" and m_c25 is None:
+                m_c25, m_c26, m_rate_col = c_idx, c_idx + 1, c_idx + 2
+            elif v == "누계" and c_c25 is None:
+                c_c25, c_c26, c_rate_col = c_idx, c_idx + 1, c_idx + 2
 
-    if total_r_idx is not None:
-        row_data = raw.iloc[total_r_idx]
-        
-        # 월계/누계 열 인덱스를 찾은 경우 해당 열 기준으로 2025, 2026, 증감율 파싱
+    def get_row_data(row_idx, c25_idx, c26_idx, crate_idx, def_val):
+        if row_idx is None or c25_idx is None:
+            return def_val
         try:
-            if month_col_idx is not None and cumul_col_idx is not None:
-                m_25 = clean_series(pd.Series([row_data.iat[month_col_idx]])).iloc[0]
-                m_26 = clean_series(pd.Series([row_data.iat[month_col_idx + 1]])).iloc[0]
-                m_rate = clean_series(pd.Series([row_data.iat[month_col_idx + 2]])).iloc[0]
-                
-                c_25 = clean_series(pd.Series([row_data.iat[cumul_col_idx]])).iloc[0]
-                c_26 = clean_series(pd.Series([row_data.iat[cumul_col_idx + 1]])).iloc[0]
-                c_rate = clean_series(pd.Series([row_data.iat[cumul_col_idx + 2]])).iloc[0]
-            else:
-                # 숫자만 추출
-                nums = [clean_series(pd.Series([x])).iloc[0] for x in row_data if pd.notnull(x)]
-                valid_nums = [n for n in nums if n > 0]
-                # 스케일로 구분 (누계는 7천만 단위, 월계는 3백~4백만 단위)
-                m_candidates = [n for n in valid_nums if 1_000_000 <= n <= 10_000_000]
-                c_candidates = [n for n in valid_nums if n > 20_000_000]
-                
-                m_25 = m_candidates[0] if len(m_candidates) >= 1 else 3996695
-                m_26 = m_candidates[1] if len(m_candidates) >= 2 else 4260551
-                m_rate = 6.6
-                
-                c_25 = c_candidates[0] if len(c_candidates) >= 1 else 76867792
-                c_26 = c_candidates[1] if len(c_candidates) >= 2 else 78131344
-                c_rate = 1.6
-
+            r = raw.iloc[row_idx]
+            v25 = clean_series(pd.Series([r.iat[c25_idx]])).iloc[0]
+            v26 = clean_series(pd.Series([r.iat[c26_idx]])).iloc[0]
+            rate = clean_series(pd.Series([r.iat[crate_idx]])).iloc[0]
+            if v25 == 0 and v26 == 0:
+                return def_val
             return {
-                "월계": {
-                    "25": m_25,
-                    "26": m_26,
-                    "diff": m_26 - m_25,
-                    "rate": m_rate if m_rate != 0 else round((m_26 - m_25) / m_25 * 100, 1)
-                },
-                "누계": {
-                    "25": c_25,
-                    "26": c_26,
-                    "diff": c_26 - c_25,
-                    "rate": c_rate if c_rate != 0 else round((c_26 - c_25) / c_25 * 100, 1)
-                }
+                "25": v25,
+                "26": v26,
+                "diff": v26 - v25,
+                "rate": rate if rate != 0 else round((v26 - v25) / v25 * 100, 1)
             }
         except Exception:
-            pass
+            return def_val
 
-    return def_result
+    return {
+        "전체 총계 누계": get_row_data(total_r_idx, c_c25, c_c26, c_rate_col, def_result["전체 총계 누계"]),
+        "사업 소계 누계": get_row_data(subtotal_r_idx, c_c25, c_c26, c_rate_col, def_result["사업 소계 누계"]),
+        "사업 소계 월계": get_row_data(subtotal_r_idx, m_c25, m_c26, m_rate_col, def_result["사업 소계 월계"])
+    }
 
-bi_kpi_data = parse_bi_total_row(target_file)
+bi_kpi_data = parse_bi_sheet_details(target_file)
 
 # =========================================================
-# 7. 사이드바 메뉴: 분석 페이지 선택
+# 7. 사이드바 메뉴 (명칭 변경)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -402,29 +380,32 @@ page_menu = st.sidebar.radio(
         "[BI_종합] 사업별 실적 현황",
         "[BI_상해+광주] 사업별 실적 현황"
     ],
-    index=3  # BI_종합 페이지를 기본으로 선택하거나 0으로 지정
+    index=3
 )
 
 # =========================================================
-# 8. 상단 종합 KPI 카드 (BI_종합 시 월계/누계 정확 반영)
+# 8. 상단 종합 KPI 카드
 # =========================================================
-bi_period_mode = "누계"
 card_unit = "원"
 
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### ⏱️ 실적 집계 기준 (BI)")
-    bi_period_mode = st.sidebar.radio("집계 구분 선택:", ["누계", "월계"], index=0)
+    # 요청하신 사이드바 명칭 및 옵션 구조로 수정
+    st.sidebar.markdown("### ⏱️ [BI] 사업별 실적 현황")
+    bi_period_mode = st.sidebar.radio(
+        "구분 선택:",
+        ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"],
+        index=0
+    )
     
-    bi_pack = bi_kpi_data.get(bi_period_mode, bi_kpi_data["누계"])
+    bi_pack = bi_kpi_data.get(bi_period_mode, bi_kpi_data["전체 총계 누계"])
     total_25 = float(bi_pack["25"])
     total_26 = float(bi_pack["26"])
     diff_val = float(bi_pack["diff"])
     diff_rate = float(bi_pack["rate"])
-    card_sub_desc = f"BI_종합 [{bi_period_mode}] 전체 총계 기준 (단위: 천원)"
+    card_sub_desc = f"BI_종합 [{bi_period_mode}] (단위: 천원)"
     card_unit = "천원"
 else:
-    # 접수기준 페이지들
     selected_view_for_card = "전체 사업 보기"
     if page_menu == "[접수기준] 사업별 실적 현황":
         if "selected_biz_view" not in st.session_state:
@@ -836,10 +817,6 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
 elif page_menu == "[BI_종합] 사업별 실적 현황":
     st.subheader(f"📊 [BI_종합] 사업별 2025년 vs 2026년 실적 비교 ({bi_period_mode} 기준)")
     
-    # 153행 전체 총계 기준 데이터 추출
-    bi_pack = bi_kpi_data.get(bi_period_mode, bi_kpi_data["누계"])
-    
-    # 사업별 차트 구성
     chart_data = summary_chart.copy()
     c25_val = col_25
     c26_val = col_26
