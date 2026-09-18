@@ -882,7 +882,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
             use_container_width=True
         )
 
-# [페이지 4] [BI_종합] 사업별 실적 현황 (상하 전폭 배치 + 글씨 확대 및 증감률 표기)
+# [페이지 4] [BI_종합] 사업별 실적 현황 (상하 전폭 배치 + 15px/14px Bold 폰트 적용)
 elif page_menu == "[BI_종합] 사업별 실적 현황":
     chart_period_key = "월계" if "월계" in bi_period_mode else "누계"
     chart_df = bi_8cat_charts[chart_period_key].copy()
@@ -890,20 +890,19 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
     st.subheader(f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({chart_period_key} 기준)")
     chart_df["증감액"] = chart_df["2026년 실적"] - chart_df["2025년 실적"]
     
-    # 증감률이 비어있을 경우 계산
     if "증감률" not in chart_df.columns or chart_df["증감률"].isnull().all():
         chart_df["증감률"] = ((chart_df["증감액"] / chart_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
         
-    # 2026년 바 텍스트: [실적 금액] + <br> + [증감률 (%)]
+    # 2026년 바 텍스트: [실적 금액] + <br> + [증감률 (%)] (14~15px Bold)
     label_26 = []
     for idx, row in chart_df.iterrows():
         val = row["2026년 실적"]
         rt = row["증감률"]
         val_str = f"{val/1e4:.1f}만" if val >= 1e4 else f"{val:,.0f}"
         sign_str = "+" if rt > 0 else ""
-        label_26.append(f"{val_str}<br><span style='font-size:11px; color:#1D4ED8;'>({sign_str}{rt:0.1f}%)</span>")
+        label_26.append(f"<span style='font-size:15px; font-weight:800;'>{val_str}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_str}{rt:0.1f}%)</span>")
         
-    label_25 = [f"{v/1e4:.1f}만" if v >= 1e4 else f"{v:,.0f}" for v in chart_df["2025년 실적"]]
+    label_25 = [f"<span style='font-size:14px; font-weight:700;'>{v/1e4:.1f}만</span>" if v >= 1e4 else f"<span style='font-size:14px; font-weight:700;'>{v:,.0f}</span>" for v in chart_df["2025년 실적"]]
 
     # 상단 전폭 비교 차트
     fig4_bar = go.Figure()
@@ -914,7 +913,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=label_25,
         textposition="outside",
-        textfont=dict(size=12, color="#475569", family="Pretendard", weight="bold")
+        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
     ))
     fig4_bar.add_trace(go.Bar(
         x=chart_df["표준사업구분"],
@@ -923,22 +922,22 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=label_26,
         textposition="outside",
-        textfont=dict(size=12, color="#0F172A", family="Pretendard", weight="bold")
+        textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig4_bar.update_layout(
-        height=450,
+        height=480,
         bargap=0.30,
         bargroupgap=0.08,
         yaxis=dict(
             rangemode='tozero',
-            title=dict(text="실적금액 (천원)", font=dict(size=13, color="#475569", weight="bold")),
+            title=dict(text="실적금액 (천원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
-            tickfont=dict(size=11, color="#64748B")
+            tickfont=dict(size=14, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=BI_8_CATEGORIES,
-            tickfont=dict(size=13, weight="bold", color="#0F172A")
+            tickfont=dict(size=15, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         legend=dict(
@@ -947,7 +946,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
             y=1.05,
             xanchor="left",
             x=0,
-            font=dict(size=13, color="#1E293B", weight="bold")
+            font=dict(size=14, color="#1E293B", weight="bold")
         ),
         margin=dict(t=50, b=25, l=10, r=10)
     )
@@ -958,7 +957,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
     st.markdown("##### 📈 8대 사업별 증감액 및 증감률 (26년 - 25년)")
     diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in chart_df["증감액"]]
     
-    # 텍스트 라벨: [증감액] + (증감률%)
+    # 텍스트 라벨: [증감액] + (증감률%) (14~15px Bold)
     diff_texts = []
     for _, row in chart_df.iterrows():
         diff_v = row["증감액"]
@@ -966,7 +965,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         sign_v = "+" if diff_v >= 0 else ""
         sign_r = "+" if rt >= 0 else ""
         v_str = f"{diff_v/1e4:.1f}만" if abs(diff_v) >= 1e4 else f"{diff_v:,.0f}"
-        diff_texts.append(f"<b>{sign_v}{v_str}</b><br>({sign_r}{rt:0.1f}%)")
+        diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{v_str}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
     
     fig4_diff = go.Figure()
     fig4_diff.add_trace(go.Bar(
@@ -975,21 +974,21 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         marker=dict(color=diff_colors, cornerradius=6),
         text=diff_texts,
         textposition="outside",
-        textfont=dict(size=12, family="Pretendard")
+        textfont=dict(size=14, family="Pretendard", weight="bold")
     ))
     fig4_diff.update_layout(
-        height=380,
+        height=400,
         bargap=0.38,
         yaxis=dict(
-            title=dict(text="증감액 (천원)", font=dict(size=13, color="#475569", weight="bold")),
+            title=dict(text="증감액 (천원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             zerolinecolor="#CBD5E1",
-            tickfont=dict(size=11, color="#64748B")
+            tickfont=dict(size=14, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=BI_8_CATEGORIES,
-            tickfont=dict(size=13, weight="bold", color="#0F172A")
+            tickfont=dict(size=15, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         margin=dict(t=30, b=25, l=10, r=10)
@@ -1017,7 +1016,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         use_container_width=True
     )
 
-# [페이지 5] [BI_상해+광주] 사업별 실적 현황 (상하 전폭 배치 + 글씨 확대 및 증감률 표기)
+# [페이지 5] [BI_상해+광주] 사업별 실적 현황 (상하 전폭 배치 + 15px/14px Bold 폰트 적용)
 elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
     chart_period_key = "월계" if "월계" in bi_period_mode else "누계"
     chart_df = bi_8cat_charts[chart_period_key].copy()
@@ -1033,9 +1032,9 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
         rt = row["증감률"]
         val_str = f"{val/1e4:.1f}만" if val >= 1e4 else f"{val:,.0f}"
         sign_str = "+" if rt > 0 else ""
-        label_26.append(f"{val_str}<br><span style='font-size:11px; color:#1D4ED8;'>({sign_str}{rt:0.1f}%)</span>")
+        label_26.append(f"<span style='font-size:15px; font-weight:800;'>{val_str}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_str}{rt:0.1f}%)</span>")
         
-    label_25 = [f"{v/1e4:.1f}만" if v >= 1e4 else f"{v:,.0f}" for v in chart_df["2025년 실적"]]
+    label_25 = [f"<span style='font-size:14px; font-weight:700;'>{v/1e4:.1f}만</span>" if v >= 1e4 else f"<span style='font-size:14px; font-weight:700;'>{v:,.0f}</span>" for v in chart_df["2025년 실적"]]
 
     # 상단 전폭 비교 차트
     fig5_bar = go.Figure()
@@ -1046,7 +1045,7 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=label_25,
         textposition="outside",
-        textfont=dict(size=12, color="#475569", family="Pretendard", weight="bold")
+        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
     ))
     fig5_bar.add_trace(go.Bar(
         x=chart_df["표준사업구분"],
@@ -1055,22 +1054,22 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=label_26,
         textposition="outside",
-        textfont=dict(size=12, color="#0F172A", family="Pretendard", weight="bold")
+        textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig5_bar.update_layout(
-        height=450,
+        height=480,
         bargap=0.30,
         bargroupgap=0.08,
         yaxis=dict(
             rangemode='tozero',
-            title=dict(text="실적금액 (천원)", font=dict(size=13, color="#475569", weight="bold")),
+            title=dict(text="실적금액 (천원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
-            tickfont=dict(size=11, color="#64748B")
+            tickfont=dict(size=14, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=BI_8_CATEGORIES,
-            tickfont=dict(size=13, weight="bold", color="#0F172A")
+            tickfont=dict(size=15, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         legend=dict(
@@ -1079,7 +1078,7 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
             y=1.05,
             xanchor="left",
             x=0,
-            font=dict(size=13, color="#1E293B", weight="bold")
+            font=dict(size=14, color="#1E293B", weight="bold")
         ),
         margin=dict(t=50, b=25, l=10, r=10)
     )
@@ -1097,7 +1096,7 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
         sign_v = "+" if diff_v >= 0 else ""
         sign_r = "+" if rt >= 0 else ""
         v_str = f"{diff_v/1e4:.1f}만" if abs(diff_v) >= 1e4 else f"{diff_v:,.0f}"
-        diff_texts.append(f"<b>{sign_v}{v_str}</b><br>({sign_r}{rt:0.1f}%)")
+        diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{v_str}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
     
     fig5_diff = go.Figure()
     fig5_diff.add_trace(go.Bar(
@@ -1106,21 +1105,21 @@ elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
         marker=dict(color=diff_colors, cornerradius=6),
         text=diff_texts,
         textposition="outside",
-        textfont=dict(size=12, family="Pretendard")
+        textfont=dict(size=14, family="Pretendard", weight="bold")
     ))
     fig5_diff.update_layout(
-        height=380,
+        height=400,
         bargap=0.38,
         yaxis=dict(
-            title=dict(text="증감액 (천원)", font=dict(size=13, color="#475569", weight="bold")),
+            title=dict(text="증감액 (천원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             zerolinecolor="#CBD5E1",
-            tickfont=dict(size=11, color="#64748B")
+            tickfont=dict(size=14, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=BI_8_CATEGORIES,
-            tickfont=dict(size=13, weight="bold", color="#0F172A")
+            tickfont=dict(size=15, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         margin=dict(t=30, b=25, l=10, r=10)
