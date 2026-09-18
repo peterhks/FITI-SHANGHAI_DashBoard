@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 엔진
+# 3. 데이터 로드 및 정제 유틸리티
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -125,7 +125,7 @@ if target_file:
     try:
         excel_obj = pd.ExcelFile(target_file)
         for s in excel_obj.sheet_names:
-            sheet_dict[s.strip().lower()] = s
+            sheet_dict[s.strip().lower().replace(" ", "")] = s
     except Exception as e:
         st.error(f"엑셀 파일 로드 실패: {e}")
         st.stop()
@@ -135,7 +135,7 @@ else:
 
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
-        if all(k.lower() in s_clean for k in keywords):
+        if all(k.lower().replace(" ", "") in s_clean for k in keywords):
             return orig_name
     return None
 
@@ -291,7 +291,7 @@ def get_combined_part_data(categories_target):
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
-# 6. BI 시트 전용 파서 (8대 카테고리 및 상해/광주별 추출)
+# 6. BI 시트 전용 파서 (BI_종합, BI_상해, BI_광주 분리 적용)
 # =========================================================
 BI_8_CATEGORIES = [
     "일반검사",
@@ -306,16 +306,20 @@ BI_8_CATEGORIES = [
 
 @st.cache_data
 def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
-    # 시트명 탐색
     sheet_name = None
     if bi_target == "광주":
         sheet_name = get_sheet_by_keyword(["bi", "광주"]) or get_sheet_by_keyword(["광주"])
     elif bi_target == "상해":
         sheet_name = get_sheet_by_keyword(["bi", "상해"]) or get_sheet_by_keyword(["상해"])
-    
-    if not sheet_name:
-        sheet_name = get_sheet_by_keyword(["bi", "종합"]) or get_sheet_by_keyword(["bi"])
+    elif bi_target == "종합":
+        sheet_name = get_sheet_by_keyword(["bi", "종합"])
+        if not sheet_name:
+            for s_clean, orig_name in sheet_dict.items():
+                if "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
+                    sheet_name = orig_name
+                    break
 
+    # 기본값 설정
     def_kpi = {
         "전체 총계 누계": {"25": 76867792, "26": 78131344, "diff": 1263552, "rate": 1.6},
         "사업 소계 누계": {"25": 69068999, "26": 71719908, "diff": 2650909, "rate": 3.8},
@@ -325,15 +329,15 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
     def_chart = {
         "누계": pd.DataFrame({
             "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [16206229, 9381654, 56864260, 2682351, 6018433, 4975052, 5396880, 621553],
-            "2026년 실적": [19649628, 9170056, 59786868, 2665836, 5759619, 4624591, 5105447, 654172],
-            "증감률": [21.2, -2.3, 5.1, -0.6, -4.3, -7.0, -5.4, 5.2]
+            "2025년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
+            "2026년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
+            "증감률": [0.0] * 8
         }),
         "월계": pd.DataFrame({
             "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [772498, 395095, 3257732, 156602, 193184, 144749, 161277, 31907],
-            "2026년 실적": [909896, 363575, 3761189, 176905, 162549, 117279, 138849, 23700],
-            "증감률": [17.8, -8.0, 15.5, 13.0, -15.9, -19.0, -13.9, -25.7]
+            "2025년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
+            "2026년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
+            "증감률": [0.0] * 8
         })
     }
 
@@ -345,7 +349,8 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
     m_c25, m_c26, m_rate = None, None, None
     c_c25, c_c26, c_rate = None, None, None
 
-    for r_idx in range(min(15, len(raw))):
+    # 월계, 누계 열 인덱스 자동 검색
+    for r_idx in range(min(20, len(raw))):
         for c_idx in range(len(raw.columns)):
             v = str(raw.iat[r_idx, c_idx]).strip().replace(" ", "")
             if v == "월계" and m_c25 is None:
@@ -358,24 +363,22 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
         row_str = "".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
         if "전체총계" in row_str:
             total_r_idx = idx
-        elif "사업소계" in row_str:
+        elif "사업소계" in row_str and subtotal_r_idx is None:
             subtotal_r_idx = idx
 
     def extract_row_vals(r_idx, col_25_i, col_26_i, col_rate_i, default_dict):
-        if r_idx is None or col_25_i is None:
+        if r_idx is None or col_25_i is None or col_25_i >= len(raw.columns):
             return default_dict
         try:
             r = raw.iloc[r_idx]
             v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0]
             v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0]
-            rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0]
-            if v25 == 0 and v26 == 0:
-                return default_dict
+            rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0] if col_rate_i < len(raw.columns) else 0.0
             return {
                 "25": v25,
                 "26": v26,
                 "diff": v26 - v25,
-                "rate": rt if rt != 0 else round((v26 - v25) / v25 * 100, 1)
+                "rate": rt if rt != 0 else (round((v26 - v25) / v25 * 100, 1) if v25 != 0 else 0.0)
             }
         except Exception:
             return default_dict
@@ -386,10 +389,11 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, def_kpi["사업 소계 월계"])
     }
 
+    # 8대 카테고리 매핑 규칙
     target_mappings = [
         ("일반검사", ["검사", "일반검사"], "합계"),
         ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
-        ("섬유내수(중국GB)", ["중국", "GB", "중국GB"], "소계"),
+        ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
         ("섬유수출", ["섬유수출", "수출"], "합계"),
         ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
         ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
@@ -397,23 +401,24 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
         ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
     ]
 
-    def build_8_category_chart(col_25_i, col_26_i, col_rate_i, fallback_df):
-        if col_25_i is None or col_26_i is None:
-            return fallback_df
+    def build_8_category_chart(col_25_i, col_26_i, col_rate_i):
         results = []
         for cat_name, keywords, target_type in target_mappings:
             matched_row_idx = None
-            for idx in range(min(150, len(raw))):
-                row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
-                if all(k in row_str for k in keywords) and (target_type in row_str):
-                    matched_row_idx = idx
-                    break
+            if col_25_i is not None:
+                for idx in range(min(160, len(raw))):
+                    row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "").lower()
+                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str):
+                        matched_row_idx = idx
+                        break
             
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
                 v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0]
                 v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0]
-                rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0]
+                rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0] if col_rate_i < len(raw.columns) else 0.0
+                if rt == 0.0 and v25 != 0:
+                    rt = round((v26 - v25) / v25 * 100, 1)
                 results.append({
                     "표준사업구분": cat_name,
                     "2025년 실적": v25,
@@ -421,30 +426,33 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
                     "증감률": rt
                 })
             else:
-                fb_row = fallback_df[fallback_df["표준사업구분"] == cat_name]
-                if not fb_row.empty:
-                    results.append(fb_row.iloc[0].to_dict())
+                results.append({
+                    "표준사업구분": cat_name,
+                    "2025년 실적": 0,
+                    "2026년 실적": 0,
+                    "증감률": 0.0
+                })
                     
         return pd.DataFrame(results)
 
     chart_res = {
-        "누계": build_8_category_chart(c_c25, c_c26, c_rate, def_chart["누계"]),
-        "월계": build_8_category_chart(m_c25, m_c26, m_rate, def_chart["월계"])
+        "누계": build_8_category_chart(c_c25, c_c26, c_rate),
+        "월계": build_8_category_chart(m_c25, m_c26, m_rate)
     }
 
     return kpi_res, chart_res
 
-# BI 데이터 캐싱
+# BI 데이터 독립 로드
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(target_file, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴 (안내문구 삭제 및 상해/광주 분리 적용)
+# 7. 사이드바 메뉴 (문구 삭제 및 상해/광주 2개 분리)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
-    "",  # 안내 텍스트 완벽 삭제
+    "",
     [
         "[접수기준] 종합 실적 현황",
         "[접수기준] 사업별 실적 현황",
@@ -453,7 +461,7 @@ page_menu = st.sidebar.radio(
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
     ],
-    index=3,
+    index=5,  # BI_광주 페이지 바로 확인 가능
     label_visibility="collapsed"
 )
 
@@ -471,13 +479,12 @@ if page_menu.startswith("[BI_"):
         index=0
     )
     
-    # 해당 BI 타겟에 맞춘 KPI 선택
-    if "상해" in page_menu:
-        target_kpi_pack = bi_shanghai_kpi
-        sub_prefix = "BI_상해"
-    elif "광주" in page_menu:
+    if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         sub_prefix = "BI_광주"
+    elif "상해" in page_menu:
+        target_kpi_pack = bi_shanghai_kpi
+        sub_prefix = "BI_상해"
     else:
         target_kpi_pack = bi_total_kpi
         sub_prefix = "BI_종합"
@@ -560,7 +567,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 BI 8대 카테고리 렌더링 함수 (15px/14px Bold 적용)
+# 9. 공통 BI 8대 카테고리 렌더링 함수
 # =========================================================
 def render_bi_8cat_page(page_title, chart_source_dict):
     chart_period_key = "월계" if "월계" in bi_period_mode else "누계"
@@ -582,7 +589,6 @@ def render_bi_8cat_page(page_title, chart_source_dict):
         
     label_25 = [f"<span style='font-size:14px; font-weight:700;'>{v/1e4:.1f}만</span>" if v >= 1e4 else f"<span style='font-size:14px; font-weight:700;'>{v:,.0f}</span>" for v in chart_df["2025년 실적"]]
 
-    # 상단 실적 비교 전폭 차트
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
         x=chart_df["표준사업구분"],
@@ -630,7 +636,6 @@ def render_bi_8cat_page(page_title, chart_source_dict):
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 하단 증감액 및 증감률 전폭 차트
     st.write("")
     st.markdown("##### 📈 8대 사업별 증감액 및 증감률 (26년 - 25년)")
     diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in chart_df["증감액"]]
@@ -1035,10 +1040,10 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
 elif page_menu == "[BI_종합] 사업별 실적 현황":
     render_bi_8cat_page("📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교", bi_total_charts)
 
-# [페이지 5] [BI_상해] 사업별 실적 현황 (신규 분리)
+# [페이지 5] [BI_상해] 사업별 실적 현황
 elif page_menu == "[BI_상해] 사업별 실적 현황":
     render_bi_8cat_page("🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교", bi_shanghai_charts)
 
-# [페이지 6] [BI_광주] 사업별 실적 현황 (신규 분리)
+# [페이지 6] [BI_광주] 사업별 실적 현황 (BI_광주 시트 정밀 추출)
 elif page_menu == "[BI_광주] 사업별 실적 현황":
     render_bi_8cat_page("🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교", bi_guangzhou_charts)
