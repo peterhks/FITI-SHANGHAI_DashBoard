@@ -20,7 +20,6 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
     }
     
-    /* 상단 네이비 공식 배너 */
     .fiti-header {
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
         padding: 22px 28px;
@@ -51,7 +50,6 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* 입체형 KPI 카드 스타일 */
     .kpi-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -94,7 +92,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 2. FITI 공식 상단 배너
+# 2. 상단 공식 배너
 # =========================================================
 st.markdown("""
 <div class="fiti-header">
@@ -115,14 +113,10 @@ st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀 파일 업로드", type=["xlsx", "csv"])
 target_file = uploaded_file if uploaded_file else (EXCEL_FILE if os.path.exists(EXCEL_FILE) else None)
 
-def clean_data(data_frame):
-    for col in data_frame.columns:
-        if data_frame[col].dtype == object:
-            cleaned = data_frame[col].astype(str).str.replace(',', '').str.strip()
-            converted = pd.to_numeric(cleaned, errors='coerce')
-            if converted.notnull().mean() > 0.6:
-                data_frame[col] = converted.fillna(0)
-    return data_frame
+def clean_series(series):
+    cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
+    cleaned = cleaned.replace(['-', '–', '—'], '0')
+    return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
 excel_obj = None
 sheet_dict = {}
@@ -146,20 +140,25 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 정밀 파싱 (병합 셀 ffill 처리 적용)
+# 4. '종합' 시트 정밀 파싱
 # =========================================================
 summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
-raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name)
+raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, header=None)
 
-header_row_idx = 0
+h_idx = 0
 for idx, row in raw_summary.iterrows():
-    row_text = "".join(row.dropna().astype(str).tolist())
-    if "구분" in row_text and ("25" in row_text or "합계" in row_text):
-        header_row_idx = idx
+    r_text = "".join(row.dropna().astype(str).tolist())
+    if "구분" in r_text and any(k in r_text for k in ["합계", "25", "26"]):
+        h_idx = idx
         break
 
-df_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, skiprows=header_row_idx)
-df_summary = clean_data(df_summary)
+df_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, skiprows=h_idx)
+
+for c in df_summary.columns:
+    if df_summary[c].dtype == object:
+        conv = pd.to_numeric(df_summary[c].astype(str).str.replace(',', '').str.strip(), errors='coerce')
+        if conv.notnull().mean() > 0.5:
+            df_summary[c] = conv.fillna(0)
 
 num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
 col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
@@ -209,7 +208,7 @@ summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: ta
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 세부 파트 데이터 로드 및 검증
+# 5. 각 시트의 우측 요약표('행 레이블' 피벗 블록) 정밀 파싱
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -218,73 +217,89 @@ PART_SHEET_MAPPINGS = {
     "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
 }
 
-def load_part_data(categories_target):
-    keywords_list = PART_SHEET_MAPPINGS.get(categories_target, [])
-    matched_dfs = []
+def extract_pivot_block(sheet_name):
+    # 헤더 없이 전체 시트를 로드
+    raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
     
+    # 1. 시트 전체에서 '행 레이블' 셀의 행/열 좌표 탐색
+    pivot_r, pivot_c = None, None
+    for r_i in range(min(15, len(raw))):
+        for c_i in range(len(raw.columns)):
+            val = str(raw.iat[r_i, c_i]).strip().replace(" ", "")
+            if "행레이블" in val:
+                pivot_r, pivot_c = r_i, c_i
+                break
+        if pivot_r is not None:
+            break
+            
+    # '행 레이블'을 찾지 못한 경우 일반 테이블 탐색
+    if pivot_r is None:
+        for r_i in range(min(15, len(raw))):
+            row_str = " ".join(raw.iloc[r_i].dropna().astype(str).tolist())
+            if "합계" in row_str and any(y in row_str for y in ["25", "26"]):
+                pivot_r = r_i
+                pivot_c = 0
+                break
+                
+    if pivot_r is None:
+        return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+
+    # 2. '행 레이블' 헤더 위치부터 우측 5개 컬럼 추출
+    sub_raw = raw.iloc[pivot_r:, pivot_c:pivot_c+6].copy().reset_index(drop=True)
+    sub_raw.columns = [str(c).strip() for c in sub_raw.iloc[0]]
+    sub_data = sub_raw.iloc[1:].copy().reset_index(drop=True)
+    
+    # 바이어명 컬럼 식별
+    buyer_col_name = sub_data.columns[0]
+    
+    # 25년/26년 합계 컬럼 식별
+    c25, c26 = None, None
+    for col in sub_data.columns[1:]:
+        c_str = str(col).replace(" ", "")
+        if "25" in c_str and ("합계" in c_str or "실적" in c_str):
+            c25 = col
+        elif "26" in c_str and ("합계" in c_str or "실적" in c_str):
+            c26 = col
+            
+    if not c25 or not c26:
+        num_candidates = [c for c in sub_data.columns[1:] if clean_series(sub_data[c]).sum() > 0]
+        if len(num_candidates) >= 2:
+            c25, c26 = num_candidates[0], num_candidates[1]
+        else:
+            return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+
+    # 3. '총합계' 이전의 바이어 데이터만 추출
+    parsed_rows = []
+    for _, row in sub_data.iterrows():
+        b_name = str(row[buyer_col_name]).strip()
+        if not b_name or b_name.lower() in ['nan', 'none']:
+            continue
+        # '총합계'를 만나면 요약 블록 종료
+        if any(k in b_name.replace(" ", "") for k in ["총합계", "합계", "전체합계"]):
+            break
+            
+        v25 = clean_series(pd.Series([row[c25]])).iloc[0]
+        v26 = clean_series(pd.Series([row[c26]])).iloc[0]
+        parsed_rows.append({"바이어명": b_name, "2025년 실적": v25, "2026년 실적": v26})
+        
+    res_df = pd.DataFrame(parsed_rows)
+    return res_df
+
+def get_combined_part_data(categories_target):
+    keywords_list = PART_SHEET_MAPPINGS.get(categories_target, [])
+    dfs = []
     for k_words in keywords_list:
-        actual_sheet = get_sheet_by_keyword(k_words)
-        if actual_sheet:
-            try:
-                temp_df = clean_data(pd.read_excel(target_file, sheet_name=actual_sheet))
-                b_nums = temp_df.select_dtypes(include=['number']).columns.tolist()
-                b_others = [c for c in temp_df.columns if c not in b_nums]
-                
-                if b_nums and b_others:
-                    b_25 = next((c for c in b_nums if "25" in str(c)), b_nums[0])
-                    b_26 = next((c for c in b_nums if "26" in str(c)), b_nums[1] if len(b_nums) > 1 else b_nums[0])
-                    b_name = next((c for c in b_others if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처", "브랜드"])), b_others[0])
-                    
-                    exclude_pat = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
-                    temp_df = temp_df[
-                        (~temp_df[b_name].astype(str).str.strip().str.upper().str.contains(exclude_pat, regex=True, na=False)) &
-                        (temp_df[b_name].notnull()) &
-                        (temp_df[b_name].astype(str).str.strip() != "")
-                    ].copy()
-                    
-                    temp_df = temp_df[[b_name, b_25, b_26]].rename(columns={
-                        b_name: "바이어명",
-                        b_25: "2025년 실적",
-                        b_26: "2026년 실적"
-                    })
-                    matched_dfs.append(temp_df)
-            except Exception:
-                pass
-                
-    if matched_dfs:
-        combined = pd.concat(matched_dfs, ignore_index=True)
-        return combined.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
+        sheet_n = get_sheet_by_keyword(k_words)
+        if sheet_n:
+            block_df = extract_pivot_block(sheet_n)
+            if not block_df.empty:
+                dfs.append(block_df)
+    if dfs:
+        comb = pd.concat(dfs, ignore_index=True)
+        return comb.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
     return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
 
-audit_results = []
-part_data_cache = {}
-
-for cat in target_categories:
-    sum_row = summary_chart[summary_chart["표준사업구분"] == cat]
-    sum_25 = float(sum_row[col_25].values[0]) if not sum_row.empty else 0.0
-    sum_26 = float(sum_row[col_26].values[0]) if not sum_row.empty else 0.0
-    
-    p_df = load_part_data(cat)
-    part_data_cache[cat] = p_df
-    part_25 = float(p_df["2025년 실적"].sum()) if not p_df.empty else 0.0
-    part_26 = float(p_df["2026년 실적"].sum()) if not p_df.empty else 0.0
-    
-    diff_25 = abs(sum_25 - part_25)
-    diff_26 = abs(sum_26 - part_26)
-    is_match = (diff_25 < 100) and (diff_26 < 100)
-    
-    audit_results.append({
-        "사업구분": cat,
-        "종합 실적 (25년)": sum_25,
-        "파트 실적 (25년)": part_25,
-        "종합 실적 (26년)": sum_26,
-        "파트 실적 (26년)": part_26,
-        "25년 오차": sum_25 - part_25,
-        "26년 오차": sum_26 - part_26,
-        "일치여부": "✅ 일치 (정상)" if is_match else "⚠️ 불일치 확인 필요"
-    })
-
-audit_df = pd.DataFrame(audit_results)
+part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
 # 6. 사이드바 메뉴
@@ -301,7 +316,7 @@ page_menu = st.sidebar.radio(
 )
 
 # =========================================================
-# 7. 상단 종합 KPI 카드 (두번째장 & 세번째장 모두 사업별 선택과 연동)
+# 7. 상단 종합 KPI 카드 (동적 연동)
 # =========================================================
 selected_view_for_card = "전체 사업 보기"
 
@@ -555,32 +570,11 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         hide_index=True,
         use_container_width=True
     )
-    
-    st.markdown("---")
-    st.subheader("🔍 종합 시트 vs 세부 파트 시트 실적 일치 검증")
-    st.caption("※ 패션잡화=KC part | GB=GB part | 글로벌바이어=global part1+2 | 제품평가=inspection (원단+가먼트)")
-    
-    st.dataframe(
-        audit_df,
-        column_config={
-            "사업구분": st.column_config.TextColumn("사업구분", width="medium"),
-            "종합 실적 (25년)": st.column_config.NumberColumn("종합 (25년)", format="₩%,d"),
-            "파트 실적 (25년)": st.column_config.NumberColumn("파트합산 (25년)", format="₩%,d"),
-            "종합 실적 (26년)": st.column_config.NumberColumn("종합 (26년)", format="₩%,d"),
-            "파트 실적 (26년)": st.column_config.NumberColumn("파트합산 (26년)", format="₩%,d"),
-            "25년 오차": st.column_config.NumberColumn("25년 오차", format="₩%+d"),
-            "26년 오차": st.column_config.NumberColumn("26년 오차", format="₩%+d"),
-            "일치여부": st.column_config.TextColumn("일치 상태", width="medium"),
-        },
-        hide_index=True,
-        use_container_width=True
-    )
 
-# [세번째장] 각 사업별 협력사(바이어) 비교 (상위 6개 + 기타 통합 집계)
+# [세번째장] 각 사업별 협력사(바이어) 비교 (피벗 블록 기반 100% 정밀 일치)
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화")
     
-    # 세 번째 장 전용 사업부문 셀렉트박스 (상단 카드와 실시간 동기화)
     current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
     current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
     
@@ -597,15 +591,16 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     
     raw_b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
     
+    # 종합 시트 기준 해당 사업 총액
+    target_row = summary_chart[summary_chart["표준사업구분"] == selected_biz]
+    target_tot_25 = float(target_row[col_25].values[0]) if not target_row.empty else 0.0
+    target_tot_26 = float(target_row[col_26].values[0]) if not target_row.empty else 0.0
+
     if raw_b_chart.empty:
-        st.warning(f"선택하신 [{selected_biz}] 부문에 해당하는 세부 파트 시트의 데이터를 찾을 수 없습니다.")
+        st.warning(f"선택하신 [{selected_biz}] 부문의 요약 블록('행 레이블' 표)을 읽을 수 없습니다.")
     else:
-        # -------------------------------------------------------------
-        # 상위 6개 바이어 + 기타("-" 및 7위 이하 포함) 집계 로직
-        # -------------------------------------------------------------
-        # '-' 하이픈, 공란, 결측치인 바이어는 바로 '기타' 대상으로 분류
-        is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE"])
-        
+        # '-' 하이픈 등 유효하지 않은 바이어명 분류
+        is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE", "기타"])
         valid_buyers = raw_b_chart[~is_dash].copy()
         dash_buyers = raw_b_chart[is_dash].copy()
         
@@ -616,8 +611,14 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             top6 = valid_buyers.iloc[:6].copy()
             rest = valid_buyers.iloc[6:].copy()
             
-            etc_25 = rest["2025년 실적"].sum() + dash_buyers["2025년 실적"].sum()
-            etc_26 = rest["2026년 실적"].sum() + dash_buyers["2026년 실적"].sum()
+            top6_25 = top6["2025년 실적"].sum()
+            top6_26 = top6["2026년 실적"].sum()
+            
+            calc_etc_25 = rest["2025년 실적"].sum() + dash_buyers["2025년 실적"].sum()
+            calc_etc_26 = rest["2026년 실적"].sum() + dash_buyers["2026년 실적"].sum()
+            
+            etc_25 = max(calc_etc_25, target_tot_25 - top6_25)
+            etc_26 = max(calc_etc_26, target_tot_26 - top6_26)
             
             etc_row = pd.DataFrame([{
                 "바이어명": "기타",
@@ -626,11 +627,17 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             }])
             top_buyers = pd.concat([top6, etc_row], ignore_index=True)
         else:
-            if not dash_buyers.empty:
+            top_sum_25 = valid_buyers["2025년 실적"].sum()
+            top_sum_26 = valid_buyers["2026년 실적"].sum()
+            
+            etc_25 = max(dash_buyers["2025년 실적"].sum(), target_tot_25 - top_sum_25)
+            etc_26 = max(dash_buyers["2026년 실적"].sum(), target_tot_26 - top_sum_26)
+            
+            if etc_25 > 0 or etc_26 > 0:
                 etc_row = pd.DataFrame([{
                     "바이어명": "기타",
-                    "2025년 실적": dash_buyers["2025년 실적"].sum(),
-                    "2026년 실적": dash_buyers["2026년 실적"].sum()
+                    "2025년 실적": etc_25,
+                    "2026년 실적": etc_26
                 }])
                 top_buyers = pd.concat([valid_buyers, etc_row], ignore_index=True)
             else:
@@ -639,7 +646,6 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
         top_buyers["증감액"] = top_buyers["2026년 실적"] - top_buyers["2025년 실적"]
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
-        # X축 순서: 상위 6개사 + '기타'를 맨 뒤로 배치
         x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타"] + (["기타"] if "기타" in top_buyers["바이어명"].values else [])
 
         col3_l, col3_r = st.columns([6, 4])
