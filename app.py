@@ -104,76 +104,76 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제
+# 3. 데이터 로드 및 다중 시트 지원
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
-@st.cache_data
-def get_data():
-    if os.path.exists(EXCEL_FILE):
-        try:
-            return pd.read_excel(EXCEL_FILE)
-        except Exception:
-            pass
-    return pd.DataFrame({
-        "사업구분": ["GB시험", "KC인증", "바이어 매뉴얼", "완제품검사", "위생용품"],
-        "바이어명": ["POLO RALPH LAUREN", "CLUB MONACO", "F&F", "무신사", "삼성물산"],
-        "25년 1월": [300000000, 5000000, 28000000, 19000000, 12000000],
-        "26년 1월": [360000000, 3000000, 33000000, 22000000, 15000000]
-    })
-
-# 사이드바 데이터 업로드
 st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀/CSV 파일 업로드", type=["xlsx", "csv"])
-if uploaded_file:
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
-    else:
-        df = pd.read_excel(uploaded_file)
-else:
-    df = get_data()
 
-# 쉼표(,) 포함 문자열 숫자 자동 변환
-for col in df.columns:
-    if df[col].dtype == object:
-        cleaned = df[col].astype(str).str.replace(',', '').str.strip()
-        converted = pd.to_numeric(cleaned, errors='coerce')
-        if converted.notnull().mean() > 0.6:
-            df[col] = converted.fillna(0)
+target_file = uploaded_file if uploaded_file else (EXCEL_FILE if os.path.exists(EXCEL_FILE) else None)
+
+def clean_data(data_frame):
+    for col in data_frame.columns:
+        if data_frame[col].dtype == object:
+            cleaned = data_frame[col].astype(str).str.replace(',', '').str.strip()
+            converted = pd.to_numeric(cleaned, errors='coerce')
+            if converted.notnull().mean() > 0.6:
+                data_frame[col] = converted.fillna(0)
+    return data_frame
+
+if target_file:
+    try:
+        if str(target_file).endswith('.csv') or (hasattr(target_file, 'name') and target_file.name.endswith('.csv')):
+            df = clean_data(pd.read_csv(target_file))
+        else:
+            xl = pd.ExcelFile(target_file)
+            sheet_names = xl.sheet_names
+            
+            # 시트가 여러 개일 경우 선택 가능하도록 지원
+            if len(sheet_names) > 1:
+                selected_sheet = st.sidebar.selectbox("분석할 시트 선택", sheet_names, index=0)
+                df = clean_data(pd.read_excel(target_file, sheet_name=selected_sheet))
+            else:
+                df = clean_data(pd.read_excel(target_file))
+    except Exception:
+        target_file = None
+
+if not target_file:
+    # 예시 샘플 데이터
+    df = pd.DataFrame({
+        "사업구분": ["중국 GB시험", "KC인증", "바이어 매뉴얼", "공장 완제품검사", "위생용품/기구용기"],
+        "바이어명": ["POLO RALPH LAUREN", "F&F", "무신사", "삼성물산", "FILA"],
+        "25년 1월": [305000000, 180000000, 120000000, 85000000, 35000000],
+        "26년 1월": [362000000, 195000000, 140000000, 92000000, 41000000]
+    })
 
 num_cols = df.select_dtypes(include=['number']).columns.tolist()
 other_cols = [c for c in df.columns if c not in num_cols]
 
 if not num_cols:
-    st.error("데이터에 분석할 수 있는 숫자(실적/금액 등) 컬럼이 없습니다.")
+    st.error("데이터에 분석 가능한 숫자(실적 금액) 컬럼이 없습니다.")
     st.stop()
 
 # =========================================================
-# 4. 사이드바 메뉴: 3가지 카테고리 선택
+# 4. 사이드바 컬럼 및 축 설정
 # =========================================================
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 📑 분석 페이지 선택")
+st.sidebar.markdown("### ⚙️ 기준 컬럼 설정")
 
-page_menu = st.sidebar.radio(
-    "이동할 카테고리를 선택하세요:",
-    [
-        "첫번째장 : 종합 실적 현황",
-        "두번째장 : 각 사업별 년도 대비 실적 비교",
-        "세번째장 : 각 사업별 협력사 비교"
-    ],
-    index=0
-)
+col_25 = st.sidebar.selectbox("2025년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "25" in str(c)), 0))
+col_26 = st.sidebar.selectbox("2026년 실적 컬럼", num_cols, index=next((i for i, c in enumerate(num_cols) if "26" in str(c)), 1 if len(num_cols) > 1 else 0))
 
-# 데이터 내부 컬럼 자동 감지
-col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0])
-col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
-buyer_col = next((c for c in other_cols if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처"])), other_cols[0] if other_cols else df.columns[0])
-biz_col = next((c for c in other_cols if any(k in str(c) for k in ["사업", "구분", "분류", "항목"])), other_cols[1] if len(other_cols) > 1 else other_cols[0])
+# 업체명이 아닌 '사업구분'과 '바이어명' 분리 선택
+default_biz_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["사업", "구분", "분류", "항목", "대분류"])), 0)
+default_buyer_idx = next((i for i, c in enumerate(other_cols) if any(k in str(c) for k in ["바이어", "고객", "거래처", "브랜드"])), 1 if len(other_cols) > 1 else 0)
+
+biz_col = st.sidebar.selectbox("사업 구분 기준 컬럼", other_cols if other_cols else df.columns, index=default_biz_idx)
+buyer_col = st.sidebar.selectbox("바이어(고객사) 기준 컬럼", other_cols if other_cols else df.columns, index=default_buyer_idx)
 
 # =========================================================
-# 5. 상단 실적 비교 카드 (TOTAL 중복 행 제외 계산)
+# 5. 상단 종합 KPI 카드 (TOTAL 행 제외 집계)
 # =========================================================
-# 'TOTAL' 또는 '합계' 등의 중복 집계행이 데이터에 있을 경우 필터링
 calc_df = df[~df[buyer_col].astype(str).str.upper().str.contains("TOTAL|합계|소계", na=False)]
 if calc_df.empty:
     calc_df = df
@@ -230,15 +230,28 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 선택된 카테고리별 본문 화면 렌더링
+# 6. 사이드바 메뉴: 3가지 카테고리
+# =========================================================
+st.sidebar.markdown("### 📑 분석 페이지 선택")
+page_menu = st.sidebar.radio(
+    "이동할 카테고리를 선택하세요:",
+    [
+        "첫번째장 : 종합 실적 현황",
+        "두번째장 : 각 사업별 년도 대비 실적 비교",
+        "세번째장 : 각 사업별 협력사 비교"
+    ],
+    index=0
+)
+
+# =========================================================
+# 7. 본문 페이지 렌더링
 # =========================================================
 
 # [첫번째장] 종합 실적 현황
 if page_menu == "첫번째장 : 종합 실적 현황":
-    # 1. 요청하신 막대 그래프 제목
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
     
-    # 막대 차트 (TOTAL 제외 후 상위 바이어 집계)
+    # 1. 상위 바이어 실적 비교 막대 차트
     chart_data = calc_df.groupby(buyer_col, as_index=False)[[col_25, col_26]].sum().sort_values(by=col_26, ascending=False).head(15)
     chart_data_renamed = chart_data.rename(columns={col_25: "2025년 총 실적", col_26: "2026년 총 실적"})
     
@@ -251,7 +264,7 @@ if page_menu == "첫번째장 : 종합 실적 현황":
         color_discrete_map={"2025년 총 실적": "#93C5FD", "2026년 총 실적": "#003876"}
     )
     fig1_bar.update_layout(
-        height=420,
+        height=430,
         xaxis_tickangle=-45,
         yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
         template="plotly_white",
@@ -260,40 +273,50 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     st.plotly_chart(fig1_bar, use_container_width=True)
 
     st.write("")
-    # 2. 사업별 점유율 비중 (전체 실적 기준)
+    # 2. 사업별 점유율 비중 (수십 개 업체명이 아닌, 사업/대분류 단위로 상위 7개 + 기타로 묶어 표기)
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
-    # 사업구분별 전체 실적 집계 (TOTAL 행 제외)
-    biz_pie_df = calc_df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
+    biz_df = calc_df.groupby(biz_col, as_index=False)[[col_25, col_26]].sum()
+    
+    # 사업이 너무 많을 경우 상위 6개 외에는 '기타'로 합산하여 깔끔하게 정리
+    def group_top_categories(data_frame, target_col, val_column, top_n=6):
+        sorted_df = data_frame.sort_values(by=val_column, ascending=False)
+        if len(sorted_df) > top_n:
+            top_part = sorted_df.head(top_n).copy()
+            etc_sum = sorted_df.iloc[top_n:][val_column].sum()
+            etc_row = pd.DataFrame([{target_col: "기타 사업", val_column: etc_sum}])
+            return pd.concat([top_part[[target_col, val_column]], etc_row], ignore_index=True)
+        return sorted_df[[target_col, val_column]]
+
+    pie_25_data = group_top_categories(biz_df, biz_col, col_25)
+    pie_26_data = group_top_categories(biz_df, biz_col, col_26)
     
     pie_col1, pie_col2 = st.columns(2)
     
     with pie_col1:
-        # 2025년 기준 원형 그래프
         fig_pie_25 = px.pie(
-            biz_pie_df,
+            pie_25_data,
             names=biz_col,
             values=col_25,
-            hole=0.4,
+            hole=0.45,
             title="2025년 사업별 실적 점유율",
-            color_discrete_sequence=px.colors.qualitative.Pastel
+            color_discrete_sequence=px.colors.qualitative.Prism
         )
         fig_pie_25.update_traces(textposition='inside', textinfo='percent+label')
-        fig_pie_25.update_layout(height=420, margin=dict(t=50, b=20, l=10, r=10))
+        fig_pie_25.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
     with pie_col2:
-        # 2026년 기준 원형 그래프
         fig_pie_26 = px.pie(
-            biz_pie_df,
+            pie_26_data,
             names=biz_col,
             values=col_26,
-            hole=0.4,
+            hole=0.45,
             title="2026년 사업별 실적 점유율",
-            color_discrete_sequence=px.colors.qualitative.Bold
+            color_discrete_sequence=px.colors.qualitative.Safe
         )
         fig_pie_26.update_traces(textposition='inside', textinfo='percent+label')
-        fig_pie_26.update_layout(height=420, margin=dict(t=50, b=20, l=10, r=10))
+        fig_pie_26.update_layout(height=450, margin=dict(t=50, b=20, l=10, r=10))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
 # [두번째장] 각 사업별 년도 대비 실적 비교
