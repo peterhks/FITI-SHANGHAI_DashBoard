@@ -207,7 +207,6 @@ summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
-# 증감액 및 증감률 계산
 summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
 summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
 
@@ -448,22 +447,57 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴
+# 7. 사이드바 메뉴 및 BI 비밀번호 잠금 보안 인증 (초기 비밀번호: fiti1965)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
-page_menu = st.sidebar.radio(
-    "",
-    [
-        "[접수기준] 종합 실적 현황",
-        "[접수기준] 사업별 실적 현황",
-        "[접수기준] 바이어 실적 현황",
+
+# 기본 공개 메뉴 (누구나 열람 가능)
+available_pages = [
+    "[접수기준] 종합 실적 현황",
+    "[접수기준] 사업별 실적 현황",
+    "[접수기준] 바이어 실적 현황"
+]
+
+# 관리자 인증 상태 확인
+if "bi_authorized" not in st.session_state:
+    st.session_state["bi_authorized"] = False
+
+# 비밀번호 인증 시 BI 페이지 3종 메뉴 노출
+if st.session_state["bi_authorized"]:
+    available_pages.extend([
         "[BI_종합] 사업별 실적 현황",
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
-    ],
-    index=1,
+    ])
+
+# 메뉴 선택 라디오 버튼
+page_menu = st.sidebar.radio(
+    "",
+    available_pages,
+    index=0,
     label_visibility="collapsed"
 )
+
+# 사이드바 하단: 보안 인증 섹션
+st.sidebar.markdown("---")
+BI_AUTH_PASSWORD = "fiti1965"
+
+if not st.session_state["bi_authorized"]:
+    st.sidebar.markdown("##### 🔒 BI 실적 보안 인증")
+    input_pw = st.sidebar.text_input("열람 비밀번호 입력:", type="password", key="bi_pw_input")
+    
+    if st.sidebar.button("인증 및 열람"):
+        if input_pw == BI_AUTH_PASSWORD:
+            st.session_state["bi_authorized"] = True
+            st.sidebar.success("인증 성공! BI 메뉴가 활성화되었습니다.")
+            st.rerun()
+        else:
+            st.sidebar.error("비밀번호가 일치하지 않습니다.")
+else:
+    st.sidebar.markdown("##### 🔓 BI 관리자 모드 활성화됨")
+    if st.sidebar.button("BI 잠금 (로그아웃)"):
+        st.session_state["bi_authorized"] = False
+        st.rerun()
 
 # =========================================================
 # 8. 상단 종합 KPI 카드
@@ -694,14 +728,13 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표 (천 단위 콤마 서식 완벽 적용)
+    # 3. 하단 세부 요약표 (천단위 콤마 서식 완벽 적용)
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
     
-    # 단위에 따른 정확한 콤마 포맷 설정
     is_won = (unit_label == "원")
     fmt_val = "₩%,d" if is_won else "%,d"
-    fmt_diff = "₩%+,.0f" if is_won else "%+,.0f"  # 천단위 콤마와 부호(+/-)를 동시에 완벽 지원
+    fmt_diff = "₩%+,.0f" if is_won else "%+,.0f"
 
     st.dataframe(
         pd.DataFrame({
