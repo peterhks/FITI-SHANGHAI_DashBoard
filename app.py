@@ -294,7 +294,7 @@ def get_combined_part_data(categories_target):
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
-# 6. BI 시트 전용 파서
+# 6. BI 시트 전용 파서 (실제 원화 금액 변환 로직 포함)
 # =========================================================
 BI_8_CATEGORIES = [
     "일반검사",
@@ -323,23 +323,23 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
                     break
 
     def_kpi = {
-        "전체 총계 누계": {"25": 76867792, "26": 78131344, "diff": 1263552, "rate": 1.6},
-        "사업 소계 누계": {"25": 69068999, "26": 71719908, "diff": 2650909, "rate": 3.8},
-        "사업 소계 월계": {"25": 4000421, "26": 4261274, "diff": 260853, "rate": 6.5}
+        "전체 총계 누계": {"25": 76867792000, "26": 78131344000, "diff": 1263552000, "rate": 1.6},
+        "사업 소계 누계": {"25": 69068999000, "26": 71719908000, "diff": 2650909000, "rate": 3.8},
+        "사업 소계 월계": {"25": 4000421000, "26": 4261274000, "diff": 260853000, "rate": 6.5}
     }
     
     def_chart = {
         "누계": pd.DataFrame({
             "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
-            "2026년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
-            "증감률": [0.0] * 8
+            "2025년 실적": [16206229000, 9381654000, 56864260000, 2682351000, 6018433000, 4975052000, 5396880000, 621553000],
+            "2026년 실적": [19649628000, 9170056000, 59786868000, 2665836000, 5759619000, 4624591000, 5105447000, 654172000],
+            "증감률": [21.2, -2.3, 5.1, -0.6, -4.3, -7.0, -5.4, 5.2]
         }),
         "월계": pd.DataFrame({
             "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
-            "2026년 실적": [0, 0, 0, 0, 0, 0, 0, 0],
-            "증감률": [0.0] * 8
+            "2025년 실적": [772498000, 395095000, 3257732000, 156602000, 193184000, 144749000, 161277000, 31907000],
+            "2026년 실적": [909896000, 363575000, 3761189000, 176905000, 162549000, 117279000, 138849000, 23700000],
+            "증감률": [17.8, -8.0, 15.5, 13.0, -15.9, -19.0, -13.9, -25.7]
         })
     }
 
@@ -372,8 +372,9 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
             return default_dict
         try:
             r = raw.iloc[r_idx]
-            v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0]
-            v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0]
+            # ★ 천원 단위를 실제 원 단위로 환산 (* 1000)
+            v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
+            v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0] * 1000
             rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0] if col_rate_i < len(raw.columns) else 0.0
             return {
                 "25": v25,
@@ -414,8 +415,9 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
             
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
-                v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0]
-                v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0]
+                # ★ 천원 단위를 실제 원 단위로 환산 (* 1000)
+                v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
+                v26 = clean_series(pd.Series([r.iat[col_26_i]])).iloc[0] * 1000
                 rt = clean_series(pd.Series([r.iat[col_rate_i]])).iloc[0] if col_rate_i < len(raw.columns) else 0.0
                 if rt == 0.0 and v25 != 0:
                     rt = round((v26 - v25) / v25 * 100, 1)
@@ -451,18 +453,15 @@ bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
-# 기본 공개 메뉴 (누구나 열람 가능)
 available_pages = [
     "[접수기준] 종합 실적 현황",
     "[접수기준] 사업별 실적 현황",
     "[접수기준] 바이어 실적 현황"
 ]
 
-# 관리자 인증 상태 확인
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
 
-# 비밀번호 인증 시 BI 페이지 3종 메뉴 노출
 if st.session_state["bi_authorized"]:
     available_pages.extend([
         "[BI_종합] 사업별 실적 현황",
@@ -470,7 +469,6 @@ if st.session_state["bi_authorized"]:
         "[BI_광주] 사업별 실적 현황"
     ])
 
-# 메뉴 선택 라디오 버튼
 page_menu = st.sidebar.radio(
     "",
     available_pages,
@@ -478,7 +476,6 @@ page_menu = st.sidebar.radio(
     label_visibility="collapsed"
 )
 
-# 사이드바 하단: 보안 인증 섹션
 st.sidebar.markdown("---")
 BI_AUTH_PASSWORD = "fiti1965"
 
@@ -500,7 +497,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드
+# 8. 상단 종합 KPI 카드 (실제 원화 기준 일원화)
 # =========================================================
 card_unit = "원"
 
@@ -528,8 +525,7 @@ if page_menu.startswith("[BI_"):
     total_26 = float(bi_pack["26"])
     diff_val = float(bi_pack["diff"])
     diff_rate = float(bi_pack["rate"])
-    card_sub_desc = f"{sub_prefix} [{bi_period_mode}] (단위: 천원)"
-    card_unit = "천원"
+    card_sub_desc = f"{sub_prefix} [{bi_period_mode}] (실제 원화 기준)"
 else:
     selected_view_for_card = "전체 사업 보기"
     if page_menu == "[접수기준] 사업별 실적 현황":
@@ -601,7 +597,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트 및 요약 테이블 (천단위 콤마 완벽 적용)
+# 9. 공통 렌더러: 전폭 상하 배치 차트 (실제 원화 억단위 포맷 완벽 적용)
 # =========================================================
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -609,16 +605,26 @@ def render_fullwidth_vertical_dashboard(
     table_title, 
     data_df, 
     x_col_name, 
-    cat_order, 
-    unit_label="원", 
-    scale_div=1e8, 
-    scale_text="억"
+    cat_order
 ):
     df = data_df.copy()
     if "증감액" not in df.columns:
         df["증감액"] = df["2026년 실적"] - df["2025년 실적"]
     if "증감률" not in df.columns or df["증감률"].isnull().all():
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
+    # ★ 실제 원화 기준 '억/천만' 단위 포맷팅 함수
+    def format_krw_scale(val):
+        abs_v = abs(val)
+        sign = "-" if val < 0 else ""
+        if abs_v >= 1e8:
+            return f"{sign}{abs_v / 1e8:.1f}억"
+        elif abs_v >= 1e7:
+            return f"{sign}{abs_v / 1e7:.1f}천만"
+        elif abs_v >= 1e4:
+            return f"{sign}{abs_v / 1e4:.0f}만"
+        else:
+            return f"{val:,.0f}"
 
     label_25 = []
     label_26 = []
@@ -631,17 +637,12 @@ def render_fullwidth_vertical_dashboard(
         diff_v = r["증감액"]
         rt = r["증감률"]
 
-        if scale_div == 1e8:
-            s25 = f"{v25/1e8:.1f}억" if v25 >= 1e8 else (f"{v25/1e4:.0f}만" if v25 >= 1e4 else f"{v25:,.0f}")
-            s26 = f"{v26/1e8:.1f}억" if v26 >= 1e8 else (f"{v26/1e4:.0f}만" if v26 >= 1e4 else f"{v26:,.0f}")
-            sdiff = f"{diff_v/1e8:.1f}억" if abs(diff_v) >= 1e8 else (f"{diff_v/1e4:.0f}만" if abs(diff_v) >= 1e4 else f"{diff_v:,.0f}")
-        else:
-            s25 = f"{v25/1e4:.1f}만" if v25 >= 1e4 else f"{v25:,.0f}"
-            s26 = f"{v26/1e4:.1f}만" if v26 >= 1e4 else f"{v26:,.0f}"
-            sdiff = f"{diff_v/1e4:.1f}만" if abs(diff_v) >= 1e4 else f"{diff_v:,.0f}"
+        s25 = format_krw_scale(v25)
+        s26 = format_krw_scale(v26)
+        sdiff = format_krw_scale(diff_v)
 
         sign_r = "+" if rt > 0 else ""
-        sign_v = "+" if diff_v >= 0 else ""
+        sign_v = "+" if diff_v > 0 else ""
 
         label_25.append(f"<span style='font-size:14px; font-weight:700;'>{s25}</span>")
         label_26.append(f"<span style='font-size:15px; font-weight:800;'>{s26}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
@@ -675,7 +676,7 @@ def render_fullwidth_vertical_dashboard(
         bargroupgap=0.08,
         yaxis=dict(
             rangemode='tozero',
-            title=dict(text=f"실적금액 ({unit_label})", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="실적금액 (원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             tickfont=dict(size=14, color="#475569", weight="bold")
         ),
@@ -713,7 +714,7 @@ def render_fullwidth_vertical_dashboard(
         height=400,
         bargap=0.38,
         yaxis=dict(
-            title=dict(text=f"증감액 ({unit_label})", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="증감액 (원)", font=dict(size=15, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             zerolinecolor="#CBD5E1",
             tickfont=dict(size=14, color="#475569", weight="bold")
@@ -728,27 +729,22 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표 (천단위 콤마 서식 완벽 적용)
+    # 3. 하단 세부 요약표 (천단위 콤마 완벽 적용)
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
-    
-    is_won = (unit_label == "원")
-    fmt_val = "₩%,d" if is_won else "%,d"
-    fmt_diff = "₩%+,.0f" if is_won else "%+,.0f"
-
     st.dataframe(
         pd.DataFrame({
             x_col_name: df[x_col_name],
-            f"2025년 실적 ({unit_label})": df["2025년 실적"],
-            f"2026년 실적 ({unit_label})": df["2026년 실적"],
-            f"증감액 ({unit_label})": df["증감액"],
+            "2025년 실적 (원)": df["2025년 실적"],
+            "2026년 실적 (원)": df["2026년 실적"],
+            "증감액 (원)": df["증감액"],
             "증감률(%)": df["증감률"]
         }),
         column_config={
             x_col_name: st.column_config.TextColumn(x_col_name, width="medium"),
-            f"2025년 실적 ({unit_label})": st.column_config.NumberColumn(f"2025년 실적 ({unit_label})", format=fmt_val),
-            f"2026년 실적 ({unit_label})": st.column_config.NumberColumn(f"2026년 실적 ({unit_label})", format=fmt_val),
-            f"증감액 ({unit_label})": st.column_config.NumberColumn(f"증감액 ({unit_label})", format=fmt_diff),
+            "2025년 실적 (원)": st.column_config.NumberColumn("2025년 실적 (원)", format="₩%,d"),
+            "2026년 실적 (원)": st.column_config.NumberColumn("2026년 실적 (원)", format="₩%,d"),
+            "증감액 (원)": st.column_config.NumberColumn("증감액 (원)", format="₩%+,.0f"),
             "증감률(%)": st.column_config.NumberColumn("증감률(%)", format="%+.1f%%"),
         },
         hide_index=True,
@@ -946,10 +942,7 @@ elif page_menu == "[접수기준] 사업별 실적 현황":
         table_title=f"[{'전체 사업' if selected_view == '전체 사업 보기' else selected_view}] 실적 요약 테이블",
         data_df=display_df,
         x_col_name=x_col,
-        cat_order=x_categories,
-        unit_label="원",
-        scale_div=1e8,
-        scale_text="억"
+        cat_order=x_categories
     )
 
 # [페이지 3] [접수기준] 바이어 실적 현황
@@ -1030,13 +1023,10 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
             table_title=f"[{selected_biz}] 상위 6개 바이어 및 기타 실적 요약표",
             data_df=top_buyers,
             x_col_name="바이어명",
-            cat_order=x_buyer_names,
-            unit_label="원",
-            scale_div=1e8,
-            scale_text="억"
+            cat_order=x_buyer_names
         )
 
-# [페이지 4] [BI_종합] 사업별 실적 현황
+# [페이지 4] [BI_종합] 사업별 실적 현황 (실제 원화 억단위 포맷 적용)
 elif page_menu == "[BI_종합] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
@@ -1044,13 +1034,10 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         table_title=f"[BI_종합] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         data_df=bi_total_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES,
-        unit_label="천원",
-        scale_div=1e4,
-        scale_text="만"
+        cat_order=BI_8_CATEGORIES
     )
 
-# [페이지 5] [BI_상해] 사업별 실적 현황
+# [페이지 5] [BI_상해] 사업별 실적 현황 (실제 원화 억단위 포맷 적용)
 elif page_menu == "[BI_상해] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
@@ -1058,13 +1045,10 @@ elif page_menu == "[BI_상해] 사업별 실적 현황":
         table_title=f"[BI_상해] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         data_df=bi_shanghai_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES,
-        unit_label="천원",
-        scale_div=1e4,
-        scale_text="만"
+        cat_order=BI_8_CATEGORIES
     )
 
-# [페이지 6] [BI_광주] 사업별 실적 현황
+# [페이지 6] [BI_광주] 사업별 실적 현황 (실제 원화 억단위 포맷 적용)
 elif page_menu == "[BI_광주] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
@@ -1072,8 +1056,5 @@ elif page_menu == "[BI_광주] 사업별 실적 현황":
         table_title=f"[BI_광주] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         data_df=bi_guangzhou_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES,
-        unit_label="천원",
-        scale_div=1e4,
-        scale_text="만"
+        cat_order=BI_8_CATEGORIES
     )
