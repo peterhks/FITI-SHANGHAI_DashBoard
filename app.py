@@ -211,7 +211,7 @@ summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
 summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
 
 # =========================================================
-# 5. 세부 파트 시트 우측 피벗 블록 정밀 파싱
+# 5. 세부 파트 시트 피벗 블록 정밀 파싱 (바이어 및 협력사 공용)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -447,14 +447,15 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴 및 BI 비밀번호 잠금 보안 인증 (초기 비밀번호: fiti1965)
+# 7. 사이드바 메뉴 및 BI 비밀번호 잠금 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
 available_pages = [
     "[접수기준] 종합 실적 현황",
     "[접수기준] 사업별 실적 현황",
-    "[접수기준] 바이어 실적 현황"
+    "[접수기준] 바이어 실적 현황",
+    "[접수기준] 협력사 실적 현황"  # 신규 추가
 ]
 
 if "bi_authorized" not in st.session_state:
@@ -530,10 +531,11 @@ else:
         if "selected_biz_view" not in st.session_state:
             st.session_state["selected_biz_view"] = "전체 사업 보기"
         selected_view_for_card = st.session_state["selected_biz_view"]
-    elif page_menu == "[접수기준] 바이어 실적 현황":
-        if "selected_tab3_biz" not in st.session_state:
-            st.session_state["selected_tab3_biz"] = target_categories[0]
-        selected_view_for_card = st.session_state["selected_tab3_biz"]
+    elif page_menu in ["[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"]:
+        card_key = "selected_tab3_biz" if page_menu == "[접수기준] 바이어 실적 현황" else "selected_tab4_biz"
+        if card_key not in st.session_state:
+            st.session_state[card_key] = target_categories[0]
+        selected_view_for_card = st.session_state[card_key]
 
     if selected_view_for_card != "전체 사업 보기" and selected_view_for_card in target_categories:
         target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
@@ -726,7 +728,7 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표 (천단위 콤마 완벽 적용)
+    # 3. 하단 세부 요약표
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
     st.dataframe(
@@ -1052,15 +1054,98 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
         x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타"] + (["기타"] if "기타" in top_buyers["바이어명"].values else [])
 
         render_fullwidth_vertical_dashboard(
-            title_top=f"🤝 [{selected_biz}] 상위 6개 바이어 2025년 vs 2026년 실적 변화 (접수기준)",
+            title_top=f"🤝 [{selected_biz}] 주요 바이어 2025년 vs 2026년 실적 변화 (접수기준)",
             title_bottom=f"📈 [{selected_biz}] 바이어별 증감액 및 증감률 (26년 - 25년)",
-            table_title=f"[{selected_biz}] 상위 6개 바이어 및 기타 실적 요약표",
+            table_title=f"[{selected_biz}] 주요 바이어 및 기타 실적 요약표",
             data_df=top_buyers,
             x_col_name="바이어명",
             cat_order=x_buyer_names
         )
 
-# [페이지 4] [BI_종합] 사업별 실적 현황
+# [페이지 4] [접수기준] 협력사 실적 현황 (신규 추가)
+elif page_menu == "[접수기준] 협력사 실적 현황":
+    current_tab4_biz = st.session_state.get("selected_tab4_biz", target_categories[0])
+    current_idx4 = target_categories.index(current_tab4_biz) if current_tab4_biz in target_categories else 0
+    
+    selected_biz = st.selectbox(
+        "조회할 사업부문을 선택하세요:", 
+        target_categories, 
+        index=current_idx4,
+        key="tab4_biz_selectbox"
+    )
+    
+    if selected_biz != st.session_state.get("selected_tab4_biz"):
+        st.session_state["selected_tab4_biz"] = selected_biz
+        st.rerun()
+    
+    raw_b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
+    
+    target_row = summary_chart[summary_chart["표준사업구분"] == selected_biz]
+    target_tot_25 = float(target_row[col_25].values[0]) if not target_row.empty else 0.0
+    target_tot_26 = float(target_row[col_26].values[0]) if not target_row.empty else 0.0
+
+    if raw_b_chart.empty:
+        st.warning(f"선택하신 [{selected_biz}] 부문의 요약 블록('행 레이블' 표)을 읽을 수 없습니다.")
+    else:
+        is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE", "기타"])
+        valid_vendors = raw_b_chart[~is_dash].copy()
+        dash_vendors = raw_b_chart[is_dash].copy()
+        
+        valid_vendors = valid_vendors.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        
+        if len(valid_vendors) > 6:
+            top6 = valid_vendors.iloc[:6].copy()
+            rest = valid_vendors.iloc[6:].copy()
+            
+            top6_25 = top6["2025년 실적"].sum()
+            top6_26 = top6["2026년 실적"].sum()
+            
+            calc_etc_25 = rest["2025년 실적"].sum() + dash_vendors["2025년 실적"].sum()
+            calc_etc_26 = rest["2026년 실적"].sum() + dash_vendors["2026년 실적"].sum()
+            
+            etc_25 = max(calc_etc_25, target_tot_25 - top6_25)
+            etc_26 = max(calc_etc_26, target_tot_26 - top6_26)
+            
+            etc_row = pd.DataFrame([{
+                "협력사명": "기타 협력사",
+                "2025년 실적": etc_25,
+                "2026년 실적": etc_26
+            }])
+            top6 = top6.rename(columns={"바이어명": "협력사명"})
+            top_vendors = pd.concat([top6, etc_row], ignore_index=True)
+        else:
+            top_sum_25 = valid_vendors["2025년 실적"].sum()
+            top_sum_26 = valid_vendors["2026년 실적"].sum()
+            
+            etc_25 = max(dash_vendors["2025년 실적"].sum(), target_tot_25 - top_sum_25)
+            etc_26 = max(dash_vendors["2026년 실적"].sum(), target_tot_26 - top_sum_26)
+            
+            valid_vendors = valid_vendors.rename(columns={"바이어명": "협력사명"})
+            if etc_25 > 0 or etc_26 > 0:
+                etc_row = pd.DataFrame([{
+                    "협력사명": "기타 협력사",
+                    "2025년 실적": etc_25,
+                    "2026년 실적": etc_26
+                }])
+                top_vendors = pd.concat([valid_vendors, etc_row], ignore_index=True)
+            else:
+                top_vendors = valid_vendors.copy()
+
+        top_vendors["증감액"] = top_vendors["2026년 실적"] - top_vendors["2025년 실적"]
+        top_vendors["증감률"] = ((top_vendors["증감액"] / top_vendors["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
+        x_vendor_names = [b for b in top_vendors["협력사명"] if b != "기타 협력사"] + (["기타 협력사"] if "기타 협력사" in top_vendors["협력사명"].values else [])
+
+        render_fullwidth_vertical_dashboard(
+            title_top=f"🏢 [{selected_biz}] 주요 협력사 2025년 vs 2026년 실적 변화 (접수기준)",
+            title_bottom=f"📈 [{selected_biz}] 협력사별 증감액 및 증감률 (26년 - 25년)",
+            table_title=f"[{selected_biz}] 주요 협력사 및 기타 실적 요약표",
+            data_df=top_vendors,
+            x_col_name="협력사명",
+            cat_order=x_vendor_names
+        )
+
+# [페이지 5] [BI_종합] 사업별 실적 현황
 elif page_menu == "[BI_종합] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
@@ -1071,7 +1156,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         cat_order=BI_8_CATEGORIES
     )
 
-# [페이지 5] [BI_상해] 사업별 실적 현황
+# [페이지 6] [BI_상해] 사업별 실적 현황
 elif page_menu == "[BI_상해] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
@@ -1082,7 +1167,7 @@ elif page_menu == "[BI_상해] 사업별 실적 현황":
         cat_order=BI_8_CATEGORIES
     )
 
-# [페이지 6] [BI_광주] 사업별 실적 현황
+# [페이지 7] [BI_광주] 사업별 실적 현황
 elif page_menu == "[BI_광주] 사업별 실적 현황":
     render_fullwidth_vertical_dashboard(
         title_top=f"🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
