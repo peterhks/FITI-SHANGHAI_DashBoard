@@ -107,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 (항상 '종합' 시트 자동 연결 & 사이드바 UI 제거)
+# 3. 데이터 로드 ('종합' 시트 자동 연결)
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -134,7 +134,6 @@ if target_file:
         else:
             xl = pd.ExcelFile(target_file)
             sheet_names = xl.sheet_names
-            # '종합' 시트가 있으면 바로 선택, 없으면 첫 번째 시트 자동 로드
             target_sheet = next((s for s in sheet_names if "종합" in s), sheet_names[0])
             df_summary = clean_data(pd.read_excel(target_file, sheet_name=target_sheet))
     except Exception:
@@ -148,7 +147,7 @@ if df_summary is None:
     })
 
 # =========================================================
-# 4. 내부 자동 컬럼 인식 및 4대 사업구분 정제 (사용자 입력 불필요)
+# 4. 내부 자동 컬럼 인식 및 4대 사업구분 정제
 # =========================================================
 num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
 other_cols = [c for c in df_summary.columns if c not in num_cols]
@@ -156,7 +155,6 @@ other_cols = [c for c in df_summary.columns if c not in num_cols]
 col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else "2025년")
 col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
 
-# 사업명 텍스트가 들어있는 컬럼 자동 감지
 biz_col = other_cols[0] if other_cols else df_summary.columns[0]
 for c in other_cols:
     sample_text = "".join(df_summary[c].dropna().astype(str).tolist())
@@ -164,7 +162,6 @@ for c in other_cols:
         biz_col = c
         break
 
-# 4대 카테고리 매핑 함수
 def map_biz_category(val):
     s = str(val).replace(" ", "").upper()
     if "글로벌" in s or "GLOBAL" in s or "BUYER" in s:
@@ -179,17 +176,15 @@ def map_biz_category(val):
 
 df_summary["표준사업구분"] = df_summary[biz_col].apply(map_biz_category)
 
-# 4대 사업에 해당하는 순수 데이터만 추출 (TOTAL, SUB TOTAL, 머리글 자동 제거)
 target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
 summary_data = df_summary.dropna(subset=["표준사업구분"]).copy()
 
-# 중복 행이 있을 경우 사업별로 합산 집계
 summary_chart = summary_data.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 상단 종합 KPI 카드 (4대 사업 합산)
+# 5. 상단 종합 KPI 카드
 # =========================================================
 total_25 = float(summary_chart[col_25].sum())
 total_26 = float(summary_chart[col_26].sum())
@@ -243,7 +238,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 6. 사이드바 메뉴: 3가지 카테고리만 심플하게 배치
+# 6. 사이드바 메뉴
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
@@ -265,61 +260,32 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
     
     fig_bar = go.Figure()
-    
-    # 2025년 바 (차분한 Slate Grey)
     fig_bar.add_trace(go.Bar(
         x=summary_chart["표준사업구분"],
         y=summary_chart[col_25],
         name="2025년 총 실적",
-        marker=dict(
-            color="#94A3B8",
-            line=dict(color="#64748B", width=1),
-            cornerradius=6
-        ),
+        marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=summary_chart[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
         textposition="outside",
         textfont=dict(size=12, color="#475569", family="Pretendard")
     ))
-    
-    # 2026년 바 (세련된 Deep Royal Blue)
     fig_bar.add_trace(go.Bar(
         x=summary_chart["표준사업구분"],
         y=summary_chart[col_26],
         name="2026년 총 실적",
-        marker=dict(
-            color="#1D4ED8",
-            line=dict(color="#1E40AF", width=1),
-            cornerradius=6
-        ),
+        marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=summary_chart[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
         textposition="outside",
         textfont=dict(size=12, color="#0F172A", family="Pretendard", weight="bold")
     ))
-    
     fig_bar.update_layout(
         height=450,
         bargap=0.32,
         bargroupgap=0.10,
-        yaxis=dict(
-            rangemode='tozero',
-            title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")),
-            gridcolor="#F1F5F9",
-            zerolinecolor="#E2E8F0"
-        ),
-        xaxis=dict(
-            categoryorder='array',
-            categoryarray=target_categories,
-            tickfont=dict(size=14, weight="bold", color="#1E293B")
-        ),
+        yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#E2E8F0"),
+        xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=14, weight="bold", color="#1E293B")),
         template="plotly_white",
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.05,
-            xanchor="left",
-            x=0,
-            font=dict(size=12, color="#334155")
-        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0, font=dict(size=12, color="#334155")),
         margin=dict(t=50, b=20, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
@@ -335,95 +301,94 @@ if page_menu == "첫번째장 : 종합 실적 현황":
     }
     
     pie_col1, pie_col2 = st.columns(2)
-    
     with pie_col1:
         fig_pie_25 = px.pie(
-            summary_chart,
-            names="표준사업구분",
-            values=col_25,
-            hole=0.55,
-            title="2025년 사업별 실적 점유율",
-            category_orders={"표준사업구분": target_categories},
-            color="표준사업구분",
-            color_discrete_map=biz_colors
+            summary_chart, names="표준사업구분", values=col_25, hole=0.55,
+            title="2025년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", color_discrete_map=biz_colors
         )
-        fig_pie_25.update_traces(
-            textposition='inside',
-            textinfo='percent+label',
-            textfont=dict(size=13, family="Pretendard"),
-            marker=dict(line=dict(color='#FFFFFF', width=2))
-        )
-        fig_pie_25.update_layout(
-            height=430,
-            margin=dict(t=50, b=20, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
-        )
+        fig_pie_25.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2)))
+        fig_pie_25.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
     with pie_col2:
         fig_pie_26 = px.pie(
-            summary_chart,
-            names="표준사업구분",
-            values=col_26,
-            hole=0.55,
-            title="2026년 사업별 실적 점유율",
-            category_orders={"표준사업구분": target_categories},
-            color="표준사업구분",
-            color_discrete_map=biz_colors
+            summary_chart, names="표준사업구분", values=col_26, hole=0.55,
+            title="2026년 사업별 실적 점유율", category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", color_discrete_map=biz_colors
         )
-        fig_pie_26.update_traces(
-            textposition='inside',
-            textinfo='percent+label',
-            textfont=dict(size=13, family="Pretendard"),
-            marker=dict(line=dict(color='#FFFFFF', width=2))
+        fig_pie_26.update_traces(textposition='inside', textinfo='percent+label', textfont=dict(size=13, family="Pretendard"), marker=dict(line=dict(color='#FFFFFF', width=2))
         )
-        fig_pie_26.update_layout(
-            height=430,
-            margin=dict(t=50, b=20, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
-        )
+        fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교
+# [두번째장] 각 사업별 년도 대비 실적 비교 (첫번째장 룩앤필 완벽 동기화)
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
     biz_df = summary_chart.copy()
     biz_df["증감액"] = biz_df[col_26] - biz_df[col_25]
     biz_df["증감률(%)"] = (biz_df["증감액"] / biz_df[col_25].replace(0, pd.NA) * 100).fillna(0)
-    biz_df = biz_df.sort_values(by=col_26, ascending=False)
     
     col2_l, col2_r = st.columns([6, 4])
     
     with col2_l:
-        biz_chart = biz_df.rename(columns={col_25: "2025년 실적", col_26: "2026년 실적", "표준사업구분": "사업구분"})
-        fig2_bar = px.bar(
-            biz_chart,
-            x="사업구분",
-            y=["2025년 실적", "2026년 실적"],
-            barmode='group',
-            labels={"value": "실적금액 (원)", "variable": "연도 구분"},
-            color_discrete_map={"2025년 실적": "#94A3B8", "2026년 실적": "#1D4ED8"}
-        )
+        # 좌측: 첫번째장과 동일한 라운드 & 폰트 스타일의 2025 vs 2026 비교 바
+        fig2_bar = go.Figure()
+        fig2_bar.add_trace(go.Bar(
+            x=biz_df["표준사업구분"],
+            y=biz_df[col_25],
+            name="2025년 실적",
+            marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
+            text=biz_df[col_25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#475569", family="Pretendard")
+        ))
+        fig2_bar.add_trace(go.Bar(
+            x=biz_df["표준사업구분"],
+            y=biz_df[col_26],
+            name="2026년 실적",
+            marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
+            text=biz_df[col_26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#0F172A", family="Pretendard", weight="bold")
+        ))
         fig2_bar.update_layout(
+            title="사업별 2개년 실적 비교",
             height=440,
-            yaxis=dict(rangemode='tozero', title="실적금액 (원)"),
+            bargap=0.30,
+            bargroupgap=0.10,
+            yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
             template="plotly_white",
-            legend=dict(orientation="h", y=1.12, x=0)
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
+            margin=dict(t=50, b=20, l=10, r=10)
         )
         st.plotly_chart(fig2_bar, use_container_width=True)
 
     with col2_r:
-        fig2_diff = px.bar(
-            biz_df,
-            x="표준사업구분",
-            y="증감액",
-            text_auto=',.0f',
+        # 우측: 깔끔하고 모던한 증감액 바 차트 (증가: 레드, 감소: 블루, 라운딩 적용)
+        diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in biz_df["증감액"]]
+        diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in biz_df["증감액"]]
+        
+        fig2_diff = go.Figure()
+        fig2_diff.add_trace(go.Bar(
+            x=biz_df["표준사업구분"],
+            y=biz_df["증감액"],
+            marker=dict(color=diff_colors, cornerradius=6),
+            text=diff_texts,
+            textposition="outside",
+            textfont=dict(size=11, weight="bold", family="Pretendard")
+        ))
+        fig2_diff.update_layout(
             title="사업별 실적 증감액 (26년 - 25년)",
-            color="증감액",
-            color_continuous_scale=["#2563EB", "#CBD5E1", "#E11D48"]
+            height=440,
+            bargap=0.45,
+            yaxis=dict(title=dict(text="증감액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            template="plotly_white",
+            margin=dict(t=50, b=20, l=10, r=10)
         )
-        fig2_diff.update_layout(height=440, template="plotly_white")
         st.plotly_chart(fig2_diff, use_container_width=True)
         
     st.markdown("##### 📋 사업별 세부 실적 요약 테이블")
