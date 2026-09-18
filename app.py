@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 유틸리티
+# 3. 데이터 로드 및 정제 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -461,7 +461,7 @@ page_menu = st.sidebar.radio(
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
     ],
-    index=0,
+    index=1,
     label_visibility="collapsed"
 )
 
@@ -567,7 +567,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트
+# 9. 공통 렌더러: 전폭 상하 배치 차트 및 요약 테이블 (천단위 콤마 완벽 적용)
 # =========================================================
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -694,9 +694,15 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표
+    # 3. 하단 세부 요약표 (천 단위 콤마 서식 완벽 적용)
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
+    
+    # 단위에 따른 정확한 콤마 포맷 설정
+    is_won = (unit_label == "원")
+    fmt_val = "₩%,d" if is_won else "%,d"
+    fmt_diff = "₩%+,.0f" if is_won else "%+,.0f"  # 천단위 콤마와 부호(+/-)를 동시에 완벽 지원
+
     st.dataframe(
         pd.DataFrame({
             x_col_name: df[x_col_name],
@@ -707,9 +713,9 @@ def render_fullwidth_vertical_dashboard(
         }),
         column_config={
             x_col_name: st.column_config.TextColumn(x_col_name, width="medium"),
-            f"2025년 실적 ({unit_label})": st.column_config.NumberColumn(f"2025년 실적 ({unit_label})", format="₩%,d" if unit_label == "원" else "%,d"),
-            f"2026년 실적 ({unit_label})": st.column_config.NumberColumn(f"2026년 실적 ({unit_label})", format="₩%,d" if unit_label == "원" else "%,d"),
-            f"증감액 ({unit_label})": st.column_config.NumberColumn(f"증감액 ({unit_label})", format="₩%+d" if unit_label == "원" else "%+d"),
+            f"2025년 실적 ({unit_label})": st.column_config.NumberColumn(f"2025년 실적 ({unit_label})", format=fmt_val),
+            f"2026년 실적 ({unit_label})": st.column_config.NumberColumn(f"2026년 실적 ({unit_label})", format=fmt_val),
+            f"증감액 ({unit_label})": st.column_config.NumberColumn(f"증감액 ({unit_label})", format=fmt_diff),
             "증감률(%)": st.column_config.NumberColumn("증감률(%)", format="%+.1f%%"),
         },
         hide_index=True,
@@ -720,11 +726,10 @@ def render_fullwidth_vertical_dashboard(
 # 10. 본문 페이지 분기 실행
 # =========================================================
 
-# [페이지 1] [접수기준] 종합 실적 현황 (도넛 차트 글씨 확대 적용)
+# [페이지 1] [접수기준] 종합 실적 현황
 if page_menu == "[접수기준] 종합 실적 현황":
     st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")
     
-    # X축 라벨: 사업명 (+증감액, +증감률%)
     x_axis_custom_labels = []
     for _, r in summary_chart.iterrows():
         b_name = r["표준사업구분"]
@@ -794,9 +799,6 @@ if page_menu == "[접수기준] 종합 실적 현황":
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # -------------------------------------------------------------
-    # [요청 반영] 도넛 차트 글씨 대폭 확대
-    # -------------------------------------------------------------
     st.write("")
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
