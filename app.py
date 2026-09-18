@@ -207,7 +207,6 @@ summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
-# 증감액 및 증감률 계산
 summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
 summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
 
@@ -496,7 +495,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드 (실제 원화 기준 일원화)
+# 8. 상단 종합 KPI 카드
 # =========================================================
 card_unit = "원"
 
@@ -596,7 +595,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 9. 공통 렌더러: 전폭 상하 배치 차트 (실제 원화 억단위 포맷 완벽 적용)
+# 9. 공통 렌더러: 전폭 상하 배치 차트
 # =========================================================
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -753,10 +752,9 @@ def render_fullwidth_vertical_dashboard(
 # 10. 본문 페이지 분기 실행
 # =========================================================
 
-# [페이지 1] [접수기준] 종합 실적 현황 (실적 비교 그래프 + 증감액 그래프 추가)
+# [페이지 1] [접수기준] 종합 실적 현황
 if page_menu == "[접수기준] 종합 실적 현황":
-    # 1. 상단 실적 비교 그래프 (2025년 vs 2026년)
-    st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")[cite: 24]
+    st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")
     
     x_axis_custom_labels = []
     diff_texts_main = []
@@ -777,7 +775,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
         else:
             d_str = f"{sign_v}{d_val:,.0f}"
             
-        x_axis_custom_labels.append(f"{b_name} ({d_str}, {sign_r}{d_rate:.1f}%)")[cite: 24]
+        x_axis_custom_labels.append(f"{b_name} ({d_str}, {sign_r}{d_rate:.1f}%)")
         diff_texts_main.append(f"<span style='font-size:15px; font-weight:800;'>{d_str}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{d_rate:.1f}%)</span>")
         diff_colors_main.append("#E11D48" if d_val >= 0 else "#2563EB")
         
@@ -788,7 +786,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
     fig_bar.add_trace(go.Bar(
         x=summary_chart_view["X축라벨"],
         y=summary_chart_view[col_25],
-        name="2025년 총 실적",[cite: 24]
+        name="2025년 총 실적",
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=summary_chart_view[col_25].apply(lambda x: f"<span style='font-size:14px; font-weight:700;'>{x/1e8:.1f}억</span>" if x >= 1e8 else f"<span style='font-size:14px; font-weight:700;'>{x/1e4:.0f}만</span>"),
         textposition="outside",
@@ -797,7 +795,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
     fig_bar.add_trace(go.Bar(
         x=summary_chart_view["X축라벨"],
         y=summary_chart_view[col_26],
-        name="2026년 총 실적",[cite: 24]
+        name="2026년 총 실적",
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=summary_chart_view[col_26].apply(lambda x: f"<span style='font-size:15px; font-weight:800;'>{x/1e8:.1f}억</span>" if x >= 1e8 else f"<span style='font-size:15px; font-weight:800;'>{x/1e4:.0f}만</span>"),
         textposition="outside",
@@ -809,7 +807,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
         bargroupgap=0.10,
         yaxis=dict(
             rangemode='tozero', 
-            title=dict(text="실적금액 (원)", font=dict(size=15, color="#1E293B", weight="bold")), [cite: 24]
+            title=dict(text="실적금액 (원)", font=dict(size=15, color="#1E293B", weight="bold")), 
             gridcolor="#F1F5F9", 
             zerolinecolor="#E2E8F0",
             tickfont=dict(size=14, color="#475569", weight="bold")
@@ -832,7 +830,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 2. [요청 반영] 다른 시트들처럼 증감액 및 증감률 그래프 추가
+    # 사업별 증감액 및 증감률 그래프
     st.write("")
     st.markdown("##### 📈 사업별 실적 증감액 및 증감률 (26년 - 25년)")
     fig_diff_main = go.Figure()
@@ -863,7 +861,7 @@ if page_menu == "[접수기준] 종합 실적 현황":
     )
     st.plotly_chart(fig_diff_main, use_container_width=True)
 
-    # 3. 도넛 점유율 차트
+    # 도넛 점유율 차트
     st.write("")
     st.subheader("🥧 사업별 점유율 비중 (전체 실적 기준)")
     
