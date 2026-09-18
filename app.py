@@ -287,7 +287,6 @@ part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories
 def extract_vendor_data_from_sheet(sheet_name):
     raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
     
-    # '업체명' 및 '바이어명' 헤더 행 탐색
     h_idx = None
     buyer_col_idx = None
     vendor_col_idx = None
@@ -320,7 +319,6 @@ def extract_vendor_data_from_sheet(sheet_name):
             c26 = c
             
     if not c25 or not c26:
-        # 25년/26년 포함 숫자 컬럼 탐색
         for c in df_raw.columns:
             c_str = str(c).replace(" ", "")
             if "25" in c_str and c25 is None:
@@ -793,7 +791,7 @@ def render_fullwidth_vertical_dashboard(
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
-    # 3. 하단 세부 요약표 (천단위 콤마 완벽 적용)
+    # 3. 하단 세부 요약표
     st.write("")
     st.markdown(f"##### 📋 {table_title}")
     st.dataframe(
@@ -1125,9 +1123,8 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
             cat_order=x_buyer_names
         )
 
-# [페이지 4] [접수기준] 협력사 실적 현황 (요청 반영: 2단계 조회 체계 및 업체명 기준 파싱)
+# [페이지 4] [접수기준] 협력사 실적 현황 (요청 반영: 2단계 조회 + 업체명 기준 파싱)
 elif page_menu == "[접수기준] 협력사 실적 현황":
-    # 2단계 조회 인터페이스
     c_biz, c_vendor = st.columns([4, 6])
     
     with c_biz:
@@ -1142,21 +1139,18 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     if raw_v_df.empty:
         st.warning(f"선택하신 [{selected_biz}] 부문의 협력사(업체명) 원본 데이터를 읽을 수 없습니다.")
     else:
-        # 업체별 합산 집계
         v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
         v_summary = v_summary.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         
         vendor_list = ["전체 협력사(상위 6개사+기타) 보기"] + v_summary["협력사명"].tolist()
         
         with c_vendor:
-            # 요청하신 타이틀 적용[cite: 27]
             selected_vendor = st.selectbox(
-                "조회할 협력사를 선택하세요:",[cite: 27]
+                "조회할 협력사를 선택하세요:",
                 vendor_list,
                 key="tab4_vendor_select"
             )
             
-        # 선택에 따른 렌더링 분기
         if selected_vendor == "전체 협력사(상위 6개사+기타) 보기":
             if len(v_summary) > 6:
                 top6 = v_summary.iloc[:6].copy()
@@ -1182,7 +1176,6 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
                 cat_order=x_orders
             )
         else:
-            # 개별 선택 협력사의 세부 바이어별 실적 분석
             single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
             b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
             b_breakdown = b_breakdown.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
