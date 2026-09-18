@@ -211,7 +211,7 @@ summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: ta
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 세부 파트 데이터 로드 및 검증
+# 5. 파트별 세부 데이터 로드 및 검증
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -303,29 +303,38 @@ page_menu = st.sidebar.radio(
 )
 
 # =========================================================
-# 7. 상단 종합 KPI 카드 (두번째장에서만 필터와 연동되도록 조건부 계산)
+# 7. 상단 종합 KPI 카드 (두번째장 및 세번째장 필터와 완벽 연동)
 # =========================================================
-selected_view_for_card = "전체 사업 보기"
+card_sub_desc = "종합 TOTAL 합계 (정상 일치)"
 
-# 두 번째 장인 경우, 본문에서 선택될 사업부문 필터를 선행 확인
 if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
-    biz_filter_options = ["전체 사업 보기"] + target_categories
-    # session_state에 저장된 필터값 확인 (기본값: 전체 사업 보기)
     if "selected_biz_view" not in st.session_state:
         st.session_state["selected_biz_view"] = "전체 사업 보기"
-    selected_view_for_card = st.session_state["selected_biz_view"]
+    current_selected = st.session_state["selected_biz_view"]
+    
+    if current_selected != "전체 사업 보기":
+        target_row = summary_chart[summary_chart["표준사업구분"] == current_selected]
+        total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
+        total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
+        card_sub_desc = f"[{current_selected}] 실적 합계"
+    else:
+        total_25 = float(summary_chart[col_25].sum())
+        total_26 = float(summary_chart[col_26].sum())
 
-if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교" and selected_view_for_card != "전체 사업 보기":
-    # 선택된 특정 사업 기준 집계
-    target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
+elif page_menu == "세번째장 : 각 사업별 협력사 비교":
+    if "selected_buyer_biz" not in st.session_state:
+        st.session_state["selected_buyer_biz"] = target_categories[0]
+    current_selected = st.session_state["selected_buyer_biz"]
+    
+    target_row = summary_chart[summary_chart["표준사업구분"] == current_selected]
     total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
     total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
-    card_sub_desc = f"[{selected_view_for_card}] 실적 합계"
+    card_sub_desc = f"[{current_selected}] 실적 합계"
+
 else:
-    # 첫번째장, 세번째장, 또는 두번째장 전체보기 시 전체 실적 집계
+    # 첫번째장: 종합 전체 실적
     total_25 = float(summary_chart[col_25].sum())
     total_26 = float(summary_chart[col_26].sum())
-    card_sub_desc = "종합 TOTAL 합계 (정상 일치)"
 
 diff_val = total_26 - total_25
 diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
@@ -450,11 +459,9 @@ if page_menu == "첫번째장 : 종합 실적 현황":
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
-    # 사업부문 선택 필터
     biz_filter_options = ["전체 사업 보기"] + target_categories
     current_idx = biz_filter_options.index(st.session_state.get("selected_biz_view", "전체 사업 보기"))
     
-    # 선택 변경 시 session_state 업데이트 후 리런하여 상단 카드와 동기화
     selected_view = st.selectbox(
         "조회할 사업부문을 선택하세요:", 
         biz_filter_options, 
@@ -466,7 +473,6 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         st.session_state["selected_biz_view"] = selected_view
         st.rerun()
 
-    # 선택에 따른 데이터 분기
     if selected_view == "전체 사업 보기":
         display_df = summary_chart.copy()
         x_col = "표준사업구분"
@@ -582,22 +588,47 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         use_container_width=True
     )
 
-# [세번째장] 각 사업별 협력사(바이어) 비교
+# [세번째장] 각 사업별 협력사(바이어) 비교 (상위 6개 + 기타 그룹화 & 상단 KPI 연동)
 elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화")
     
-    unique_biz = summary_chart["표준사업구분"].tolist()
-    selected_biz = st.selectbox("조회할 사업부문을 선택하세요:", unique_biz, index=0)
+    current_idx_3 = target_categories.index(st.session_state.get("selected_buyer_biz", target_categories[0]))
+    selected_biz = st.selectbox(
+        "조회할 사업부문을 선택하세요:", 
+        target_categories, 
+        index=current_idx_3,
+        key="selected_buyer_selectbox"
+    )
     
-    b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
+    if selected_biz != st.session_state.get("selected_buyer_biz"):
+        st.session_state["selected_buyer_biz"] = selected_biz
+        st.rerun()
     
-    if b_chart.empty:
+    b_chart_raw = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
+    
+    if b_chart_raw.empty:
         st.warning(f"선택하신 [{selected_biz}] 부문에 해당하는 세부 파트 시트의 데이터를 찾을 수 없습니다.")
     else:
-        b_chart["증감액"] = b_chart["2026년 실적"] - b_chart["2025년 실적"]
-        b_chart["증감률"] = ((b_chart["증감액"] / b_chart["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+        # -------------------------------------------------------------
+        # 2026년 실적 기준 상위 6개 바이어 + 기타 합산 로직
+        # -------------------------------------------------------------
+        sorted_b = b_chart_raw.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         
-        top_buyers = b_chart.sort_values(by="2026년 실적", ascending=False).head(10).reset_index(drop=True)
+        if len(sorted_b) > 6:
+            top_6 = sorted_b.iloc[:6].copy()
+            etc_part = sorted_b.iloc[6:]
+            
+            etc_row = pd.DataFrame([{
+                "바이어명": "기타",
+                "2025년 실적": etc_part["2025년 실적"].sum(),
+                "2026년 실적": etc_part["2026년 실적"].sum()
+            }])
+            top_buyers = pd.concat([top_6, etc_row], ignore_index=True)
+        else:
+            top_buyers = sorted_b.copy()
+            
+        top_buyers["증감액"] = top_buyers["2026년 실적"] - top_buyers["2025년 실적"]
+        top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
         col3_l, col3_r = st.columns([6, 4])
         
@@ -608,7 +639,7 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 y=top_buyers["2025년 실적"],
                 name="2025년 실적",
                 marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
-                text=top_buyers["2025년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+                text=top_buyers["2025년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0")),
                 textposition="outside",
                 textfont=dict(size=10, color="#475569", family="Pretendard")
             ))
@@ -617,7 +648,7 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
                 y=top_buyers["2026년 실적"],
                 name="2026년 실적",
                 marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
-                text=top_buyers["2026년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+                text=top_buyers["2026년 실적"].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else (f"{x/1e4:.0f}만" if x > 0 else "0")),
                 textposition="outside",
                 textfont=dict(size=10, color="#0F172A", family="Pretendard", weight="bold")
             ))
@@ -657,14 +688,14 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             )
             st.plotly_chart(fig3_diff, use_container_width=True)
 
-        st.markdown(f"##### 📋 [{selected_biz}] 바이어별 실적 세부 요약표 (전체 바이어)")
+        st.markdown(f"##### 📋 [{selected_biz}] 주요 바이어 실적 요약표 (상위 6개사 + 기타)")
         
         table_buyer_df = pd.DataFrame({
-            "바이어명": b_chart.sort_values(by="2026년 실적", ascending=False)["바이어명"],
-            "2025년 실적 (원)": b_chart.sort_values(by="2026년 실적", ascending=False)["2025년 실적"],
-            "2026년 실적 (원)": b_chart.sort_values(by="2026년 실적", ascending=False)["2026년 실적"],
-            "증감액 (원)": b_chart.sort_values(by="2026년 실적", ascending=False)["증감액"],
-            "증감률(%)": b_chart.sort_values(by="2026년 실적", ascending=False)["증감률"]
+            "바이어명": top_buyers["바이어명"],
+            "2025년 실적 (원)": top_buyers["2025년 실적"],
+            "2026년 실적 (원)": top_buyers["2026년 실적"],
+            "증감액 (원)": top_buyers["증감액"],
+            "증감률(%)": top_buyers["증감률"]
         })
         
         st.dataframe(
