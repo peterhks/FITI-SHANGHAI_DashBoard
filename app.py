@@ -140,7 +140,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 정밀 파싱
+# 4. '종합' 시트 정밀 파싱 (접수기준)
 # =========================================================
 summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
 raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, header=None)
@@ -208,7 +208,7 @@ summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: ta
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 각 시트의 우측 요약표('행 레이블' 피벗 블록) 정밀 파싱
+# 5. 세부 파트 시트 우측 피벗 블록 정밀 파싱
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -218,10 +218,7 @@ PART_SHEET_MAPPINGS = {
 }
 
 def extract_pivot_block(sheet_name):
-    # 헤더 없이 전체 시트를 로드
     raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
-    
-    # 1. 시트 전체에서 '행 레이블' 셀의 행/열 좌표 탐색
     pivot_r, pivot_c = None, None
     for r_i in range(min(15, len(raw))):
         for c_i in range(len(raw.columns)):
@@ -232,7 +229,6 @@ def extract_pivot_block(sheet_name):
         if pivot_r is not None:
             break
             
-    # '행 레이블'을 찾지 못한 경우 일반 테이블 탐색
     if pivot_r is None:
         for r_i in range(min(15, len(raw))):
             row_str = " ".join(raw.iloc[r_i].dropna().astype(str).tolist())
@@ -244,15 +240,11 @@ def extract_pivot_block(sheet_name):
     if pivot_r is None:
         return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
 
-    # 2. '행 레이블' 헤더 위치부터 우측 5개 컬럼 추출
     sub_raw = raw.iloc[pivot_r:, pivot_c:pivot_c+6].copy().reset_index(drop=True)
     sub_raw.columns = [str(c).strip() for c in sub_raw.iloc[0]]
     sub_data = sub_raw.iloc[1:].copy().reset_index(drop=True)
     
-    # 바이어명 컬럼 식별
     buyer_col_name = sub_data.columns[0]
-    
-    # 25년/26년 합계 컬럼 식별
     c25, c26 = None, None
     for col in sub_data.columns[1:]:
         c_str = str(col).replace(" ", "")
@@ -268,13 +260,11 @@ def extract_pivot_block(sheet_name):
         else:
             return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
 
-    # 3. '총합계' 이전의 바이어 데이터만 추출
     parsed_rows = []
     for _, row in sub_data.iterrows():
         b_name = str(row[buyer_col_name]).strip()
         if not b_name or b_name.lower() in ['nan', 'none']:
             continue
-        # '총합계'를 만나면 요약 블록 종료
         if any(k in b_name.replace(" ", "") for k in ["총합계", "합계", "전체합계"]):
             break
             
@@ -282,8 +272,7 @@ def extract_pivot_block(sheet_name):
         v26 = clean_series(pd.Series([row[c26]])).iloc[0]
         parsed_rows.append({"바이어명": b_name, "2025년 실적": v25, "2026년 실적": v26})
         
-    res_df = pd.DataFrame(parsed_rows)
-    return res_df
+    return pd.DataFrame(parsed_rows)
 
 def get_combined_part_data(categories_target):
     keywords_list = PART_SHEET_MAPPINGS.get(categories_target, [])
@@ -302,29 +291,93 @@ def get_combined_part_data(categories_target):
 part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
 
 # =========================================================
-# 6. 사이드바 메뉴
+# 6. BI 시트 전용 파싱 엔진 (BI_종합, BI_상해+광주)
+# =========================================================
+def load_bi_sheet_data(bi_type="종합"):
+    target_kw = ["bi", "상해"] if "광주" in bi_type else ["bi", "종합"]
+    matched_sheet = None
+    for s_clean, orig_name in sheet_dict.items():
+        if "광주" in bi_type:
+            if "bi" in s_clean and ("광주" in s_clean or "상해" in s_clean):
+                matched_sheet = orig_name
+                break
+        else:
+            if "bi" in s_clean and "종합" in s_clean:
+                matched_sheet = orig_name
+                break
+                
+    # BI 시트 미발견 시 일반 BI 키워드 시트 탐색
+    if not matched_sheet:
+        for s_clean, orig_name in sheet_dict.items():
+            if "bi" in s_clean:
+                matched_sheet = orig_name
+                break
+                
+    if not matched_sheet:
+        return None, None
+        
+    raw_bi = pd.read_excel(target_file, sheet_name=matched_sheet, header=None)
+    
+    # 헤더 인덱스 검색
+    bi_h_idx = 0
+    for idx in range(min(15, len(raw_bi))):
+        r_text = "".join(raw_bi.iloc[idx].dropna().astype(str).tolist())
+        if any(k in r_text for k in ["사업", "구분"]) and any(y in r_text for y in ["25", "26", "실적", "합계"]):
+            bi_h_idx = idx
+            break
+            
+    df_bi = pd.read_excel(target_file, sheet_name=matched_sheet, skiprows=bi_h_idx)
+    
+    # 25년/26년 및 사업구분 컬럼 탐색
+    bi_nums = df_bi.select_dtypes(include=['number']).columns.tolist()
+    bi_c25 = next((c for c in bi_nums if "25" in str(c)), bi_nums[0] if bi_nums else None)
+    bi_c26 = next((c for c in bi_nums if "26" in str(c)), bi_nums[1] if len(bi_nums) > 1 else bi_nums[0])
+    
+    bi_others = [c for c in df_bi.columns if c not in bi_nums]
+    bi_cat = bi_others[0] if bi_others else df_bi.columns[0]
+    
+    # Forward Fill 적용
+    df_bi[bi_cat] = df_bi[bi_cat].replace(r'^\s*$', pd.NA, regex=True).ffill()
+    df_bi["표준사업구분"] = df_bi[bi_cat].apply(map_biz_category)
+    
+    ex_pat = r"SUB\s*TOTAL|TOTAL|합계|소계"
+    clean_bi = df_bi[
+        (~df_bi[bi_cat].astype(str).str.strip().str.upper().str.contains(ex_pat, regex=True, na=False)) &
+        (df_bi["표준사업구분"].notnull())
+    ].copy()
+    
+    bi_chart = clean_bi.groupby("표준사업구분", as_index=False)[[bi_c25, bi_c26]].sum()
+    bi_chart["정렬"] = bi_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
+    bi_chart = bi_chart.sort_values("정렬").reset_index(drop=True)
+    
+    return bi_chart, (bi_c25, bi_c26)
+
+# =========================================================
+# 7. 사이드바 메뉴 (요청하신 5개 카테고리 명칭 변경 및 추가)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 page_menu = st.sidebar.radio(
     "이동할 카테고리를 선택하세요:",
     [
-        "첫번째장 : 종합 실적 현황",
-        "두번째장 : 각 사업별 년도 대비 실적 비교",
-        "세번째장 : 각 사업별 협력사 비교"
+        "[접수기준] 종합 실적 현황",
+        "[접수기준] 사업별 실적 현황",
+        "[접수기준] 바이어 실적 현황",
+        "[BI_종합] 사업별 실적 현황",
+        "[BI_상해+광주] 사업별 실적 현황"
     ],
     index=0
 )
 
 # =========================================================
-# 7. 상단 종합 KPI 카드 (동적 연동)
+# 8. 상단 종합 KPI 카드 (동적 연동)
 # =========================================================
 selected_view_for_card = "전체 사업 보기"
 
-if page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
+if page_menu == "[접수기준] 사업별 실적 현황":
     if "selected_biz_view" not in st.session_state:
         st.session_state["selected_biz_view"] = "전체 사업 보기"
     selected_view_for_card = st.session_state["selected_biz_view"]
-elif page_menu == "세번째장 : 각 사업별 협력사 비교":
+elif page_menu == "[접수기준] 바이어 실적 현황":
     if "selected_tab3_biz" not in st.session_state:
         st.session_state["selected_tab3_biz"] = target_categories[0]
     selected_view_for_card = st.session_state["selected_tab3_biz"]
@@ -389,12 +442,12 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 8. 본문 페이지 렌더링
+# 9. 본문 페이지 렌더링
 # =========================================================
 
-# [첫번째장] 종합 실적 현황
-if page_menu == "첫번째장 : 종합 실적 현황":
-    st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교")
+# [페이지 1] [접수기준] 종합 실적 현황
+if page_menu == "[접수기준] 종합 실적 현황":
+    st.subheader("📌 2025년 총 실적 vs 2026년 총 실적 비교 (접수기준)")
     
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
@@ -458,9 +511,9 @@ if page_menu == "첫번째장 : 종합 실적 현황":
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교
-elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
-    st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
+# [페이지 2] [접수기준] 사업별 실적 현황
+elif page_menu == "[접수기준] 사업별 실적 현황":
+    st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교 (접수기준)")
     
     biz_filter_options = ["전체 사업 보기"] + target_categories
     current_idx = biz_filter_options.index(st.session_state.get("selected_biz_view", "전체 사업 보기"))
@@ -571,9 +624,9 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         use_container_width=True
     )
 
-# [세번째장] 각 사업별 협력사(바이어) 비교 (피벗 블록 기반 100% 정밀 일치)
-elif page_menu == "세번째장 : 각 사업별 협력사 비교":
-    st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화")
+# [페이지 3] [접수기준] 바이어 실적 현황
+elif page_menu == "[접수기준] 바이어 실적 현황":
+    st.subheader("🤝 각 사업별 주요 바이어 2025년 vs 2026년 실적 변화 (접수기준)")
     
     current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
     current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
@@ -591,7 +644,6 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     
     raw_b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
     
-    # 종합 시트 기준 해당 사업 총액
     target_row = summary_chart[summary_chart["표준사업구분"] == selected_biz]
     target_tot_25 = float(target_row[col_25].values[0]) if not target_row.empty else 0.0
     target_tot_26 = float(target_row[col_26].values[0]) if not target_row.empty else 0.0
@@ -599,12 +651,10 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     if raw_b_chart.empty:
         st.warning(f"선택하신 [{selected_biz}] 부문의 요약 블록('행 레이블' 표)을 읽을 수 없습니다.")
     else:
-        # '-' 하이픈 등 유효하지 않은 바이어명 분류
         is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE", "기타"])
         valid_buyers = raw_b_chart[~is_dash].copy()
         dash_buyers = raw_b_chart[is_dash].copy()
         
-        # 2026년 실적 기준 상위 6개 추출
         valid_buyers = valid_buyers.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         
         if len(valid_buyers) > 6:
@@ -728,3 +778,191 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
             hide_index=True,
             use_container_width=True
         )
+
+# [페이지 4] [BI_종합] 사업별 실적 현황
+elif page_menu == "[BI_종합] 사업별 실적 현황":
+    st.subheader("📊 [BI_종합] 사업별 2025년 vs 2026년 실적 비교")
+    
+    bi_df, bi_cols = load_bi_sheet_data("종합")
+    
+    if bi_df is None or bi_df.empty:
+        st.info("💡 엑셀 파일 내에서 `BI_종합` 관련 시트를 찾고 있습니다. 시트명이 확인되면 자동으로 정밀 집계됩니다.")
+        bi_df = summary_chart.copy()
+        bi_c25, bi_c26 = col_25, col_26
+    else:
+        bi_c25, bi_c26 = bi_cols
+        
+    bi_df["증감액"] = bi_df[bi_c26] - bi_df[bi_c25]
+    bi_df["증감률"] = ((bi_df["증감액"] / bi_df[bi_c25].replace(0, pd.NA)) * 100).fillna(0.0)
+    
+    col4_l, col4_r = st.columns([6, 4])
+    
+    with col4_l:
+        fig4_bar = go.Figure()
+        fig4_bar.add_trace(go.Bar(
+            x=bi_df["표준사업구분"],
+            y=bi_df[bi_c25],
+            name="2025년 실적",
+            marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
+            text=bi_df[bi_c25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#475569", family="Pretendard")
+        ))
+        fig4_bar.add_trace(go.Bar(
+            x=bi_df["표준사업구분"],
+            y=bi_df[bi_c26],
+            name="2026년 실적",
+            marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
+            text=bi_df[bi_c26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#0F172A", family="Pretendard", weight="bold")
+        ))
+        fig4_bar.update_layout(
+            height=440,
+            bargap=0.30,
+            bargroupgap=0.10,
+            yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            template="plotly_white",
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
+            margin=dict(t=50, b=20, l=10, r=10)
+        )
+        st.plotly_chart(fig4_bar, use_container_width=True)
+
+    with col4_r:
+        diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in bi_df["증감액"]]
+        diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in bi_df["증감액"]]
+        
+        fig4_diff = go.Figure()
+        fig4_diff.add_trace(go.Bar(
+            x=bi_df["표준사업구분"],
+            y=bi_df["증감액"],
+            marker=dict(color=diff_colors, cornerradius=6),
+            text=diff_texts,
+            textposition="outside",
+            textfont=dict(size=11, weight="bold", family="Pretendard")
+        ))
+        fig4_diff.update_layout(
+            title="[BI_종합] 사업별 증감액 (26년 - 25년)",
+            height=440,
+            bargap=0.45,
+            yaxis=dict(title=dict(text="증감액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            template="plotly_white",
+            margin=dict(t=50, b=20, l=10, r=10)
+        )
+        st.plotly_chart(fig4_diff, use_container_width=True)
+        
+    st.markdown("##### 📋 [BI_종합] 사업별 실적 요약 테이블")
+    st.dataframe(
+        pd.DataFrame({
+            "사업구분": bi_df["표준사업구분"],
+            "2025년 실적 (원)": bi_df[bi_c25],
+            "2026년 실적 (원)": bi_df[bi_c26],
+            "증감액 (원)": bi_df["증감액"],
+            "증감률(%)": bi_df["증감률"]
+        }),
+        column_config={
+            "사업구분": st.column_config.TextColumn("사업구분", width="medium"),
+            "2025년 실적 (원)": st.column_config.NumberColumn("2025년 실적 (원)", format="₩%,d"),
+            "2026년 실적 (원)": st.column_config.NumberColumn("2026년 실적 (원)", format="₩%,d"),
+            "증감액 (원)": st.column_config.NumberColumn("증감액 (원)", format="₩%+d"),
+            "증감률(%)": st.column_config.NumberColumn("증감률(%)", format="%+.2f%%"),
+        },
+        hide_index=True,
+        use_container_width=True
+    )
+
+# [페이지 5] [BI_상해+광주] 사업별 실적 현황
+elif page_menu == "[BI_상해+광주] 사업별 실적 현황":
+    st.subheader("🌐 [BI_상해+광주] 통합 사업별 2025년 vs 2026년 실적 비교")
+    
+    bi_gz_df, bi_gz_cols = load_bi_sheet_data("광주")
+    
+    if bi_gz_df is None or bi_gz_df.empty:
+        st.info("💡 엑셀 파일 내에서 `상해+광주` 또는 `BI_상해+광주` 관련 시트를 탐색 중입니다.")
+        bi_gz_df = summary_chart.copy()
+        gz_c25, gz_c26 = col_25, col_26
+    else:
+        gz_c25, gz_c26 = bi_gz_cols
+        
+    bi_gz_df["증감액"] = bi_gz_df[gz_c26] - bi_gz_df[gz_c25]
+    bi_gz_df["증감률"] = ((bi_gz_df["증감액"] / bi_gz_df[gz_c25].replace(0, pd.NA)) * 100).fillna(0.0)
+    
+    col5_l, col5_r = st.columns([6, 4])
+    
+    with col5_l:
+        fig5_bar = go.Figure()
+        fig5_bar.add_trace(go.Bar(
+            x=bi_gz_df["표준사업구분"],
+            y=bi_gz_df[gz_c25],
+            name="2025년 실적",
+            marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
+            text=bi_gz_df[gz_c25].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#475569", family="Pretendard")
+        ))
+        fig5_bar.add_trace(go.Bar(
+            x=bi_gz_df["표준사업구분"],
+            y=bi_gz_df[gz_c26],
+            name="2026년 실적",
+            marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
+            text=bi_gz_df[gz_c26].apply(lambda x: f"{x/1e8:.1f}억" if x >= 1e8 else f"{x/1e4:.0f}만"),
+            textposition="outside",
+            textfont=dict(size=11, color="#0F172A", family="Pretendard", weight="bold")
+        ))
+        fig5_bar.update_layout(
+            height=440,
+            bargap=0.30,
+            bargroupgap=0.10,
+            yaxis=dict(rangemode='tozero', title=dict(text="실적금액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            template="plotly_white",
+            legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="left", x=0),
+            margin=dict(t=50, b=20, l=10, r=10)
+        )
+        st.plotly_chart(fig5_bar, use_container_width=True)
+
+    with col5_r:
+        diff_colors = ["#E11D48" if v >= 0 else "#2563EB" for v in bi_gz_df["증감액"]]
+        diff_texts = [f"{'+' if v >= 0 else ''}{v/1e8:.2f}억" if abs(v) >= 1e8 else f"{'+' if v >= 0 else ''}{v/1e4:.0f}만" for v in bi_gz_df["증감액"]]
+        
+        fig5_diff = go.Figure()
+        fig5_diff.add_trace(go.Bar(
+            x=bi_gz_df["표준사업구분"],
+            y=bi_gz_df["증감액"],
+            marker=dict(color=diff_colors, cornerradius=6),
+            text=diff_texts,
+            textposition="outside",
+            textfont=dict(size=11, weight="bold", family="Pretendard")
+        ))
+        fig5_diff.update_layout(
+            title="[BI_상해+광주] 사업별 증감액 (26년 - 25년)",
+            height=440,
+            bargap=0.45,
+            yaxis=dict(title=dict(text="증감액 (원)", font=dict(size=12, color="#64748B")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
+            xaxis=dict(categoryorder='array', categoryarray=target_categories, tickfont=dict(size=13, weight="bold", color="#1E293B")),
+            template="plotly_white",
+            margin=dict(t=50, b=20, l=10, r=10)
+        )
+        st.plotly_chart(fig5_diff, use_container_width=True)
+        
+    st.markdown("##### 📋 [BI_상해+광주] 사업별 실적 요약 테이블")
+    st.dataframe(
+        pd.DataFrame({
+            "사업구분": bi_gz_df["표준사업구분"],
+            "2025년 실적 (원)": bi_gz_df[gz_c25],
+            "2026년 실적 (원)": bi_gz_df[gz_c26],
+            "증감액 (원)": bi_gz_df["증감액"],
+            "증감률(%)": bi_gz_df["증감률"]
+        }),
+        column_config={
+            "사업구분": st.column_config.TextColumn("사업구분", width="medium"),
+            "2025년 실적 (원)": st.column_config.NumberColumn("2025년 실적 (원)", format="₩%,d"),
+            "2026년 실적 (원)": st.column_config.NumberColumn("2026년 실적 (원)", format="₩%,d"),
+            "증감액 (원)": st.column_config.NumberColumn("증감액 (원)", format="₩%+d"),
+            "증감률(%)": st.column_config.NumberColumn("증감률(%)", format="%+.2f%%"),
+        },
+        hide_index=True,
+        use_container_width=True
+    )
