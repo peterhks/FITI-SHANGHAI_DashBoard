@@ -3,21 +3,109 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. 화면 기본 설정
-st.set_page_config(page_title="FITI SHANGHAI 실적 분석", layout="wide")
+# =========================================================
+# 1. 화면 기본 설정 및 스타일 정의
+# =========================================================
+st.set_page_config(
+    page_title="FITI SHANGHAI 실적 분석",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# 2. FITI 공식 상단 배너
 st.markdown("""
-<div style="background-color:#003876; padding:20px 24px; border-radius:8px; display:flex; align-items:center; gap:20px; color:#ffffff; margin-bottom:20px;">
-    <div style="font-size:26px; font-weight:900; border-right:1px solid rgba(255,255,255,0.3); padding-right:20px;">FITI</div>
+<style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    html, body, [class*="css"] {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+    
+    /* 상단 네이비 공식 배너 */
+    .fiti-header {
+        background-color: #003876;
+        padding: 20px 26px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0, 56, 118, 0.15);
+    }
+    .fiti-logo-text {
+        font-size: 26px;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        border-right: 1.5px solid rgba(255, 255, 255, 0.25);
+        padding-right: 22px;
+    }
+    .fiti-title-main {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 3px;
+    }
+    .fiti-title-sub {
+        font-size: 12px;
+        color: #D0E1FD;
+    }
+
+    /* 입체형 KPI 카드 스타일 */
+    .kpi-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 20px 22px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        border-top: 4px solid #CBD5E1;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    }
+    .kpi-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748B;
+        margin-bottom: 8px;
+    }
+    .kpi-num {
+        font-size: 26px;
+        font-weight: 800;
+        color: #0F172A;
+        letter-spacing: -0.5px;
+    }
+    .kpi-sub {
+        font-size: 12px;
+        color: #94A3B8;
+        margin-top: 6px;
+    }
+    .kpi-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 6px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================================
+# 2. FITI 공식 상단 배너
+# =========================================================
+st.markdown("""
+<div class="fiti-header">
+    <div class="fiti-logo-text">FITI</div>
     <div>
-        <div style="font-size:18px; font-weight:700;">상해지사 실적 종합 분석</div>
-        <div style="font-size:12px; color:#D0E1FD;">상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀</div>
+        <div class="fiti-title-main">상해지사 실적 종합 분석</div>
+        <div class="fiti-title-sub">상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# 3. 데이터 로드 (저장소 파일 또는 샘플 데이터)
+# =========================================================
+# 3. 데이터 로드 및 결측치/형식 정제
+# =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
 @st.cache_data
@@ -42,7 +130,7 @@ if uploaded_file:
 else:
     df = get_data()
 
-# 4. 데이터 자동 정리 (문자형 숫자, 쉼표 자동 변환)
+# 쉼표(,) 포함 문자열 숫자 자동 변환
 for col in df.columns:
     if df[col].dtype == object:
         cleaned = df[col].astype(str).str.replace(',', '').str.strip()
@@ -57,7 +145,9 @@ if not num_cols:
     st.error("데이터에 분석할 수 있는 숫자(실적/금액 등) 컬럼이 없습니다.")
     st.stop()
 
-# 5. 간편 그래프 및 실적 비교 축 선택
+# =========================================================
+# 4. 사이드바 축 및 실적 지표 선택
+# =========================================================
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 실적 비교 및 축 선택")
 
@@ -68,21 +158,67 @@ col_25 = st.sidebar.selectbox("25년 실적 컬럼", num_cols, index=default_25_
 col_26 = st.sidebar.selectbox("26년 실적 컬럼", num_cols, index=default_26_idx)
 x_axis = st.sidebar.selectbox("기준 축 (항목 / 고객사)", other_cols if other_cols else df.columns, index=0)
 
-# 6. 상단 실적 비교 지표
+# =========================================================
+# 5. 상단 실적 비교 지표 (입체 카드 디자인)
+# =========================================================
 total_25 = float(df[col_25].sum())
 total_26 = float(df[col_26].sum())
 diff_val = total_26 - total_25
 diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("25년 총 실적", f"{total_25:,.0f}")
-c2.metric("26년 총 실적", f"{total_26:,.0f}")
-c3.metric("실적 증감액", f"{diff_val:+,.0f}")
-c4.metric("증감 퍼센트", f"{diff_rate:+.2f}%")
+is_positive = diff_val >= 0
+diff_color = "#E11D48" if is_positive else "#2563EB"
+badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
+diff_sign = "+" if is_positive else ""
 
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #64748B;">
+        <div class="kpi-title">📅 25년 총 실적</div>
+        <div class="kpi-num">{total_25:,.0f}</div>
+        <div class="kpi-sub">전년 누적 집계액</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c2:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #003876;">
+        <div class="kpi-title">🚀 26년 총 실적</div>
+        <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
+        <div class="kpi-sub">당해 누적 집계액</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c3:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📈 실적 증감액</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_val:,.0f}</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">
+            전년 대비 실적차
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📊 증감 퍼센트</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_rate:0.2f}%</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">
+            전년 대비 성장률
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.write("")
 st.markdown("---")
 
-# 7. 핵심 그래프 2종 (25년 vs 26년 비교 막대 & 비중 차트)
+# =========================================================
+# 6. 핵심 그래프 2종 (25년 vs 26년 비교 막대 & 비중 차트)
+# =========================================================
 col_left, col_right = st.columns([6, 4])
 
 with col_left:
@@ -94,10 +230,15 @@ with col_left:
         x=x_axis,
         y=[col_25, col_26],
         barmode='group',
-        labels={"value": "실적금액", "variable": "구분"},
-        color_discrete_map={col_25: "#93C5FD", col_26: "#1D4ED8"}
+        labels={"value": "실적금액", "variable": "연도 구분"},
+        color_discrete_map={col_25: "#93C5FD", col_26: "#003876"}
     )
-    fig_bar.update_layout(height=450, xaxis_tickangle=-45, template="plotly_white", legend=dict(orientation="h", y=1.1, x=0))
+    fig_bar.update_layout(
+        height=450,
+        xaxis_tickangle=-45,
+        template="plotly_white",
+        legend=dict(orientation="h", y=1.12, x=0)
+    )
     st.plotly_chart(fig_bar, use_container_width=True)
 
 with col_right:
@@ -112,6 +253,8 @@ with col_right:
     fig_pie.update_layout(height=450, margin=dict(t=20, b=20, l=10, r=10))
     st.plotly_chart(fig_pie, use_container_width=True)
 
-# 8. 원본 데이터 간략 확인
+# =========================================================
+# 7. 원본 데이터 간략 확인 (접이식)
+# =========================================================
 with st.expander("📄 데이터 테이블 확인"):
     st.dataframe(df, use_container_width=True)
