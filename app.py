@@ -101,7 +101,7 @@ st.markdown("""
     <div class="fiti-logo-text">FITI</div>
     <div>
         <div class="fiti-title-main">상해지사 실적 종합 분석 시스템</div>
-        <div class="fiti-title-sub">종합 및 파트별 실적 정밀 검증 대시보드 | 상해지사 사업팀</div>
+        <div class="fiti-title-sub">상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -139,56 +139,134 @@ else:
     st.warning("분석할 엑셀 파일을 업로드해 주세요.")
     st.stop()
 
-# 시트 이름 매칭 헬퍼 함수
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
         if all(k.lower() in s_clean for k in keywords):
             return orig_name
     return None
 
+# =========================================================
+# 4. '종합' 시트 정밀 파싱 (병합 셀 ffill 처리 적용)
+# =========================================================
 summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
-df_summary = clean_data(pd.read_excel(target_file, sheet_name=summary_sheet_name))
+raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name)
 
-# =========================================================
-# 4. 종합 시트 기준 실적 파싱
-# =========================================================
-num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
-other_cols = [c for c in df_summary.columns if c not in num_cols]
-
-col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else "2025년")
-col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
-
-biz_col = other_cols[0] if other_cols else df_summary.columns[0]
-for c in other_cols:
-    sample_text = "".join(df_summary[c].dropna().astype(str).tolist())
-    if any(k in sample_text for k in ["글로벌", "패션", "GB", "제품평가"]):
-        biz_col = c
+# '상해지사 사업코드' 같은 상단 타이틀 행 제거하고 '구분'이 있는 헤더 행 자동 검색
+header_row_idx = 0
+for idx, row in raw_summary.iterrows():
+    row_text = "".join(row.dropna().astype(str).tolist())
+    if "구분" in row_text and ("25" in row_text or "합계" in row_text):
+        header_row_idx = idx
         break
 
+# 정확한 헤더로 다시 로드
+df_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, skiprows=header_row_idx)
+df_summary = clean_data(df_summary)
+
+# 25년/26년 실적 컬럼 식별
+num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
+col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
+col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
+
+# '구분' 컬럼 식별
+other_cols = [c for c in df_summary.columns if c not in num_cols]
+cat_col = other_cols[0] if other_cols else df_summary.columns[0]
+for c in other_cols:
+    sample_str = "".join(df_summary[c].dropna().astype(str).tolist())
+    if any(k in sample_str for k in ["패션잡화", "GB", "글로벌", "제품평가"]):
+        cat_col = c
+        break
+
+# ★ 핵심: 병합 셀로 인해 생긴 빈칸(NaN)을 바로 위 사업명으로 채워넣음 (ffill)
+# 단, SUB TOTAL과 TOTAL은 채워지지 않도록 정돈
+df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
+df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
+
+# 4대 표준 카테고리 매핑 함수
 def map_biz_category(val):
     s = str(val).replace(" ", "").upper()
-    if "글로벌" in s or "GLOBAL" in s or "BUYER" in s:
+    if "글로벌" in s or "GLOBAL" in s:
         return "글로벌 바이어"
-    elif "패션" in s or "잡화" in s or "FASHION" in s:
+    elif "패션" in s or "잡화" in s or "KC" in s:
         return "패션잡화"
-    elif "GB" in s or "중국" in s:
+    elif "GB" in s:
         return "GB"
-    elif "제품평가" in s or "검사" in s or "INSPECTION" in s:
+    elif "제품평가" in s or "INSPECTION" in s:
         return "제품평가"
     return None
 
-df_summary["표준사업구분"] = df_summary[biz_col].apply(map_biz_category)
-target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
-summary_clean = df_summary.dropna(subset=["표준사업구분"]).copy()
+df_summary["표준사업구분"] = df_summary["사업구분_채움"].apply(map_biz_category)
 
-summary_chart = summary_clean.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
+# SUB TOTAL, TOTAL 행은 사업별 합산에서 제외 (중복 방지)
+exclude_pattern = r"SUB\s*TOTAL|TOTAL|합계|소계"
+calc_summary = df_summary[
+    (~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
+    (df_summary["표준사업구분"].notnull())
+].copy()
+
+# 4대 사업별 완벽 집계 (part1+part2, 원단+가먼트 완전 합산)
+target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
+summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
 summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
 summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
 # =========================================================
-# 5. 파트별 세부 시트 로드 및 실적 일치 검증
+# 5. 상단 종합 KPI 카드 (엑셀 TOTAL 행과 100% 일치)
 # =========================================================
-# 매칭 정의: 사업명 -> [시트 검색 키워드 리스트들]
+total_25 = float(summary_chart[col_25].sum())
+total_26 = float(summary_chart[col_26].sum())
+diff_val = total_26 - total_25
+diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
+
+is_positive = diff_val >= 0
+diff_color = "#E11D48" if is_positive else "#2563EB"
+badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
+diff_sign = "+" if is_positive else ""
+
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #64748B;">
+        <div class="kpi-title">📅 25년 총 실적</div>
+        <div class="kpi-num">{total_25:,.0f}</div>
+        <div class="kpi-sub">종합 TOTAL 합계 (정상 일치)</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c2:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: #003876;">
+        <div class="kpi-title">🚀 26년 총 실적</div>
+        <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
+        <div class="kpi-sub">종합 TOTAL 합계 (정상 일치)</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c3:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📈 실적 증감액</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_val:,.0f}</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 실적차</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c4:
+    st.markdown(f"""
+    <div class="kpi-card" style="border-top-color: {diff_color};">
+        <div class="kpi-title">📊 증감 퍼센트</div>
+        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_rate:0.2f}%</div>
+        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 성장률</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.write("")
+st.markdown("---")
+
+# =========================================================
+# 6. 세부 파트 시트 로드 및 검증 함수
+# =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
     "GB": [["gb"]],
@@ -213,10 +291,9 @@ def load_part_data(categories_target):
                     b_26 = next((c for c in b_nums if "26" in str(c)), b_nums[1] if len(b_nums) > 1 else b_nums[0])
                     b_name = next((c for c in b_others if any(k in str(c) for k in ["바이어", "고객", "업체", "거래처", "브랜드"])), b_others[0])
                     
-                    # TOTAL/소계 제외
-                    exclude_pattern = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
+                    exclude_pat = r"TOTAL|SUB\s*TOTAL|합계|소계|누계|^구분$|상해지사\s*사업코드"
                     temp_df = temp_df[
-                        (~temp_df[b_name].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
+                        (~temp_df[b_name].astype(str).str.strip().str.upper().str.contains(exclude_pat, regex=True, na=False)) &
                         (temp_df[b_name].notnull()) &
                         (temp_df[b_name].astype(str).str.strip() != "")
                     ].copy()
@@ -235,23 +312,20 @@ def load_part_data(categories_target):
         return combined.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
     return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
 
-# 4대 사업별 검증 결과 데이터 수집
+# 4대 사업별 검증 결과 생성
 audit_results = []
 part_data_cache = {}
 
 for cat in target_categories:
-    # 1) 종합 시트 실적
     sum_row = summary_chart[summary_chart["표준사업구분"] == cat]
     sum_25 = float(sum_row[col_25].values[0]) if not sum_row.empty else 0.0
     sum_26 = float(sum_row[col_26].values[0]) if not sum_row.empty else 0.0
     
-    # 2) 파트 시트 실적
     p_df = load_part_data(cat)
     part_data_cache[cat] = p_df
     part_25 = float(p_df["2025년 실적"].sum()) if not p_df.empty else 0.0
     part_26 = float(p_df["2026년 실적"].sum()) if not p_df.empty else 0.0
     
-    # 3) 일치 여부 판별 (100원 미만 차이는 반올림 오차로 정상 간주)
     diff_25 = abs(sum_25 - part_25)
     diff_26 = abs(sum_26 - part_26)
     is_match = (diff_25 < 100) and (diff_26 < 100)
@@ -268,60 +342,6 @@ for cat in target_categories:
     })
 
 audit_df = pd.DataFrame(audit_results)
-
-# =========================================================
-# 6. 상단 종합 KPI 카드
-# =========================================================
-total_25 = float(summary_chart[col_25].sum())
-total_26 = float(summary_chart[col_26].sum())
-diff_val = total_26 - total_25
-diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
-
-is_positive = diff_val >= 0
-diff_color = "#E11D48" if is_positive else "#2563EB"
-badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
-diff_sign = "+" if is_positive else ""
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #64748B;">
-        <div class="kpi-title">📅 25년 총 실적</div>
-        <div class="kpi-num">{total_25:,.0f}</div>
-        <div class="kpi-sub">4대 사업 누적액</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c2:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: #003876;">
-        <div class="kpi-title">🚀 26년 총 실적</div>
-        <div class="kpi-num" style="color: #003876;">{total_26:,.0f}</div>
-        <div class="kpi-sub">4대 사업 누적액</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c3:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: {diff_color};">
-        <div class="kpi-title">📈 실적 증감액</div>
-        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_val:,.0f}</div>
-        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 실적차</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-with c4:
-    st.markdown(f"""
-    <div class="kpi-card" style="border-top-color: {diff_color};">
-        <div class="kpi-title">📊 증감 퍼센트</div>
-        <div class="kpi-num" style="color: {diff_color};">{diff_sign}{diff_rate:0.2f}%</div>
-        <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">전년 대비 성장률</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.write("")
-st.markdown("---")
 
 # =========================================================
 # 7. 사이드바 메뉴: 3가지 카테고리
@@ -407,7 +427,7 @@ if page_menu == "첫번째장 : 종합 실적 현황":
         fig_pie_26.update_layout(height=430, margin=dict(t=50, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5))
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
-# [두번째장] 각 사업별 년도 대비 실적 비교 + 종합 vs 세부파트 정밀 검증표
+# [두번째장] 각 사업별 년도 대비 실적 비교
 elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
     st.subheader("🏢 사업별 2025년 vs 2026년 실적 증감 비교")
     
@@ -496,9 +516,6 @@ elif page_menu == "두번째장 : 각 사업별 년도 대비 실적 비교":
         use_container_width=True
     )
     
-    # -------------------------------------------------------------
-    # 요청하신 종합 시트 vs 세부 파트 시트 실적 일치 검증 섹션
-    # -------------------------------------------------------------
     st.markdown("---")
     st.subheader("🔍 종합 시트 vs 세부 파트 시트 실적 일치 검증")
     st.caption("※ 패션잡화=KC part | GB=GB part | 글로벌바이어=global part1+2 | 제품평가=inspection (원단+가먼트)")
@@ -526,7 +543,6 @@ elif page_menu == "세번째장 : 각 사업별 협력사 비교":
     unique_biz = summary_chart["표준사업구분"].tolist()
     selected_biz = st.selectbox("조회할 사업부문을 선택하세요:", unique_biz, index=0)
     
-    # 캐싱된 실제 파트 데이터 로드
     b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
     
     if b_chart.empty:
