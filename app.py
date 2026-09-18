@@ -6,342 +6,184 @@ import plotly.graph_objects as go
 from statsmodels.tsa.arima.model import ARIMA
 import os
 
-# =========================================================
-# 1. 페이지 테마 및 엔터프라이즈 스타일 설정
-# =========================================================
-st.set_page_config(page_title="시험연구원 사업실적 분석 시스템", layout="wide", initial_sidebar_state="expanded")
+# 1. 페이지 레이아웃 및 스타일 설정
+st.set_page_config(page_title="AI Data Analytics Dashboard", layout="wide")
 
-st.markdown("""
-<style>
-    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    html, body, [class*="css"] {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-    }
-    .header-box {
-        padding: 22px 26px;
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-        border-radius: 12px;
-        color: #FFFFFF;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.15);
-    }
-    .header-title {
-        font-size: 24px;
-        font-weight: 700;
-        margin: 0;
-        color: #FFFFFF;
-    }
-    .header-subtitle {
-        font-size: 14px;
-        margin-top: 6px;
-        color: #DBEAFE;
-    }
-    .metric-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 18px 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        border-left: 5px solid #2563EB;
-    }
-    .metric-label {
-        font-size: 13px;
-        color: #64748B;
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-    .metric-value {
-        font-size: 24px;
-        color: #0F172A;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-    .metric-delta {
-        font-size: 12px;
-        margin-top: 4px;
-    }
-    .section-header {
-        font-size: 17px;
-        font-weight: 700;
-        color: #1E293B;
-        margin: 22px 0 12px 0;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# =========================================================
-# 2. 데이터 로드 및 타입 안전 정제
-# =========================================================
+# 2. 데이터 불러오기 (깃허브의 엑셀 파일 또는 업로드 파일 연동)
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
-def clean_dataframe(df):
-    """문자형 숫자, 공백, 표준 명칭 자동 정리"""
-    rename_rules = {
-        "수입금액": "총시험수수료",
-        "공급액": "총시험수수료",
-        "자산금액": "감면금액",
-        "감면액": "감면금액",
-        "년도": "접수연도",
-        "년월": "접수연월",
-        "일자": "접수일자",
-        "일시": "접수일자",
-        "항목": "시험분류",
-        "상품명": "시험항목",
-        "분류": "업무구분",
-        "지점": "사업팀/센터",
-        "조합명": "고객사명",
-        "대분류": "시험분류"
-    }
-    df = df.rename(columns={c: rename_rules[c] for c in df.columns if c in rename_rules})
-    
-    # 쉼표(,)가 섞인 문자열을 순수 숫자로 강제 변환
-    for col in df.columns:
-        if df[col].dtype == object:
-            sample = df[col].dropna().astype(str)
-            if sample.str.replace(',', '').str.replace('.', '', regex=False).str.replace('-', '').str.isdigit().mean() > 0.6:
-                df[col] = df[col].astype(str).str.replace(',', '').str.strip()
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    return df
-
 @st.cache_data
-def load_data():
-    df = None
-    if os.path.exists(EXCEL_FILE):
-        try:
-            df = pd.read_excel(EXCEL_FILE)
-        except Exception:
-            pass
-            
-    if df is None:
-        dates = pd.date_range(start="2024-01-01", periods=180, freq="D")
-        clients = ["코오롱스포츠", "F&F", "무신사", "삼성물산", "FILA", "데상트", "POLO"]
-        test_types = ["중국 GB 규격시험", "KC 안전인증", "해외 브랜드 바이어 매뉴얼", "공장 완제품 검사", "위생용품·용기포장"]
-        np.random.seed(42)
-        records = []
-        for d in dates:
-            for _ in range(np.random.randint(1, 4)):
-                fee = float(np.random.randint(300, 2500) * 1000)
-                discount = float(fee * np.random.choice([0, 0.05, 0.1, 0.15]))
-                records.append({
-                    "접수일자": d,
-                    "고객사명": np.random.choice(clients),
-                    "시험분류": np.random.choice(test_types),
-                    "총시험수수료": fee,
-                    "감면금액": discount,
-                    "실청구금액": fee - discount,
-                    "성적서발급건수": int(np.random.randint(1, 6))
-                })
-        df = pd.DataFrame(records)
-        
-    return clean_dataframe(df)
+def load_sample_data():
+    dates = pd.date_range(start="2024-01-01", periods=120, freq="D")
+    categories = ["수산물", "가공식품", "지역특산물", "공산품"]
+    np.random.seed(42)
+    
+    data = []
+    base_val = 50000
+    for d in dates:
+        base_val += np.random.randint(-1500, 2000)
+        cat = np.random.choice(categories)
+        cost = base_val * np.random.uniform(0.65, 0.8)
+        data.append({
+            "일자": d,
+            "대분류": cat,
+            "공급액": float(max(10000, base_val)),
+            "감면액": float(max(5000, cost)),
+            "수량": int(np.random.randint(10, 100))
+        })
+    return pd.DataFrame(data)
 
-df = load_data()
+# 사이드바: 데이터 파일 선택 및 업로드
+st.sidebar.title("데이터 설정 & 필터")
+uploaded_file = st.sidebar.file_uploader("로컬 데이터 파일 업로드 (CSV/Excel)", type=["csv", "xlsx"])
 
-# =========================================================
-# 3. 사이드바 제어 패널
-# =========================================================
-st.sidebar.markdown("### 📋 분석 파라미터")
-uploaded_file = st.sidebar.file_uploader("추가 데이터 업로드 (xlsx/csv)", type=["xlsx", "csv"])
 if uploaded_file:
     if uploaded_file.name.endswith(".csv"):
-        df = clean_dataframe(pd.read_csv(uploaded_file))
+        df = pd.read_csv(uploaded_file)
     else:
-        df = clean_dataframe(pd.read_excel(uploaded_file))
+        df = pd.read_excel(uploaded_file)
+elif os.path.exists(EXCEL_FILE):
+    df = pd.read_excel(EXCEL_FILE)
+else:
+    df = load_sample_data()
 
-# 컬럼 식별
-date_cols = [c for c in df.columns if any(k in c.lower() for k in ["일자", "일시", "date", "년도", "년월", "년"])]
-numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+# 숫자 컬럼에 쉼표(,)가 포함된 경우 자동으로 숫자로 변환 (TypeError 방지)
+for col in df.columns:
+    if df[col].dtype == object:
+        sample = df[col].dropna().astype(str)
+        if sample.str.replace(',', '').str.replace('.', '', regex=False).str.replace('-', '').str.isdigit().mean() > 0.5:
+            df[col] = df[col].astype(str).str.replace(',', '').str.strip()
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-if not numeric_cols:
-    st.error("분석 가능한 숫자 데이터 컬럼이 없습니다.")
-    st.stop()
+# 3. 사이드바: 분석 변수 매핑
+st.sidebar.markdown("---")
+st.sidebar.subheader("분석 차원 매핑")
 
-selected_date_col = st.sidebar.selectbox("기준 일자(시계열)", date_cols if date_cols else df.columns, index=0)
-selected_cat_col = st.sidebar.selectbox("분석 차원(카테고리)", categorical_cols if categorical_cols else df.columns, index=0)
-primary_metric = st.sidebar.selectbox("주요 분석 지표", numeric_cols, index=0)
-secondary_metric = st.sidebar.selectbox("비교/보조 지표", numeric_cols, index=1 if len(numeric_cols) > 1 else 0)
+# 일자, 숫자, 카테고리 컬럼 자동 분류
+num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
 
-# 시계열 전처리
-df[selected_date_col] = pd.to_datetime(df[selected_date_col], errors='coerce')
-df = df.dropna(subset=[selected_date_col]).sort_values(by=selected_date_col)
+date_col = st.sidebar.selectbox("시계열 기준 컬럼", df.columns, index=0)
+cat_col = st.sidebar.selectbox("카테고리/차원 컬럼", cat_cols if cat_cols else df.columns, index=0)
+val_col = st.sidebar.selectbox("핵심 측정값 (주요 지표)", num_cols, index=0)
+sec_val_col = st.sidebar.selectbox("보조 측정값 (비교 지표)", num_cols, index=1 if len(num_cols) > 1 else 0)
 
-# 안전한 숫자형 캐스팅 보장
-df[primary_metric] = pd.to_numeric(df[primary_metric], errors='coerce').fillna(0)
-df[secondary_metric] = pd.to_numeric(df[secondary_metric], errors='coerce').fillna(0)
+# 시계열 전처리 및 안전한 숫자 변환
+df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+df = df.dropna(subset=[date_col]).sort_values(by=date_col)
+df[val_col] = pd.to_numeric(df[val_col], errors='coerce').fillna(0)
+df[sec_val_col] = pd.to_numeric(df[sec_val_col], errors='coerce').fillna(0)
 
-# =========================================================
-# 4. 헤더 및 핵심 성과 지표(KPI)
-# =========================================================
-st.markdown("""
-<div class="header-box">
-    <div class="header-title">📊 글로벌 시험인증 및 품질평가 사업실적 분석 시스템</div>
-    <div class="header-subtitle">시험 성적서 접수 현황 · 시계열 ARIMA 모델링 · 고객사 기여도 정밀 진단</div>
-</div>
-""", unsafe_allow_html=True)
+# 4. 상단 KPI 카드 영역
+st.title("지능형 다차원 분석 대시보드")
+st.caption("Auto-Analytics & Multidimensional Visualization System")
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-total_val = float(df[primary_metric].sum())
-mean_val = float(df[primary_metric].mean())
-val_std = float(df[primary_metric].std()) if len(df) > 1 else 0.0
+total_val = float(df[val_col].sum())
+mean_val = float(df[val_col].mean())
+val_std = float(df[val_col].std()) if len(df) > 1 else 0.0
 
-start_val = df[primary_metric].iloc[0] if len(df) > 0 else 0
-end_val = df[primary_metric].iloc[-1] if len(df) > 0 else 0
-recent_trend = ((end_val - start_val) / (start_val + 1e-5)) * 100
+start_v = df[val_col].iloc[0] if len(df) > 0 else 0
+end_v = df[val_col].iloc[-1] if len(df) > 0 else 0
+recent_trend = ((end_v - start_v) / (start_v + 1e-5)) * 100
 
 with kpi1:
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">총 {primary_metric} 합계</div>
-        <div class="metric-value">{total_val:,.0f} 원</div>
-        <div class="metric-delta" style="color: #2563EB;">누적 실적 집계</div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.metric(label=f"총 {val_col}", value=f"{total_val:,.0f}")
 with kpi2:
-    st.markdown(f"""
-    <div class="metric-card" style="border-left-color: #059669;">
-        <div class="metric-label">평균 {primary_metric}</div>
-        <div class="metric-value">{mean_val:,.0f} 원</div>
-        <div class="metric-delta" style="color: #059669;">건당/일당 평균치</div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.metric(label=f"평균 {val_col}", value=f"{mean_val:,.1f}")
 with kpi3:
-    st.markdown(f"""
-    <div class="metric-card" style="border-left-color: #D97706;">
-        <div class="metric-label">실적 변동폭 (표준편차)</div>
-        <div class="metric-value">{val_std:,.0f}</div>
-        <div class="metric-delta" style="color: #D97706;">데이터 분산도</div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.metric(label="변동성 (표준편차)", value=f"{val_std:,.1f}")
 with kpi4:
-    color = "#DC2626" if recent_trend < 0 else "#2563EB"
-    sign = "+" if recent_trend >= 0 else ""
-    st.markdown(f"""
-    <div class="metric-card" style="border-left-color: {color};">
-        <div class="metric-label">기간 전체 성장률</div>
-        <div class="metric-value">{sign}{recent_trend:.1f}%</div>
-        <div class="metric-delta" style="color: {color};">시계열 증감세</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.metric(label="기간 전체 증감률", value=f"{recent_trend:+.2f}%")
 
-st.write("")
+st.markdown("---")
 
-# =========================================================
-# 5. 시계열 분석 & ARIMA 통계 모델링
-# =========================================================
-st.markdown('<div class="section-header">📈 시계열 실적 추이 및 ARIMA 모델 기반 예측 분석</div>', unsafe_allow_html=True)
+# 5. 시계열 분석 & 모달(팝업)형 예측 설정 영역
+st.subheader("1. 시계열 고급 분석 (Time-Series & ARIMA Forecast)")
 
-with st.expander("⚙️ 시계열 파라미터 제어 (ARIMA p, d, q)", expanded=False):
-    p_col, d_col, q_col, step_col = st.columns(4)
-    p = p_col.number_input("자기회귀 차수 (p)", min_value=0, max_value=5, value=1)
-    d = d_col.number_input("차분 차수 (d)", min_value=0, max_value=2, value=1)
-    q = q_col.number_input("이동평균 차수 (q)", min_value=0, max_value=5, value=0)
-    forecast_days = step_col.slider("향후 예측 일수 (Days)", 7, 90, 30)
+with st.expander("시계열 파라미터 제어 (ARIMA 설정)", expanded=False):
+    c1, c2, c3, c4 = st.columns(4)
+    p = c1.number_input("자기회귀 차수 (p)", min_value=0, max_value=5, value=1)
+    d = c2.number_input("차분 차수 (d)", min_value=0, max_value=2, value=1)
+    q = c3.number_input("이동평균 차수 (q)", min_value=0, max_value=5, value=0)
+    forecast_steps = c4.slider("향후 예측 기간", 7, 60, 30)
 
-ts_series = df.set_index(selected_date_col).resample('D')[primary_metric].sum().bfill().ffill()
+# ARIMA 모델 실행 및 시계열 차트 생성
+ts_df = df.set_index(date_col).resample('D')[val_col].mean().bfill().ffill()
 
 try:
-    model = ARIMA(ts_series, order=(p, d, q))
-    model_res = model.fit()
-    forecast = model_res.forecast(steps=forecast_days)
-    forecast_idx = pd.date_range(start=ts_series.index[-1] + pd.Timedelta(days=1), periods=forecast_days, freq='D')
+    model = ARIMA(ts_df, order=(p, d, q))
+    model_fit = model.fit()
+    forecast = model_fit.forecast(steps=forecast_steps)
+    forecast_dates = pd.date_range(start=ts_df.index[-1] + pd.Timedelta(days=1), periods=forecast_steps, freq='D')
     
     fig_ts = go.Figure()
-    fig_ts.add_trace(go.Scatter(
-        x=ts_series.index, y=ts_series.values,
-        mode='lines', name=f'실측 {primary_metric}',
-        line=dict(color='#2563EB', width=2.5)
-    ))
-    fig_ts.add_trace(go.Scatter(
-        x=forecast_idx, y=forecast,
-        mode='lines+markers', name='ARIMA 통계 예측선',
-        line=dict(color='#DC2626', width=2.5, dash='dash')
-    ))
-    fig_ts.update_layout(
-        template='plotly_white',
-        height=380,
-        margin=dict(l=20, r=20, t=30, b=20),
-        hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+    fig_ts.add_trace(go.Scatter(x=ts_df.index, y=ts_df.values, mode='lines', name=f'실측 {val_col}', line=dict(color='#2A62D6', width=2)))
+    fig_ts.add_trace(go.Scatter(x=forecast_dates, y=forecast, mode='lines+markers', name=f'ARIMA 예측선', line=dict(color='#E63946', dash='dash')))
+    fig_ts.update_layout(height=420, margin=dict(l=20, r=20, t=30, b=20), hovermode='x unified', template='plotly_white')
     st.plotly_chart(fig_ts, use_container_width=True)
 except Exception as e:
     st.info(f"시계열 분석 안내: {e}")
 
-# =========================================================
-# 6. 다차원 시각화 (이중 축 복합 차트 + 기여도 펀넬)
-# =========================================================
-col_viz1, col_viz2 = st.columns([6, 4])
+# 6. 다차원 시각화 영역 (복합 차트, Funnel)
+st.subheader("2. 다차원 시각화 (Multidimensional Visualizations)")
+col_a, col_b = st.columns([6, 4])
 
-with col_viz1:
-    st.markdown(f'<div class="section-header">📊 주간 복합 추세 ({primary_metric} vs {secondary_metric})</div>', unsafe_allow_html=True)
-    weekly_agg = df.groupby(pd.Grouper(key=selected_date_col, freq='W'))[[primary_metric, secondary_metric]].sum().reset_index()
-    
-    fig_dual = go.Figure()
-    fig_dual.add_trace(go.Bar(
-        x=weekly_agg[selected_date_col], y=weekly_agg[primary_metric],
-        name=primary_metric, marker_color='#3B82F6', opacity=0.85
-    ))
-    fig_dual.add_trace(go.Scatter(
-        x=weekly_agg[selected_date_col], y=weekly_agg[secondary_metric],
-        name=secondary_metric, yaxis='y2',
-        line=dict(color='#F59E0B', width=3)
-    ))
-    fig_dual.update_layout(
-        template='plotly_white',
-        height=360,
-        margin=dict(l=20, r=20, t=20, b=20),
-        yaxis=dict(title=primary_metric),
-        yaxis2=dict(title=secondary_metric, overlaying='y', side='right'),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+with col_a:
+    # 이중 축 복합 차트 (Bar + Line)
+    agg_df = df.groupby(pd.Grouper(key=date_col, freq='W'))[[val_col, sec_val_col]].sum().reset_index()
+    fig_combo = go.Figure()
+    fig_combo.add_trace(go.Bar(x=agg_df[date_col], y=agg_df[val_col], name=val_col, marker_color='#4A90E2', opacity=0.8))
+    fig_combo.add_trace(go.Scatter(x=agg_df[date_col], y=agg_df[sec_val_col], name=sec_val_col, yaxis='y2', line=dict(color='#F5A623', width=3)))
+    fig_combo.update_layout(
+        title="주간 복합 추세 분석 (Dual-Axis)",
+        yaxis=dict(title=val_col),
+        yaxis2=dict(title=sec_val_col, overlaying='y', side='right'),
+        legend=dict(x=0, y=1.1, orientation='h'),
+        height=380,
+        template='plotly_white'
     )
-    st.plotly_chart(fig_dual, use_container_width=True)
+    st.plotly_chart(fig_combo, use_container_width=True)
 
-with col_viz2:
-    st.markdown(f'<div class="section-header">🎯 {selected_cat_col}별 실적 기여도 (Ranked Funnel)</div>', unsafe_allow_html=True)
-    cat_agg = df.groupby(selected_cat_col)[primary_metric].sum().reset_index().sort_values(by=primary_metric, ascending=False)
-    
-    fig_cat = go.Figure(go.Funnel(
-        y=cat_agg[selected_cat_col],
-        x=cat_agg[primary_metric],
+with col_b:
+    # 펀넬(Funnel) 차트
+    funnel_df = df.groupby(cat_col)[val_col].sum().reset_index().sort_values(by=val_col, ascending=False)
+    fig_funnel = go.Figure(go.Funnel(
+        y=funnel_df[cat_col],
+        x=funnel_df[val_col],
         textinfo="value+percent initial",
-        marker=dict(colors=["#1E3A8A", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE"])
+        marker={"color": ["#1D3557", "#457B9D", "#A8DADC", "#F1FAEE"][:len(funnel_df)]}
     ))
-    fig_cat.update_layout(
-        template='plotly_white',
-        height=360,
-        margin=dict(l=20, r=20, t=20, b=20)
-    )
-    st.plotly_chart(fig_cat, use_container_width=True)
+    fig_funnel.update_layout(title="카테고리별 기여도 (Funnel 차트)", height=380, margin=dict(t=40, b=20, l=10, r=10))
+    st.plotly_chart(fig_funnel, use_container_width=True)
 
-# =========================================================
-# 7. 지능형 자동 진단 리포트
-# =========================================================
-st.markdown('<div class="section-header">📑 지능형 자동 통계 및 품질 진단 리포트</div>', unsafe_allow_html=True)
-rep_c1, rep_c2 = st.columns(2)
+# 7. 지능형 통계 및 리포트 자동 생성 영역
+st.subheader("3. 지능형 자동 진단 리포트 (Automated Analytics)")
 
-with rep_c1:
-    st.markdown("**1) 주요 측정 지표 통계 요약표**")
-    stats_table = df[[primary_metric, secondary_metric]].describe().T[['count', 'mean', 'std', 'min', '50%', 'max']]
-    stats_table.columns = ['데이터 건수', '평균값', '표준편차', '최솟값', '중앙값', '최댓값']
-    st.dataframe(stats_table.style.format("{:,.1f}"), use_container_width=True)
+col_rep1, col_rep2 = st.columns(2)
 
-with rep_c2:
-    st.markdown("**2) 실적 이상 패턴 및 상관도 진단**")
-    u_bound = mean_val + 2 * val_std
-    l_bound = max(0, mean_val - 2 * val_std)
-    anomalies = df[(df[primary_metric] > u_bound) | (df[primary_metric] < l_bound)]
+with col_rep1:
+    st.markdown("**통계 지표 요약**")
+    summary_stats = df[[val_col, sec_val_col]].describe().T[['mean', 'std', 'min', '50%', 'max']]
+    summary_stats.columns = ['평균', '표준편차', '최소값', '중앙값', '최대값']
+    st.dataframe(summary_stats.style.format("{:,.2f}"), use_container_width=True)
+
+with col_rep2:
+    st.markdown("**이상치 및 패턴 자동 진단**")
     
-    top_share_cat = cat_agg.iloc[0][selected_cat_col] if len(cat_agg) > 0 else "-"
-    top_share_ratio = (cat_agg.iloc[0][primary_metric] / (total_val + 1e-5)) * 100 if len(cat_agg) > 0 else 0
-    corr_val = df[primary_metric].corr(df[secondary_metric]) if len(df) > 1 else 0
+    # 이상 패턴 진단
+    upper_bound = mean_val + 2 * val_std
+    lower_bound = max(0, mean_val - 2 * val_std)
+    outliers = df[(df[val_col] > upper_bound) | (df[val_col] < lower_bound)]
     
-    st.success(f"📌 **핵심 점유 부문**: **`{top_share_cat}`**이(가) 전체 실적의 **{top_share_ratio:.1f}%**를 차지하고 있습니다.")
-    if len(anomalies) > 0:
-        st.warning(f"⚠️ **변동성 모니터링**: 2시그마(신뢰수준 95%) 임계값을 벗어난 특이 발생 건이 총 **{len(anomalies)}건** 감지되었습니다.")
+    top_cat = funnel_df.iloc[0][cat_col] if len(funnel_df) > 0 else "-"
+    top_cat_share = (funnel_df.iloc[0][val_col] / (total_val + 1e-5)) * 100 if len(funnel_df) > 0 else 0
+    
+    st.success(f"**핵심 점유군**: `{top_cat}`이 전체 실적의 **{top_cat_share:.1f}%**를 견인하고 있습니다.")
+    if len(outliers) > 0:
+        st.warning(f"**변동성 감지**: 정상 범주(±2σ)를 벗어난 이상 패턴이 **{len(outliers)}건** 감지되었습니다.")
     else:
-        st.info("✅ **안정성 확인**: 데이터가 통계적 관리한계선(Control Limit) 내에서 안정적으로 유지되고 있습니다.")
-    st.info(f"🔗 **상관 지표 평가**: `{primary_metric}`와 `{secondary_metric}` 간의 상관계수는 **{corr_val:.2f}**입니다.")
+        st.info("**변동성 감지**: 데이터가 통계적 임계치 내에서 안정적으로 제어되고 있습니다.")
+    
+    corr = df[val_col].corr(df[sec_val_col]) if len(df) > 1 else 0
+    st.write(f"- `{val_col}`과 `{sec_val_col}`의 상관계수: **{corr:.2f}**")
