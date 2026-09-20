@@ -13,7 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 전역 상수 정의 (스코프 에러 방지)
 BI_8_CATEGORIES = [
     "일반검사",
     "섬유내수(패션잡화)",
@@ -117,7 +116,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 고속 캐싱 엔진
+# 3. 데이터 로드 및 시트 사전 처리
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -149,7 +148,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 고속 파싱 (접수기준)
+# 4. '종합' 시트 파서 (접수기준)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_source):
@@ -226,7 +225,7 @@ def parse_summary_data(file_source):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(target_file)
 
 # =========================================================
-# 5. 세부 파트 시트 파서 (바이어 및 협력사 고속 캐싱)
+# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -362,23 +361,32 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 시트 전용 파서
+# 6. BI 지사별(상해/광주/종합) 전용 정밀 파서 (수정 완료)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
-    if bi_target == "광주":
-        target_s_name = get_sheet_by_keyword(["bi", "광주"]) or get_sheet_by_keyword(["광주"])
-    elif bi_target == "상해":
-        target_s_name = get_sheet_by_keyword(["bi", "상해"]) or get_sheet_by_keyword(["상해"])
-    elif bi_target == "종합":
-        target_s_name = get_sheet_by_keyword(["bi", "종합"])
-        if not target_s_name:
-            for s_clean, orig_name in sheet_dict.items():
-                if "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
-                    target_s_name = orig_name
-                    break
+    # 엑셀 시트 이름에서 상해 / 광주 / 종합을 엄밀하게 분리 탐색
+    for s_clean, orig_name in sheet_dict.items():
+        if bi_target == "광주" and "광주" in s_clean:
+            target_s_name = orig_name
+            break
+        elif bi_target == "상해" and "상해" in s_clean:
+            target_s_name = orig_name
+            break
+        elif bi_target == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
+            target_s_name = orig_name
+            break
+            
+    # 보조 검색
+    if not target_s_name:
+        if bi_target == "광주":
+            target_s_name = get_sheet_by_keyword(["광주"])
+        elif bi_target == "상해":
+            target_s_name = get_sheet_by_keyword(["상해"])
+        elif bi_target == "종합":
+            target_s_name = get_sheet_by_keyword(["bi"])
 
     def_kpi = {
         "전체 총계 누계": {"25": 76867792000, "26": 78131344000, "diff": 1263552000, "rate": 1.6},
