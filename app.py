@@ -13,6 +13,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 전역 상수 정의 (스코프 에러 방지)
+BI_8_CATEGORIES = [
+    "일반검사",
+    "섬유내수(패션잡화)",
+    "섬유내수(중국GB)",
+    "섬유수출",
+    "산업(토목+부품)",
+    "모빌리티(전장+의장)",
+    "환경(환경+측정기기)",
+    "화학바이오(화학제품+생활안전)"
+]
+
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -350,7 +362,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 시트 전용 정밀 파서 (상해 / 광주 / 종합 시트 매칭 고도화)
+# 6. BI 시트 전용 파서
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
