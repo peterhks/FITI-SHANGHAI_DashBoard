@@ -100,7 +100,6 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 카드 스타일: 가로 폭 100% 동일, 간격 밀착, 글씨 16px */
     .sidebar-card-btn {
         display: block;
         width: 100%;
@@ -154,7 +153,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 초고속 캐싱 엔진
+# 3. 데이터 로드 및 시트 검증 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -178,6 +177,9 @@ def get_excel_sheets(file_source):
     return excel_obj.sheet_names, sheet_dict
 
 sheet_names, sheet_dict = get_excel_sheets(target_file)
+
+# 디버깅용: 현재 엑셀 파일에 인식된 전체 시트 이름을 화면에 살짝 표시합니다.
+st.sidebar.info(f"🔍 인식된 엑셀 시트 목록: {sheet_names}")
 
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
@@ -399,59 +401,53 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 정밀 파서 (지사별 데이터 완전 분리 고정)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서 (강력 매칭 및 0원 방지)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, branch_name="종합"):
     target_s_name = None
     
-    # 💡 지사별 시트 이름을 완벽하고 엄격하게 개별 탐색 (상해는 상해만, 광주는 광주만)
-    search_key = branch_name.strip().lower().replace(" ", "").replace("_", "")
+    # 💡 사용자가 탭 이름을 'BI상해', 'BI광주', 'BI종합'으로 변경하셨으므로 이를 정확히 타겟팅
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
-        if search_key == "광주" and s_clean == "bi광주":
+        if branch_name == "광주" and s_clean in ["bi광주", "광주"]:
             target_s_name = s_orig
             break
-        elif search_key == "상해" and s_clean == "bi상해":
+        elif branch_name == "상해" and s_clean in ["bi상해", "상해"]:
             target_s_name = s_orig
             break
-        elif search_key == "종합" and s_clean in ["bi종합", "bi"]:
+        elif branch_name == "종합" and s_clean in ["bi종합", "bi"]:
             target_s_name = s_orig
             break
             
     if not target_s_name:
         for s_orig in sheet_names:
             s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
-            if search_key == "광주" and "광주" in s_clean and "상해" not in s_clean:
+            if branch_name == "광주" and "광주" in s_clean and "상해" not in s_clean and "종합" not in s_clean:
                 target_s_name = s_orig
                 break
-            elif search_key == "상해" and "상해" in s_clean and "광주" not in s_clean:
+            elif branch_name == "상해" and "상해" in s_clean and "광주" not in s_clean and "종합" not in s_clean:
                 target_s_name = s_orig
                 break
-            elif search_key == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
+            elif branch_name == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
                 target_s_name = s_orig
                 break
 
+    # 만약 특정 지사 시트를 못 찾았을 경우, 에러 방지를 위해 비어있는 기본 뼈대 반환
+    empty_kpi = {"25": 0, "26": 0, "diff": 0, "rate": 0.0}
     def_kpi = {
-        "전체 총계 누계": {"25": 76867792000, "26": 78131344000, "diff": 1263552000, "rate": 1.6},
-        "사업 소계 누계": {"25": 69068999000, "26": 71719908000, "diff": 2650909000, "rate": 3.8},
-        "사업 소계 월계": {"25": 4000421000, "26": 4261274000, "diff": 260853000, "rate": 6.5}
+        "전체 총계 누계": empty_kpi,
+        "사업 소계 누계": empty_kpi,
+        "사업 소계 월계": empty_kpi
     }
     
-    def_chart = {
-        "누계": pd.DataFrame({
-            "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [16206229000, 9381654000, 56864260000, 2682351000, 6018433000, 4975052000, 5396880000, 621553000],
-            "2026년 실적": [19649628000, 9170056000, 59786868000, 2665836000, 5759619000, 4624591000, 5105447000, 654172000],
-            "증감률": [21.2, -2.3, 5.1, -0.6, -4.3, -7.0, -5.4, 5.2]
-        }),
-        "월계": pd.DataFrame({
-            "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [772498000, 395095000, 3257732000, 156602000, 193184000, 144749000, 161277000, 31907000],
-            "2026년 실적": [909896000, 363575000, 3761189000, 176905000, 162549000, 117279000, 138849000, 23700000],
-            "증감률": [17.8, -8.0, 15.5, 13.0, -15.9, -19.0, -13.9, -25.7]
-        })
-    }
+    empty_df = pd.DataFrame({
+        "표준사업구분": BI_8_CATEGORIES,
+        "2025년 실적": [0]*8,
+        "2026년 실적": [0]*8,
+        "증감률": [0.0]*8
+    })
+    def_chart = {"누계": empty_df, "월계": empty_df}
 
     if not target_s_name:
         return def_kpi, def_chart
@@ -495,9 +491,9 @@ def parse_bi_sheet_by_type(file_source, branch_name="종합"):
             return default_dict
 
     kpi_res = {
-        "전체 총계 누계": extract_row_vals(total_r_idx, c_c25, c_c26, c_rate, def_kpi["전체 총계 누계"]),
-        "사업 소계 누계": extract_row_vals(subtotal_r_idx, c_c25, c_c26, c_rate, def_kpi["사업 소계 누계"]),
-        "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, def_kpi["사업 소계 월계"])
+        "전체 총계 누계": extract_row_vals(total_r_idx, c_c25, c_c26, c_rate, empty_kpi),
+        "사업 소계 누계": extract_row_vals(subtotal_r_idx, c_c25, c_c26, c_rate, empty_kpi),
+        "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
     target_mappings = [
@@ -552,7 +548,7 @@ def parse_bi_sheet_by_type(file_source, branch_name="종합"):
 
     return kpi_res, chart_res
 
-# 💡 지사별 데이터 고유 로드 분기 확실화 (상해는 상해시트, 광주는 광주시트 호출)
+# 💡 [핵심] 종합, 상해, 광주 시트를 완벽히 독립된 개별 데이터프레임으로 각각 파싱
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(target_file, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
@@ -672,7 +668,7 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 💡 [핵심 수정] 선택한 메뉴에 따라 상해, 광주, 종합의 고유 KPI 팩과 차트 팩을 완벽 분기 연결
+    # 💡 [핵심] 선택한 메뉴에 따라 상해, 광주, 종합의 고유 KPI 및 독립 차트 팩을 완벽 분기 연결
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         active_bi_charts = bi_guangzhou_charts
@@ -1324,7 +1320,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         title_top=f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_종합] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_total_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
@@ -1335,7 +1331,7 @@ elif page_menu == "[BI_상해] 사업별 실적 현황":
         title_top=f"🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_상해] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_shanghai_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
@@ -1346,7 +1342,7 @@ elif page_menu == "[BI_광주] 사업별 실적 현황":
         title_top=f"🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_광주] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_guangzhou_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
