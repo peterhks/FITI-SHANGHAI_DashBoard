@@ -361,32 +361,32 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(상해/광주/종합) 전용 정밀 파서 (수정 완료)
+# 6. BI 지사별(BI_상해 / BI_광주 / BI_종합) 전용 정밀 파서 (수정 완료)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
-    # 엑셀 시트 이름에서 상해 / 광주 / 종합을 엄밀하게 분리 탐색
-    for s_clean, orig_name in sheet_dict.items():
-        if bi_target == "광주" and "광주" in s_clean:
-            target_s_name = orig_name
+    # 첨부해주신 엑셀 탭 이름('BI_상해', 'BI_광주', 'BI_종합')과 완벽히 일치하도록 매칭 로직 강화
+    for s_orig in sheet_names:
+        s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
+        if bi_target == "광주" and ("bi광주" in s_clean or ("광주" in s_clean and "bi" in s_clean)):
+            target_s_name = s_orig
             break
-        elif bi_target == "상해" and "상해" in s_clean:
-            target_s_name = orig_name
+        elif bi_target == "상해" and ("bi상해" in s_clean or ("상해" in s_clean and "bi" in s_clean)):
+            target_s_name = s_orig
             break
-        elif bi_target == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
-            target_s_name = orig_name
+        elif bi_target == "종합" and ("bi종합" in s_clean or (s_clean == "bi")):
+            target_s_name = s_orig
             break
             
     # 보조 검색
     if not target_s_name:
-        if bi_target == "광주":
-            target_s_name = get_sheet_by_keyword(["광주"])
-        elif bi_target == "상해":
-            target_s_name = get_sheet_by_keyword(["상해"])
-        elif bi_target == "종합":
-            target_s_name = get_sheet_by_keyword(["bi"])
+        for s_orig in sheet_names:
+            s_clean = s_orig.strip().lower()
+            if bi_target.lower() in s_clean:
+                target_s_name = s_orig
+                break
 
     def_kpi = {
         "전체 총계 누계": {"25": 76867792000, "26": 78131344000, "diff": 1263552000, "rate": 1.6},
