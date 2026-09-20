@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일
+# 1. 화면 기본 설정 및 디자인 스타일 (네모 카드 버튼 스타일 최적화)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -99,6 +99,26 @@ st.markdown("""
         font-weight: 700;
         margin-top: 6px;
     }
+
+    /* 사이드바 버튼을 세련된 네모 카드 형태로 일체화 */
+    [data-testid="stSidebar"] button {
+        width: 100% !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        padding: 10px 14px !important;
+        margin-bottom: 4px !important;
+        border: 1.5px solid #CBD5E1 !important;
+        background-color: #F1F5F9 !important;
+        color: #1E293B !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+        transition: all 0.15s ease !important;
+    }
+    [data-testid="stSidebar"] button:hover {
+        border-color: #003876 !important;
+        background-color: #E2E8F0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -116,7 +136,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 시트 사전 처리
+# 3. 데이터 로드 및 초고속 캐싱 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -148,7 +168,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 파서 (접수기준)
+# 4. '종합' 시트 고속 파싱 (접수기준)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_source):
@@ -225,7 +245,7 @@ def parse_summary_data(file_source):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(target_file)
 
 # =========================================================
-# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
+# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 고속 캐싱)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -511,7 +531,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 순수 네모 카드형 UI 및 비밀번호 보안 인증
+# 7. 사이드바 깔끔한 단일 네모 카드 메뉴 및 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -552,31 +572,9 @@ if st.session_state["current_page"] not in all_pages:
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
-# 중복 없이 단일 버튼 기능이 결합된 네모 카드 UI (사이드바 내부 전용)
+# 중복 없는 단일 네모 카드 버튼 생성
 for p in all_pages:
-    is_active = (st.session_state["current_page"] == p)
-    bg_color = "#003876" if is_active else "#F1F5F9"
-    text_color = "#FFFFFF" if is_active else "#1E293B"
-    border_color = "#002B5C" if is_active else "#CBD5E1"
-    
-    card_html = f"""
-    <div style="
-        background-color: {bg_color};
-        color: {text_color};
-        border: 1.5px solid {border_color};
-        border-radius: 8px;
-        padding: 10px 14px;
-        margin-bottom: 4px;
-        font-weight: 700;
-        font-size: 13px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    ">
-        {p}
-    </div>
-    """
-    st.sidebar.markdown(card_html, unsafe_allow_html=True)
-    if st.sidebar.button(f"이동: {p}", key=f"unique_sidebar_card_{p}"):
+    if st.sidebar.button(p, key=f"nav_card_single_{p}"):
         st.session_state["current_page"] = p
         st.rerun()
 
@@ -594,7 +592,7 @@ if not st.session_state["bi_authorized"]:
     )
 else:
     st.sidebar.markdown("##### 🔓 BI 관리자 모드 활성화됨")
-    if st.sidebar.button("BI 잠금 (로그아웃)"):
+    if st.sidebar.button("BI 잠금 (로그아웃)", key="logout_btn_unique"):
         st.session_state["bi_authorized"] = False
         st.rerun()
 
@@ -612,25 +610,7 @@ if page_menu.startswith("[BI_"):
         st.session_state["bi_period_mode"] = bi_periods[0]
         
     for bp in bi_periods:
-        is_p_active = (st.session_state["bi_period_mode"] == bp)
-        p_bg = "#1D4ED8" if is_p_active else "#F1F5F9"
-        p_txt = "#FFFFFF" if is_p_active else "#1E293B"
-        
-        st.sidebar.markdown(f"""
-        <div style="
-            background-color: {p_bg};
-            color: {p_txt};
-            border-radius: 6px;
-            padding: 8px 12px;
-            margin-bottom: 4px;
-            font-weight: 600;
-            font-size: 13px;
-            text-align: center;
-        ">
-            {bp}
-        </div>
-        """, unsafe_allow_html=True)
-        if st.sidebar.button(f"기간선택: {bp}", key=f"unique_sidebar_period_{bp}"):
+        if st.sidebar.button(bp, key=f"period_card_single_{bp}"):
             st.session_state["bi_period_mode"] = bp
             st.rerun()
             
