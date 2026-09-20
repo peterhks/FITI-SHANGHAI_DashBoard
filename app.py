@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (가로 폭 100% 동일 밀착 UI)
+# 1. 화면 기본 설정 및 디자인 스타일 (예쁜 밀착형 네모 카드 UI 복원)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -101,7 +101,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 💡 사이드바 네모 카드 스타일 (가로 폭 100% 동일, 바짝 밀착) */
+    /* 💡 사이드바 네모 카드 스타일: 가로 폭 100% 동일, 바짝 밀착 */
     .sidebar-card-btn {
         display: block;
         width: 100%;
@@ -155,7 +155,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 업로드 파일 세션 영구 보존 엔진 ('performance_최신.xlsx')
+# 3. 업로드 파일 세션 영구 보존 엔진 (절대 리셋 방지)
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 
@@ -166,9 +166,10 @@ if uploaded_file is not None:
     st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
     st.session_state["persistent_file_name"] = uploaded_file.name
 
+# 세션에 보관된 파일 바이트가 있으면 최우선 유지
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(f"✅ 업로드 파일 유지 중 ({st.session_state.get('persistent_file_name', '최신 파일')})")
+    st.sidebar.success(f"✅ 업로드 파일 영구 유지 중 ({st.session_state.get('persistent_file_name', '최신 파일')})")
 elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
@@ -177,7 +178,7 @@ else:
     raw_bytes = None
 
 if not raw_bytes:
-    st.warning(f"'{EXCEL_FILE}' 파일을 찾을 수 없거나 업로드되지 않았습니다. 파일을 업로드해 주세요.")
+    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
     st.stop()
 
 def clean_series(series):
@@ -578,7 +579,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 7. 사이드바 초고속 HTML 링크 기반 네비게이션 (속도 최적화 및 카드 UI)
+# 7. 사이드바 초고속 HTML 링크 기반 네비게이션 (업로드 파일 리셋 완전 차단)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
