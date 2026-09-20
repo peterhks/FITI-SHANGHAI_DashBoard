@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 네모 카드형 UI 최적화)
+# 1. 화면 기본 설정 및 디자인 스타일 (가독성 및 글씨 크기 최적화)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,19 +100,19 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 네모 카드 스타일 간격 밀착 및 100% 동일 폭 */
+    /* 사이드바 네모 카드 스타일: 글씨 16px(3포인트 확대) 및 시인성 확보 */
     .sidebar-card-btn {
         display: block;
         width: 100%;
         border-radius: 8px;
         text-align: center;
         font-weight: 700;
-        font-size: 13px;
-        padding: 10px 14px;
-        margin-bottom: 4px;
+        font-size: 16px;
+        padding: 11px 14px;
+        margin-bottom: 5px;
         border: 1.5px solid #CBD5E1;
-        background-color: #F1F5F9;
-        color: #1E293B;
+        background-color: #F8FAFC;
+        color: #0F172A;
         text-decoration: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         transition: all 0.15s ease;
@@ -120,21 +120,23 @@ st.markdown("""
     .sidebar-card-btn:hover {
         border-color: #003876;
         background-color: #E2E8F0;
+        color: #002B5C;
     }
+    /* 선택된 카드: 진한 파란색 배경에 선명한 하얀색 글씨로 시인성 극대화 */
     .sidebar-card-btn-active {
         display: block;
         width: 100%;
         border-radius: 8px;
         text-align: center;
-        font-weight: 700;
-        font-size: 13px;
-        padding: 10px 14px;
-        margin-bottom: 4px;
-        border: 1.5px solid #002B5C;
+        font-weight: 800;
+        font-size: 16px;
+        padding: 11px 14px;
+        margin-bottom: 5px;
+        border: 1.5px solid #001E3D;
         background-color: #003876;
-        color: #FFFFFF;
+        color: #FFFFFF !important;
         text-decoration: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -398,13 +400,12 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 데이터 오인식 완전 차단)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 독립 매칭 확실화)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
-    # 엑셀 탭 이름에서 'BI상해', 'BI광주', 'BI종합'을 완벽하게 개별 고정 매칭
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
         if bi_target == "광주" and s_clean in ["bi광주", "광주"]:
@@ -555,7 +556,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 순수 HTML 카드형 메뉴 (가로 길이 100% 동일, 간격 밀착, 선택 시 파란색 강조)
+# 7. 사이드바 순수 HTML 네모 카드 네비게이션
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -594,7 +595,6 @@ if "current_page" not in st.session_state:
 if st.session_state["current_page"] not in all_pages:
     st.session_state["current_page"] = all_pages[0]
 
-# 쿼리 파라미터를 이용한 초고속 웹 기반 HTML 네모 카드 네비게이션
 query_params = st.query_params
 if "page" in query_params:
     p_param = query_params["page"]
@@ -607,7 +607,6 @@ for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     
-    # 순수 HTML 앵커 태그를 사용하여 가로 100% 동일, 간격 밀착, 선택 시 진한 파란색 배경 구현
     card_link_html = f"""
     <a href="?page={p}" class="{btn_class}" target="_self">
         {p}
