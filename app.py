@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 안전한 시트 사전 처리
+# 3. 데이터 로드 및 고속 캐싱 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -122,13 +122,13 @@ def clean_series(series):
     cleaned = cleaned.replace(['-', '–', '—', 'nan', 'NaN', 'None', ''], '0')
     return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
-# 파일 객체 캐싱 에러 방지를 위해 pd.ExcelFile 생성 로직 수정
-try:
-    excel_obj = pd.ExcelFile(target_file)
+@st.cache_data
+def get_excel_sheets(file_source):
+    excel_obj = pd.ExcelFile(file_source)
     sheet_dict = {s.strip().lower().replace(" ", ""): s for s in excel_obj.sheet_names}
-except Exception as e:
-    st.error(f"엑셀 파일 로드 실패: {e}")
-    st.stop()
+    return excel_obj.sheet_names, sheet_dict
+
+sheet_names, sheet_dict = get_excel_sheets(target_file)
 
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
@@ -137,20 +137,12 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 파서 (접수기준)
+# 4. '종합' 시트 고속 파싱 (접수기준)
 # =========================================================
 @st.cache_data
-def parse_summary_data(file_path_or_buffer):
-    temp_excel = pd.ExcelFile(file_path_or_buffer)
-    summary_sheet_name = None
-    for s in temp_excel.sheet_names:
-        if "종합" in s:
-            summary_sheet_name = s
-            break
-    if not summary_sheet_name:
-        summary_sheet_name = temp_excel.sheet_names[0]
-        
-    raw_summary = pd.read_excel(file_path_or_buffer, sheet_name=summary_sheet_name, header=None)
+def parse_summary_data(file_source):
+    summary_sheet_name = get_sheet_by_keyword(["종합"]) or sheet_names[0]
+    raw_summary = pd.read_excel(file_source, sheet_name=summary_sheet_name, header=None)
 
     h_idx = 0
     for idx, row in raw_summary.iterrows():
@@ -159,7 +151,7 @@ def parse_summary_data(file_path_or_buffer):
             h_idx = idx
             break
 
-    df_summary = pd.read_excel(file_path_or_buffer, sheet_name=summary_sheet_name, skiprows=h_idx)
+    df_summary = pd.read_excel(file_source, sheet_name=summary_sheet_name, skiprows=h_idx)
 
     for c in df_summary.columns:
         if df_summary[c].dtype == object:
@@ -222,7 +214,7 @@ def parse_summary_data(file_path_or_buffer):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(target_file)
 
 # =========================================================
-# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
+# 5. 세부 파트 시트 파서 (바이어 및 협력사 고속 캐싱)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -231,6 +223,7 @@ PART_SHEET_MAPPINGS = {
     "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
 }
 
+@st.cache_data
 def extract_pivot_block(file_source, sheet_name):
     raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
     pivot_r, pivot_c = None, None
@@ -276,6 +269,7 @@ def extract_pivot_block(file_source, sheet_name):
         
     return pd.DataFrame(parsed_rows)
 
+@st.cache_data
 def extract_vendor_data_from_sheet(file_source, sheet_name):
     raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
     h_idx, buyer_col_idx, vendor_col_idx = None, None, None
@@ -356,43 +350,22 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 시트 전용 고속 파서
+# 6. BI 시트 전용 정밀 파서 (상해 / 광주 / 종합 시트 매칭 고도화)
 # =========================================================
-BI_8_CATEGORIES = [
-    "일반검사",
-    "섬유내수(패션잡화)",
-    "섬유내수(중국GB)",
-    "섬유수출",
-    "산업(토목+부품)",
-    "모빌리티(전장+의장)",
-    "환경(환경+측정기기)",
-    "화학바이오(화학제품+생활안전)"
-]
-
 @st.cache_data
-def parse_bi_sheet_by_type(file_path_or_buffer, bi_target="종합"):
-    temp_excel = pd.ExcelFile(file_path_or_buffer)
-    sheet_name = None
+def parse_bi_sheet_by_type(file_source, bi_target="종합"):
+    target_s_name = None
     
-    # 전달받은 버퍼나 경로를 기준으로 시트 딕셔너리 재구성
-    s_dict = {s.strip().lower().replace(" ", ""): s for s in temp_excel.sheet_names}
-    
-    def get_s_name(kws):
-        for s_clean, orig_name in s_dict.items():
-            if all(k.lower().replace(" ", "") in s_clean for k in kws):
-                return orig_name
-        return None
-
     if bi_target == "광주":
-        sheet_name = get_s_name(["bi", "광주"]) or get_s_name(["광주"])
+        target_s_name = get_sheet_by_keyword(["bi", "광주"]) or get_sheet_by_keyword(["광주"])
     elif bi_target == "상해":
-        sheet_name = get_s_name(["bi", "상해"]) or get_s_name(["상해"])
+        target_s_name = get_sheet_by_keyword(["bi", "상해"]) or get_sheet_by_keyword(["상해"])
     elif bi_target == "종합":
-        sheet_name = get_s_name(["bi", "종합"])
-        if not sheet_name:
-            for s_clean, orig_name in s_dict.items():
+        target_s_name = get_sheet_by_keyword(["bi", "종합"])
+        if not target_s_name:
+            for s_clean, orig_name in sheet_dict.items():
                 if "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
-                    sheet_name = orig_name
+                    target_s_name = orig_name
                     break
 
     def_kpi = {
@@ -416,10 +389,10 @@ def parse_bi_sheet_by_type(file_path_or_buffer, bi_target="종합"):
         })
     }
 
-    if not sheet_name:
+    if not target_s_name:
         return def_kpi, def_chart
 
-    raw = pd.read_excel(file_path_or_buffer, sheet_name=sheet_name, header=None)
+    raw = pd.read_excel(file_source, sheet_name=target_s_name, header=None)
 
     m_c25, m_c26, m_rate = None, None, None
     c_c25, c_c26, c_rate = None, None, None
