@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (네모 카드 UI 포함)
+# 1. 화면 기본 설정 및 디자인 스타일
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -511,7 +511,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 네모 카드형 UI 메뉴 및 보안 인증 (엔터 즉시 로그인)
+# 7. 사이드바 깔끔한 네모 카드 메뉴 및 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -533,6 +533,7 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
 
+# 비번 인증 후에만 BI 페이지 목록이 활성화되도록 분기
 if st.session_state["bi_authorized"]:
     bi_pages = [
         "[BI_종합] 사업별 실적 현황",
@@ -551,36 +552,34 @@ if st.session_state["current_page"] not in all_pages:
     st.session_state["current_page"] = all_pages[0]
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
-card_container = st.sidebar.container()
 
-# HTML/CSS 기반 네모 카드 스타일 렌더링
-with card_container:
-    for p in all_pages:
-        is_active = (st.session_state["current_page"] == p)
-        bg_color = "#003876" if is_active else "#F1F5F9"
-        text_color = "#FFFFFF" if is_active else "#1E293B"
-        border_color = "#002B5C" if is_active else "#CBD5E1"
-        
-        card_html = f"""
-        <div style="
-            background-color: {bg_color};
-            color: {text_color};
-            border: 1.5px solid {border_color};
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            font-weight: 700;
-            font-size: 14px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        ">
-            {p}
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
-        if st.sidebar.button(f"선택: {p}", key=f"btn_page_{p}___"):
-            st.session_state["current_page"] = p
-            st.rerun()
+for p in all_pages:
+    is_active = (st.session_state["current_page"] == p)
+    bg_color = "#003876" if is_active else "#F1F5F9"
+    text_color = "#FFFFFF" if is_active else "#1E293B"
+    border_color = "#002B5C" if is_active else "#CBD5E1"
+    
+    card_html = f"""
+    <div style="
+        background-color: {bg_color};
+        color: {text_color};
+        border: 1.5px solid {border_color};
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        font-weight: 700;
+        font-size: 14px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        cursor: pointer;
+    ">
+        {p}
+    </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
+    if st.sidebar.button(p, key=f"nav_card_btn_{p}"):
+        st.session_state["current_page"] = p
+        st.rerun()
 
 page_menu = st.session_state["current_page"]
 
@@ -601,7 +600,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드 및 카드형 기간 선택 UI
+# 8. 상단 종합 KPI 카드 및 네모 박스형 기간 선택 UI
 # =========================================================
 card_unit = "원"
 
@@ -632,7 +631,7 @@ if page_menu.startswith("[BI_"):
             {bp}
         </div>
         """, unsafe_allow_html=True)
-        if st.sidebar.button(f"기간: {bp}", key=f"btn_period_{bp}___"):
+        if st.sidebar.button(bp, key=f"period_card_btn_{bp}"):
             st.session_state["bi_period_mode"] = bp
             st.rerun()
             
