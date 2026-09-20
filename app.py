@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일
+# 1. 화면 기본 설정 및 디자인 스타일 (예쁜 네모 카드 UI 적용)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -101,7 +101,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 버튼 디자인 스타일 정돈 */
+    /* 💡 네모 카드 스타일: 가로 폭 100% 동일, 슬림 밀착, 16px 글씨, 선택 시 진한 파란색 강조 */
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         border-radius: 8px !important;
@@ -114,11 +114,19 @@ st.markdown("""
         background-color: #F8FAFC !important;
         color: #0F172A !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+        transition: all 0.15s ease;
     }
     [data-testid="stSidebar"] div.stButton > button:hover {
         border-color: #003876 !important;
         background-color: #E2E8F0 !important;
         color: #002B5C !important;
+    }
+    /* 선택된 활성 버튼 (진한 파란색 배경 + 흰색 글씨) */
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+        background-color: #003876 !important;
+        color: #FFFFFF !important;
+        border-color: #001E3D !important;
+        font-weight: 800 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -137,7 +145,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 업로드 파일 세션 완벽 보존 엔진 ('performance_최신.xlsx')
+# 3. 업로드 파일 세션 영구 보존 엔진 ('performance_최신.xlsx')
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 
@@ -159,7 +167,7 @@ else:
     raw_bytes = None
 
 if not raw_bytes:
-    st.warning(f"분석할 엑셀 파일을 업로드해 주세요.")
+    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
     st.stop()
 
 def clean_series(series):
@@ -560,7 +568,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 7. 사이드바 네이티브 버튼 기반 메뉴 전환 (새로고침 및 파일 유실 원천 방지)
+# 7. 사이드바 네이티브 버튼 기반 메뉴 전환 (업로드 파일 리셋 방지)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -601,7 +609,6 @@ if st.session_state["current_page"] not in all_pages:
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
-# 💡 스트림릿 네이티브 st.sidebar.button 사용 (파일 업로드 세션 리셋 버그 방지)
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
     btn_type = "primary" if is_active else "secondary"
@@ -650,7 +657,6 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 💡 선택한 메뉴에 맞게 상해, 광주, 종합의 고유 KPI 및 차트 팩 연결
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         active_bi_charts = bi_guangzhou_charts
