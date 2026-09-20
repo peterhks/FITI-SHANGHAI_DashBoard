@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일
+# 1. 화면 기본 설정 및 디자인 스타일 (네모 카드 UI 포함)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -361,7 +361,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (강력 매칭)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
@@ -511,11 +511,11 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴 및 BI 보안 인증 (엔터 로그인 적용)
+# 7. 사이드바 네모 카드형 UI 메뉴 및 보안 인증 (엔터 즉시 로그인)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
-available_pages = [
+base_pages = [
     "[접수기준] 종합 실적 현황",
     "[접수기준] 사업별 실적 현황",
     "[접수기준] 바이어 실적 현황",
@@ -534,20 +534,55 @@ def check_bi_password():
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
 
 if st.session_state["bi_authorized"]:
-    available_pages.extend([
+    bi_pages = [
         "[BI_종합] 사업별 실적 현황",
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
-    ])
+    ]
+else:
+    bi_pages = []
 
-st.sidebar.markdown("##### 📌 페이지 선택")
-selected_card_page = st.sidebar.radio(
-    "분석 페이지 선택",
-    available_pages,
-    index=0,
-    label_visibility="collapsed"
-)
-page_menu = selected_card_page
+all_pages = base_pages + bi_pages
+
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = all_pages[0]
+
+if st.session_state["current_page"] not in all_pages:
+    st.session_state["current_page"] = all_pages[0]
+
+st.sidebar.markdown("##### 📌 카테고리 선택")
+card_container = st.sidebar.container()
+
+# HTML/CSS 기반 네모 카드 스타일 렌더링
+with card_container:
+    for p in all_pages:
+        is_active = (st.session_state["current_page"] == p)
+        bg_color = "#003876" if is_active else "#F1F5F9"
+        text_color = "#FFFFFF" if is_active else "#1E293B"
+        border_color = "#002B5C" if is_active else "#CBD5E1"
+        
+        card_html = f"""
+        <div style="
+            background-color: {bg_color};
+            color: {text_color};
+            border: 1.5px solid {border_color};
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        ">
+            {p}
+        </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
+        if st.sidebar.button(f"선택: {p}", key=f"btn_page_{p}___"):
+            st.session_state["current_page"] = p
+            st.rerun()
+
+page_menu = st.session_state["current_page"]
 
 st.sidebar.markdown("---")
 
@@ -566,7 +601,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드
+# 8. 상단 종합 KPI 카드 및 카드형 기간 선택 UI
 # =========================================================
 card_unit = "원"
 
@@ -574,12 +609,34 @@ if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⏱️ [BI] 실적 기간 선택")
     
-    bi_period_mode = st.sidebar.radio(
-        "구분 선택",
-        ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"],
-        index=0,
-        label_visibility="collapsed"
-    )
+    bi_periods = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
+    if "bi_period_mode" not in st.session_state:
+        st.session_state["bi_period_mode"] = bi_periods[0]
+        
+    for bp in bi_periods:
+        is_p_active = (st.session_state["bi_period_mode"] == bp)
+        p_bg = "#1D4ED8" if is_p_active else "#F1F5F9"
+        p_txt = "#FFFFFF" if is_p_active else "#1E293B"
+        
+        st.sidebar.markdown(f"""
+        <div style="
+            background-color: {p_bg};
+            color: {p_txt};
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            text-align: center;
+        ">
+            {bp}
+        </div>
+        """, unsafe_allow_html=True)
+        if st.sidebar.button(f"기간: {bp}", key=f"btn_period_{bp}___"):
+            st.session_state["bi_period_mode"] = bp
+            st.rerun()
+            
+    bi_period_mode = st.session_state["bi_period_mode"]
     
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
