@@ -100,7 +100,6 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 네모 카드 스타일: 가로 폭 100% 동일, 간격 밀착, 글씨 16px */
     .sidebar-card-btn {
         display: block;
         width: 100%;
@@ -154,17 +153,20 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 업로드 파일 우선 감지 엔진
+# 3. 데이터 관리 및 최신 업로드 파일 세션 영구 저장 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
 st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀 파일 업로드", type=["xlsx", "csv"])
 
-# 💡 업로드된 파일이 있으면 우선 사용하고, 없으면 기본 파일 사용
+# 💡 업로드된 파일이 있으면 session_state에 저장하여 최신 상태 유지
 if uploaded_file is not None:
-    target_file = uploaded_file
-else:
+    st.session_state["persistent_uploaded_file"] = uploaded_file
+
+# 저장된 파일이 있으면 우선 사용, 없으면 로컬 기본 파일 사용
+target_file = st.session_state.get("persistent_uploaded_file", None)
+if target_file is None:
     target_file = EXCEL_FILE if os.path.exists(EXCEL_FILE) else None
 
 if not target_file:
@@ -176,11 +178,13 @@ def clean_series(series):
     cleaned = cleaned.replace(['-', '–', '—', 'nan', 'NaN', 'None', ''], '0')
     return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
-# 업로드 파일 변경 시 캐시 충돌을 방지하기 위해 파일 객체를 키로 전달
+# 💡 전체 시트 누락 없이 100% 모두 가져오도록 개선된 엑셀 로더
+@st.cache_data
 def get_excel_sheets(file_source):
     excel_obj = pd.ExcelFile(file_source)
-    sheet_dict = {s.strip().lower().replace(" ", "").replace("_", ""): s for s in excel_obj.sheet_names}
-    return excel_obj.sheet_names, sheet_dict
+    all_sheets = excel_obj.sheet_names
+    sheet_dict = {s.strip().lower().replace(" ", "").replace("_", ""): s for s in all_sheets}
+    return all_sheets, sheet_dict
 
 sheet_names, sheet_dict = get_excel_sheets(target_file)
 st.sidebar.success(f"✅ 파일 연동 완료 (시트 총 {len(sheet_names)}개 감지됨)")
@@ -194,6 +198,7 @@ def get_sheet_by_keyword(keywords):
 # =========================================================
 # 4. '종합' 시트 파서 (접수기준)
 # =========================================================
+@st.cache_data
 def parse_summary_data(file_source):
     summary_sheet_name = get_sheet_by_keyword(["종합"]) or sheet_names[0]
     raw_summary = pd.read_excel(file_source, sheet_name=summary_sheet_name, header=None)
@@ -277,6 +282,7 @@ PART_SHEET_MAPPINGS = {
     "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
 }
 
+@st.cache_data
 def extract_pivot_block(file_source, sheet_name):
     raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
     pivot_r, pivot_c = None, None
@@ -322,6 +328,7 @@ def extract_pivot_block(file_source, sheet_name):
         
     return pd.DataFrame(parsed_rows)
 
+@st.cache_data
 def extract_vendor_data_from_sheet(file_source, sheet_name):
     raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
     h_idx, buyer_col_idx, vendor_col_idx = None, None, None
@@ -402,12 +409,12 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서 ('BI상해', 'BI광주' 탭 직접 연동)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서
 # =========================================================
+@st.cache_data
 def parse_bi_sheet_by_type(file_source, branch_name="종합"):
     target_s_name = None
     
-    # 💡 업로드된 파일의 실제 탭 이름('BI상해', 'BI광주', 'BI종합')과 100% 일치하도록 매칭
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
         if branch_name == "광주" and s_clean == "bi광주":
@@ -423,10 +430,10 @@ def parse_bi_sheet_by_type(file_source, branch_name="종합"):
     if not target_s_name:
         for s_orig in sheet_names:
             s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
-            if branch_name == "광주" and "광주" in s_clean and "상해" not in s_clean and "종합" not in s_clean:
+            if branch_name == "광주" and "광주" in s_clean and "상해" not in s_clean:
                 target_s_name = s_orig
                 break
-            elif branch_name == "상해" and "상해" in s_clean and "광주" not in s_clean and "종합" not in s_clean:
+            elif branch_name == "상해" and "상해" in s_clean and "광주" not in s_clean:
                 target_s_name = s_orig
                 break
             elif branch_name == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
@@ -547,7 +554,7 @@ def parse_bi_sheet_by_type(file_source, branch_name="종합"):
 
     return kpi_res, chart_res
 
-# 💡 [핵심] 업로드된 파일 기준으로 각 지사별 데이터를 완전히 분리 독립 파싱
+# 💡 지사별 데이터 고유 분기 파싱 (BI종합, BI상해, BI광주)
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(target_file, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
@@ -667,7 +674,7 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 💡 [핵심] 선택한 메뉴에 따라 상해, 광주, 종합의 고유 KPI 및 독립 차트 팩을 완벽 분기 연결
+    # 💡 [핵심] 선택한 지사 메뉴에 따라 상해, 광주, 종합의 고유 데이터 팩을 정확히 분기 연결
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         active_bi_charts = bi_guangzhou_charts
