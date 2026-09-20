@@ -154,7 +154,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 업로드 파일 세션 영구 보존 엔진
+# 3. 업로드 파일 세션 완벽 고정 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -165,23 +165,20 @@ if uploaded_file is not None:
     st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
     st.session_state["persistent_file_name"] = uploaded_file.name
 
+# 세션에 저장된 파일이 있으면 최우선 사용, 없으면 로컬 파일 체크
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(f"✅ 파일 유지 중 ({st.session_state.get('persistent_file_name', '업로드 파일')})")
+    st.sidebar.success(f"✅ 최신 업로드 파일 유지 중")
+elif os.path.exists(EXCEL_FILE):
+    with open(EXCEL_FILE, "rb") as f:
+        raw_bytes = f.read()
+    st.sidebar.info("📂 기본 로컬 엑셀 파일 사용 중")
 else:
-    if os.path.exists(EXCEL_FILE):
-        with open(EXCEL_FILE, "rb") as f:
-            raw_bytes = f.read()
-        st.sidebar.info("📂 기본 로컬 엑셀 파일 사용 중")
-    else:
-        raw_bytes = None
+    raw_bytes = None
 
 if not raw_bytes:
     st.warning("분석할 엑셀 파일을 업로드해 주세요.")
     st.stop()
-
-def get_file_stream():
-    return io.BytesIO(raw_bytes)
 
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -575,7 +572,7 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
 
     return kpi_res, chart_res
 
-# 💡 지사별 데이터를 안전한 바이트 스트림으로 독립 파싱
+# 💡 지사별 독립 파싱 수행
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
@@ -695,7 +692,7 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 💡 선택한 지사 메뉴에 맞게 상해, 광주, 종합의 고유 KPI 및 차트 팩 연결
+    # 💡 선택한 메뉴에 맞게 상해, 광주, 종합의 고유 KPI 및 차트 팩 연결
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         active_bi_charts = bi_guangzhou_charts
