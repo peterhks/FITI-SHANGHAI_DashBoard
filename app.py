@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 카드형 메뉴 최적화)
+# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 네모 카드형 UI 최적화)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,9 +100,41 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 간격 밀착 및 커스텀 버튼 스타일 */
-    [data-testid="stSidebar"] .element-container {
-        margin-bottom: -4px !important;
+    /* 네모 카드 스타일 간격 밀착 및 100% 동일 폭 */
+    .sidebar-card-btn {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 14px;
+        margin-bottom: 4px;
+        border: 1.5px solid #CBD5E1;
+        background-color: #F1F5F9;
+        color: #1E293B;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        transition: all 0.15s ease;
+    }
+    .sidebar-card-btn:hover {
+        border-color: #003876;
+        background-color: #E2E8F0;
+    }
+    .sidebar-card-btn-active {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 14px;
+        margin-bottom: 4px;
+        border: 1.5px solid #002B5C;
+        background-color: #003876;
+        color: #FFFFFF;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -366,12 +398,13 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 독립 매칭 확실화)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 데이터 오인식 완전 차단)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
+    # 엑셀 탭 이름에서 'BI상해', 'BI광주', 'BI종합'을 완벽하게 개별 고정 매칭
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
         if bi_target == "광주" and s_clean in ["bi광주", "광주"]:
@@ -387,10 +420,10 @@ def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     if not target_s_name:
         for s_orig in sheet_names:
             s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
-            if bi_target == "광주" and "광주" in s_clean:
+            if bi_target == "광주" and "광주" in s_clean and "상해" not in s_clean and "종합" not in s_clean:
                 target_s_name = s_orig
                 break
-            elif bi_target == "상해" and "상해" in s_clean:
+            elif bi_target == "상해" and "상해" in s_clean and "광주" not in s_clean and "종합" not in s_clean:
                 target_s_name = s_orig
                 break
             elif bi_target == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
@@ -522,7 +555,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 네모 카드형 UI 및 비밀번호 보안 인증 (선택 시 진한 파란색 강조)
+# 7. 사이드바 순수 HTML 카드형 메뉴 (가로 길이 100% 동일, 간격 밀착, 선택 시 파란색 강조)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -561,28 +594,26 @@ if "current_page" not in st.session_state:
 if st.session_state["current_page"] not in all_pages:
     st.session_state["current_page"] = all_pages[0]
 
+# 쿼리 파라미터를 이용한 초고속 웹 기반 HTML 네모 카드 네비게이션
+query_params = st.query_params
+if "page" in query_params:
+    p_param = query_params["page"]
+    if p_param in all_pages:
+        st.session_state["current_page"] = p_param
+
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
-    # 선택된 항목은 진한 파란색(#003876), 비선택은 연한 회색(#F1F5F9)
-    btn_bg = "#003876" if is_active else "#F1F5F9"
-    btn_fg = "#FFFFFF" if is_active else "#1E293B"
-    btn_border = "#002B5C" if is_active else "#CBD5E1"
+    btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     
-    st.sidebar.markdown(f"""
-    <style>
-        div.stButton > button[key="btn_card_{p}"] {{
-            background-color: {btn_bg} !important;
-            color: {btn_fg} !important;
-            border-color: {btn_border} !important;
-        }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    if st.sidebar.button(p, key=f"btn_card_{p}"):
-        st.session_state["current_page"] = p
-        st.rerun()
+    # 순수 HTML 앵커 태그를 사용하여 가로 100% 동일, 간격 밀착, 선택 시 진한 파란색 배경 구현
+    card_link_html = f"""
+    <a href="?page={p}" class="{btn_class}" target="_self">
+        {p}
+    </a>
+    """
+    st.sidebar.markdown(card_link_html, unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
 
@@ -600,6 +631,7 @@ else:
     st.sidebar.markdown("##### 🔓 BI 관리자 모드 활성화됨")
     if st.sidebar.button("BI 잠금 (로그아웃)", key="logout_btn_unique_99"):
         st.session_state["bi_authorized"] = False
+        st.query_params.clear()
         st.rerun()
 
 # =========================================================
@@ -615,23 +647,20 @@ if page_menu.startswith("[BI_"):
     if "bi_period_mode" not in st.session_state:
         st.session_state["bi_period_mode"] = bi_periods[0]
         
+    period_query = query_params.get("period", None)
+    if period_query in bi_periods:
+        st.session_state["bi_period_mode"] = period_query
+
     for bp in bi_periods:
         is_p_active = (st.session_state["bi_period_mode"] == bp)
-        p_bg = "#1D4ED8" if is_p_active else "#F1F5F9"
-        p_txt = "#FFFFFF" if is_p_active else "#1E293B"
+        p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
         
-        st.sidebar.markdown(f"""
-        <style>
-            div.stButton > button[key="btn_period_{bp}"] {{
-                background-color: {p_bg} !important;
-                color: {p_txt} !important;
-            }}
-        </style>
-        """, unsafe_allow_html=True)
-        
-        if st.sidebar.button(bp, key=f"btn_period_{bp}"):
-            st.session_state["bi_period_mode"] = bp
-            st.rerun()
+        period_link_html = f"""
+        <a href="?page={page_menu}&period={bp}" class="{p_class}" target="_self">
+            {bp}
+        </a>
+        """
+        st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
