@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일
+# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 박스 폭 100% 밀착 고정)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,7 +100,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 네모 카드 스타일: 가로 폭 100% 동일, 간격 슬림 밀착, 16px 글씨 */
+    /* 사이드바 네모 카드 스타일: 가로 폭 100% 꽉 차게 일치 및 간격 슬림 밀착 */
     .sidebar-card-btn {
         display: block;
         width: 100%;
@@ -399,7 +399,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 독립 매칭 확실화)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
@@ -555,7 +555,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 순수 HTML 네모 카드형 UI 및 보안 인증 (인증 상태 영구 유지)
+# 7. 사이드바 순수 HTML 네모 카드형 UI 및 비밀번호 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -568,7 +568,6 @@ base_pages = [
 
 query_params = st.query_params
 
-# 쿼리 파라미터로 인증 상태 유지
 if "auth" in query_params and query_params["auth"] == "true":
     st.session_state["bi_authorized"] = True
 
@@ -641,7 +640,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드 및 사이드바 기간 선택 UI
+# 8. 상단 종합 KPI 카드 및 사이드바 기간 선택 UI (지사별 차트 연동 고정)
 # =========================================================
 card_unit = "원"
 
@@ -670,18 +669,18 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 엑셀 시트 연결 정확도 보장 (상해, 광주 고유 데이터 분리)
+    # 💡 핵심 수정: 상해/광주/종합 지사별 KPI 팩과 차트 팩을 완벽하게 개별 분기 매핑
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
-        bi_total_charts = bi_guangzhou_charts
+        active_bi_charts = bi_guangzhou_charts
         sub_prefix = "BI_광주"
     elif "상해" in page_menu:
         target_kpi_pack = bi_shanghai_kpi
-        bi_total_charts = bi_shanghai_charts
+        active_bi_charts = bi_shanghai_charts
         sub_prefix = "BI_상해"
     else:
         target_kpi_pack = bi_total_kpi
-        bi_total_charts = bi_total_charts
+        active_bi_charts = bi_total_charts
         sub_prefix = "BI_종합"
 
     bi_pack = target_kpi_pack.get(bi_period_mode, target_kpi_pack["전체 총계 누계"])
@@ -1322,7 +1321,7 @@ elif page_menu == "[BI_종합] 사업별 실적 현황":
         title_top=f"📊 [BI_종합] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_종합] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_total_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
@@ -1333,7 +1332,7 @@ elif page_menu == "[BI_상해] 사업별 실적 현황":
         title_top=f"🏙️ [BI_상해] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_상해] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_shanghai_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
@@ -1344,7 +1343,7 @@ elif page_menu == "[BI_광주] 사업별 실적 현황":
         title_top=f"🏭 [BI_광주] 8대 사업별 2025년 vs 2026년 실적 비교 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
         title_bottom=f"📈 8대 사업별 증감액 및 증감률 (26년 - 25년)",
         table_title=f"[BI_광주] 8대 사업별 실적 상세 요약표 ({'월계' if '월계' in bi_period_mode else '누계'} 기준)",
-        data_df=bi_guangzhou_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
