@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 버튼 길이 동일화 및 선택 시 파란색 강조)
+# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 박스 길이 및 선택 파란색 스타일 강제 통일)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,21 +100,22 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 모든 네모 박스 버튼의 길이 동일화 (100% 꽉 차게) */
-    [data-testid="stSidebar"] button {
+    /* 사이드바 모든 네모 박스 버튼의 가로 길이를 100% 동일하게 통일 */
+    [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
+        display: block !important;
         border-radius: 8px !important;
         text-align: center !important;
         font-weight: 700 !important;
         font-size: 13px !important;
         padding: 10px 14px !important;
-        margin-bottom: 5px !important;
+        margin-bottom: 6px !important;
         border: 1.5px solid #CBD5E1 !important;
         background-color: #F1F5F9 !important;
         color: #1E293B !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
     }
-    [data-testid="stSidebar"] button:hover {
+    [data-testid="stSidebar"] div.stButton > button:hover {
         border-color: #003876 !important;
         background-color: #E2E8F0 !important;
     }
@@ -380,12 +381,13 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 데이터 오인식 버그 완전 해결)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 데이터 분리 고도화)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
+    # 엑셀 시트 이름에서 정확하게 상해/광주/종합 지사 탭을 독립 매칭
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
         if bi_target == "광주" and s_clean in ["bi광주", "광주"]:
@@ -398,7 +400,6 @@ def parse_bi_sheet_by_type(file_source, bi_target="종합"):
             target_s_name = s_orig
             break
             
-    # 정밀 매칭이 안 된 경우의 엄격한 보조 검색 (종합이 상해/광주에 섞이지 않도록 필터링)
     if not target_s_name:
         for s_orig in sheet_names:
             s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
@@ -537,7 +538,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 완벽 단일화된 네모 카드 메뉴 및 보안 인증
+# 7. 사이드바 네모 카드형 UI 및 비밀번호 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -580,12 +581,10 @@ st.sidebar.markdown("##### 📌 카테고리 선택")
 
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
-    # 선택된 카테고리는 파란색(#003876)으로 강조
     bg_color = "#003876" if is_active else "#F1F5F9"
     text_color = "#FFFFFF" if is_active else "#1E293B"
     border_color = "#002B5C" if is_active else "#CBD5E1"
     
-    # CSS 인젝션을 통해 버튼 내부 스타일 동적 적용
     st.sidebar.markdown(f"""
     <style>
         div.stButton > button[kind="secondary"] {{
