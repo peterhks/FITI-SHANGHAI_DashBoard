@@ -105,7 +105,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 데이터 로드 및 정제 유틸리티
+# 3. 데이터 로드 및 고속 캐싱 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -113,25 +113,22 @@ st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀 파일 업로드", type=["xlsx", "csv"])
 target_file = uploaded_file if uploaded_file else (EXCEL_FILE if os.path.exists(EXCEL_FILE) else None)
 
+if not target_file:
+    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
+    st.stop()
+
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
     cleaned = cleaned.replace(['-', '–', '—', 'nan', 'NaN', 'None', ''], '0')
     return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
-excel_obj = None
-sheet_dict = {}
+@st.cache_data
+def load_excel_cached(file_source):
+    excel_obj = pd.ExcelFile(file_source)
+    sheet_dict = {s.strip().lower().replace(" ", ""): s for s in excel_obj.sheet_names}
+    return excel_obj, sheet_dict
 
-if target_file:
-    try:
-        excel_obj = pd.ExcelFile(target_file)
-        for s in excel_obj.sheet_names:
-            sheet_dict[s.strip().lower().replace(" ", "")] = s
-    except Exception as e:
-        st.error(f"엑셀 파일 로드 실패: {e}")
-        st.stop()
-else:
-    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
-    st.stop()
+excel_obj, sheet_dict = load_excel_cached(target_file)
 
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
@@ -140,78 +137,84 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 정밀 파싱 (접수기준)
+# 4. '종합' 시트 고속 파싱 (접수기준)
 # =========================================================
-summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
-raw_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, header=None)
+@st.cache_data
+def parse_summary_data(file_source):
+    summary_sheet_name = get_sheet_by_keyword(["종합"]) or excel_obj.sheet_names[0]
+    raw_summary = pd.read_excel(file_source, sheet_name=summary_sheet_name, header=None)
 
-h_idx = 0
-for idx, row in raw_summary.iterrows():
-    r_text = "".join(row.dropna().astype(str).tolist())
-    if "구분" in r_text and any(k in r_text for k in ["합계", "25", "26"]):
-        h_idx = idx
-        break
+    h_idx = 0
+    for idx, row in raw_summary.iterrows():
+        r_text = "".join(row.dropna().astype(str).tolist())
+        if "구분" in r_text and any(k in r_text for k in ["합계", "25", "26"]):
+            h_idx = idx
+            break
 
-df_summary = pd.read_excel(target_file, sheet_name=summary_sheet_name, skiprows=h_idx)
+    df_summary = pd.read_excel(file_source, sheet_name=summary_sheet_name, skiprows=h_idx)
 
-for c in df_summary.columns:
-    if df_summary[c].dtype == object:
-        conv = pd.to_numeric(df_summary[c].astype(str).str.replace(',', '').str.strip(), errors='coerce')
-        if conv.notnull().mean() > 0.5:
-            df_summary[c] = conv.fillna(0)
+    for c in df_summary.columns:
+        if df_summary[c].dtype == object:
+            conv = pd.to_numeric(df_summary[c].astype(str).str.replace(',', '').str.strip(), errors='coerce')
+            if conv.notnull().mean() > 0.5:
+                df_summary[c] = conv.fillna(0)
 
-num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
-col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
-col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
+    num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
+    col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
+    col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
 
-other_cols = [c for c in df_summary.columns if c not in num_cols]
-cat_col = other_cols[0] if other_cols else df_summary.columns[0]
-sub_cat_col = other_cols[1] if len(other_cols) > 1 else None
+    other_cols = [c for c in df_summary.columns if c not in num_cols]
+    cat_col = other_cols[0] if other_cols else df_summary.columns[0]
+    sub_cat_col = other_cols[1] if len(other_cols) > 1 else None
 
-for c in other_cols:
-    sample_str = "".join(df_summary[c].dropna().astype(str).tolist())
-    if any(k in sample_str for k in ["패션잡화", "GB", "글로벌", "제품평가"]):
-        cat_col = c
-        break
+    for c in other_cols:
+        sample_str = "".join(df_summary[c].dropna().astype(str).tolist())
+        if any(k in sample_str for k in ["패션잡화", "GB", "글로벌", "제품평가"]):
+            cat_col = c
+            break
 
-df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
-df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
+    df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
+    df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
 
-def map_biz_category(val):
-    s = str(val).replace(" ", "").upper()
-    if "글로벌" in s or "GLOBAL" in s:
-        return "글로벌 바이어"
-    elif "패션" in s or "잡화" in s or "KC" in s:
-        return "패션잡화"
-    elif "GB" in s:
-        return "GB"
-    elif "제품평가" in s or "INSPECTION" in s:
-        return "제품평가"
-    return None
+    def map_biz_category(val):
+        s = str(val).replace(" ", "").upper()
+        if "글로벌" in s or "GLOBAL" in s:
+            return "글로벌 바이어"
+        elif "패션" in s or "잡화" in s or "KC" in s:
+            return "패션잡화"
+        elif "GB" in s:
+            return "GB"
+        elif "제품평가" in s or "INSPECTION" in s:
+            return "제품평가"
+        return None
 
-df_summary["표준사업구분"] = df_summary["사업구분_채움"].apply(map_biz_category)
+    df_summary["표준사업구분"] = df_summary["사업구분_채움"].apply(map_biz_category)
 
-exclude_pattern = r"SUB\s*TOTAL|TOTAL|합계|소계"
-calc_summary = df_summary[
-    (~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
-    (df_summary["표준사업구분"].notnull())
-].copy()
+    exclude_pattern = r"SUB\s*TOTAL|TOTAL|합계|소계"
+    calc_summary = df_summary[
+        (~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) &
+        (df_summary["표준사업구분"].notnull())
+    ].copy()
 
-if sub_cat_col:
-    calc_summary["세부항목"] = calc_summary[sub_cat_col].fillna(calc_summary["표준사업구분"]).astype(str)
-else:
-    calc_summary["세부항목"] = calc_summary["표준사업구분"]
+    if sub_cat_col:
+        calc_summary["세부항목"] = calc_summary[sub_cat_col].fillna(calc_summary["표준사업구분"]).astype(str)
+    else:
+        calc_summary["세부항목"] = calc_summary["표준사업구분"]
 
-target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
-summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
-summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
-summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
+    target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
+    summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
+    summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
+    summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
-summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
-summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
+    summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
+    summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
+
+    return summary_chart, calc_summary, col_25, col_26, target_categories
+
+summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(target_file)
 
 # =========================================================
-# 5. 세부 파트 시트 피벗 블록(바이어) 및 로우데이터(협력사/업체명) 파싱
+# 5. 세부 파트 시트 파서 (바이어 및 협력사 고속 캐싱)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -220,8 +223,9 @@ PART_SHEET_MAPPINGS = {
     "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
 }
 
-def extract_pivot_block(sheet_name):
-    raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
+@st.cache_data
+def extract_pivot_block(file_source, sheet_name):
+    raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
     pivot_r, pivot_c = None, None
     for r_i in range(min(20, len(raw))):
         for c_i in range(len(raw.columns)):
@@ -265,29 +269,10 @@ def extract_pivot_block(sheet_name):
         
     return pd.DataFrame(parsed_rows)
 
-def get_combined_part_data(categories_target):
-    keywords_list = PART_SHEET_MAPPINGS.get(categories_target, [])
-    dfs = []
-    for k_words in keywords_list:
-        sheet_n = get_sheet_by_keyword(k_words)
-        if sheet_n:
-            block_df = extract_pivot_block(sheet_n)
-            if not block_df.empty:
-                dfs.append(block_df)
-    if dfs:
-        comb = pd.concat(dfs, ignore_index=True)
-        return comb.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
-    return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
-
-part_data_cache = {cat: get_combined_part_data(cat) for cat in target_categories}
-
 @st.cache_data
-def extract_vendor_data_from_sheet(sheet_name):
-    raw = pd.read_excel(target_file, sheet_name=sheet_name, header=None)
-    
-    h_idx = None
-    buyer_col_idx = None
-    vendor_col_idx = None
+def extract_vendor_data_from_sheet(file_source, sheet_name):
+    raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
+    h_idx, buyer_col_idx, vendor_col_idx = None, None, None
     
     for r_i in range(min(15, len(raw))):
         row_vals = [str(x).strip().replace(" ", "") for x in raw.iloc[r_i].tolist()]
@@ -303,8 +288,7 @@ def extract_vendor_data_from_sheet(sheet_name):
     if h_idx is None or vendor_col_idx is None:
         return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
         
-    df_raw = pd.read_excel(target_file, sheet_name=sheet_name, skiprows=h_idx)
-    
+    df_raw = pd.read_excel(file_source, sheet_name=sheet_name, skiprows=h_idx)
     v_col = df_raw.columns[vendor_col_idx]
     b_col = df_raw.columns[buyer_col_idx] if buyer_col_idx is not None and buyer_col_idx < len(df_raw.columns) else None
     
@@ -338,24 +322,35 @@ def extract_vendor_data_from_sheet(sheet_name):
     
     return res[res["협력사명"] != ""]
 
-def get_combined_vendor_data(categories_target):
-    keywords_list = PART_SHEET_MAPPINGS.get(categories_target, [])
-    dfs = []
+part_data_cache = {}
+vendor_data_cache = {}
+
+for cat in target_categories:
+    keywords_list = PART_SHEET_MAPPINGS.get(cat, [])
+    b_dfs, v_dfs = [], []
     for k_words in keywords_list:
         sheet_n = get_sheet_by_keyword(k_words)
         if sheet_n:
-            v_df = extract_vendor_data_from_sheet(sheet_n)
+            b_df = extract_pivot_block(target_file, sheet_n)
+            if not b_df.empty:
+                b_dfs.append(b_df)
+            v_df = extract_vendor_data_from_sheet(target_file, sheet_n)
             if not v_df.empty:
-                dfs.append(v_df)
-    if dfs:
-        comb = pd.concat(dfs, ignore_index=True)
-        return comb
-    return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
-
-vendor_data_cache = {cat: get_combined_vendor_data(cat) for cat in target_categories}
+                v_dfs.append(v_df)
+    
+    if b_dfs:
+        comb_b = pd.concat(b_dfs, ignore_index=True)
+        part_data_cache[cat] = comb_b.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
+    else:
+        part_data_cache[cat] = pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+        
+    if v_dfs:
+        vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True)
+    else:
+        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 시트 전용 파서
+# 6. BI 시트 전용 고속 파서
 # =========================================================
 BI_8_CATEGORIES = [
     "일반검사",
@@ -369,7 +364,7 @@ BI_8_CATEGORIES = [
 ]
 
 @st.cache_data
-def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
+def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     sheet_name = None
     if bi_target == "광주":
         sheet_name = get_sheet_by_keyword(["bi", "광주"]) or get_sheet_by_keyword(["광주"])
@@ -407,7 +402,7 @@ def parse_bi_sheet_by_type(target_file_path, bi_target="종합"):
     if not sheet_name:
         return def_kpi, def_chart
 
-    raw = pd.read_excel(target_file_path, sheet_name=sheet_name, header=None)
+    raw = pd.read_excel(file_source, sheet_name=sheet_name, header=None)
 
     m_c25, m_c26, m_rate = None, None, None
     c_c25, c_c26, c_rate = None, None, None
