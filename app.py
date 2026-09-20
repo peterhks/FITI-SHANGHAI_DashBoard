@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (예쁜 네모 카드 UI 적용)
+# 1. 화면 기본 설정 및 디자인 스타일 (예쁜 밀착형 네모 카드 UI 복원)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -101,15 +101,17 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 💡 네모 카드 스타일: 가로 폭 100% 동일, 슬림 밀착, 16px 글씨, 선택 시 진한 파란색 강조 */
+    /* 💡 사이드바 네모 카드 스타일: 간격 바짝 밀착 및 100% 동일 폭 */
+    [data-testid="stSidebar"] .element-container {
+        margin-bottom: -4px !important;
+    }
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         border-radius: 8px !important;
         text-align: center !important;
         font-weight: 700 !important;
         font-size: 16px !important;
-        padding: 11px 14px !important;
-        margin-bottom: 5px !important;
+        padding: 10px 14px !important;
         border: 1.5px solid #CBD5E1 !important;
         background-color: #F8FAFC !important;
         color: #0F172A !important;
@@ -121,7 +123,7 @@ st.markdown("""
         background-color: #E2E8F0 !important;
         color: #002B5C !important;
     }
-    /* 선택된 활성 버튼 (진한 파란색 배경 + 흰색 글씨) */
+    /* 선택된 활성 버튼 (진한 파란색 배경 + 선명한 흰색 글씨) */
     [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
         background-color: #003876 !important;
         color: #FFFFFF !important;
