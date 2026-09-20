@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (버튼 폭 100% 일치 및 밀착 고정)
+# 1. 화면 기본 설정 및 디자인 스타일 (가로 폭 100% 동일 밀착 UI)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -101,38 +101,42 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 💡 [핵심] 사이드바 버튼 가로 폭 100% 동일하게 강제 확장 및 간격 슬림 밀착 */
-    [data-testid="stSidebar"] .element-container {
-        margin-bottom: -4px !important;
-        width: 100% !important;
-    }
-    [data-testid="stSidebar"] div.stButton {
-        width: 100% !important;
-    }
-    [data-testid="stSidebar"] div.stButton > button {
-        width: 100% !important;
-        border-radius: 8px !important;
-        text-align: center !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-        padding: 10px 10px !important;
-        border: 1.5px solid #CBD5E1 !important;
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+    /* 💡 사이드바 네모 카드 스타일 (가로 폭 100% 동일, 바짝 밀착) */
+    .sidebar-card-btn {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 15px;
+        padding: 11px 14px;
+        margin-bottom: 5px;
+        border: 1.5px solid #CBD5E1;
+        background-color: #F8FAFC;
+        color: #0F172A;
+        text-decoration: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         transition: all 0.15s ease;
     }
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        border-color: #003876 !important;
-        background-color: #E2E8F0 !important;
-        color: #002B5C !important;
+    .sidebar-card-btn:hover {
+        border-color: #003876;
+        background-color: #E2E8F0;
+        color: #002B5C;
     }
-    /* 선택된 활성 버튼 (진한 파란색 배경 + 선명한 흰색 글씨) */
-    [data-testid="stSidebar"] div.stButton > button[kind="primary"] {
-        background-color: #003876 !important;
+    .sidebar-card-btn-active {
+        display: block;
+        width: 100%;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 800;
+        font-size: 15px;
+        padding: 11px 14px;
+        margin-bottom: 5px;
+        border: 1.5px solid #001E3D;
+        background-color: #003876;
         color: #FFFFFF !important;
-        border-color: #001E3D !important;
-        font-weight: 800 !important;
+        text-decoration: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -173,7 +177,7 @@ else:
     raw_bytes = None
 
 if not raw_bytes:
-    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
+    st.warning(f"'{EXCEL_FILE}' 파일을 찾을 수 없거나 업로드되지 않았습니다. 파일을 업로드해 주세요.")
     st.stop()
 
 def clean_series(series):
@@ -574,7 +578,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 7. 사이드바 네이티브 버튼 기반 메뉴 전환 (업로드 파일 리셋 방지)
+# 7. 사이드바 초고속 HTML 링크 기반 네비게이션 (속도 최적화 및 카드 UI)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -585,6 +589,11 @@ base_pages = [
     "[접수기준] 협력사 실적 현황"
 ]
 
+query_params = st.query_params
+
+if "auth" in query_params and query_params["auth"] == "true":
+    st.session_state["bi_authorized"] = True
+
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
 
@@ -592,6 +601,7 @@ def check_bi_password():
     pw_val = st.session_state.get("bi_pw_input", "")
     if pw_val == "fiti1965":
         st.session_state["bi_authorized"] = True
+        st.query_params["auth"] = "true"
     else:
         st.session_state["bi_authorized"] = False
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
@@ -610,18 +620,28 @@ all_pages = base_pages + bi_pages
 if "current_page" not in st.session_state:
     st.session_state["current_page"] = all_pages[0]
 
-if "current_page" not in all_pages:
+if st.session_state["current_page"] not in all_pages:
     st.session_state["current_page"] = all_pages[0]
+
+if "page" in query_params:
+    p_param = query_params["page"]
+    if p_param in all_pages:
+        st.session_state["current_page"] = p_param
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
+auth_param_str = "&auth=true" if st.session_state["bi_authorized"] else ""
+
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
-    btn_type = "primary" if is_active else "secondary"
+    btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     
-    if st.sidebar.button(p, key=f"native_btn_{p}", type=btn_type):
-        st.session_state["current_page"] = p
-        st.rerun()
+    card_link_html = f"""
+    <a href="?page={p}{auth_param_str}" class="{btn_class}" target="_self">
+        {p}
+    </a>
+    """
+    st.sidebar.markdown(card_link_html, unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
 
@@ -639,6 +659,7 @@ else:
     st.sidebar.markdown("##### 🔓 BI 관리자 모드 활성화됨")
     if st.sidebar.button("BI 잠금 (로그아웃)", key="logout_btn_unique_99"):
         st.session_state["bi_authorized"] = False
+        st.query_params.clear()
         st.rerun()
 
 # =========================================================
@@ -654,12 +675,20 @@ if page_menu.startswith("[BI_"):
     if "bi_period_mode" not in st.session_state:
         st.session_state["bi_period_mode"] = bi_periods[0]
         
+    period_query = query_params.get("period", None)
+    if period_query in bi_periods:
+        st.session_state["bi_period_mode"] = period_query
+
     for bp in bi_periods:
         is_p_active = (st.session_state["bi_period_mode"] == bp)
-        p_type = "primary" if is_p_active else "secondary"
-        if st.sidebar.button(bp, key=f"native_period_{bp}", type=p_type):
-            st.session_state["bi_period_mode"] = bp
-            st.rerun()
+        p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
+        
+        period_link_html = f"""
+        <a href="?page={page_menu}&period={bp}{auth_param_str}" class="{p_class}" target="_self">
+            {bp}
+        </a>
+        """
+        st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
