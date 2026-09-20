@@ -136,14 +136,14 @@ def clean_series(series):
 @st.cache_data
 def get_excel_sheets(file_source):
     excel_obj = pd.ExcelFile(file_source)
-    sheet_dict = {s.strip().lower().replace(" ", ""): s for s in excel_obj.sheet_names}
+    sheet_dict = {s.strip().lower().replace(" ", "").replace("_", ""): s for s in excel_obj.sheet_names}
     return excel_obj.sheet_names, sheet_dict
 
 sheet_names, sheet_dict = get_excel_sheets(target_file)
 
 def get_sheet_by_keyword(keywords):
     for s_clean, orig_name in sheet_dict.items():
-        if all(k.lower().replace(" ", "") in s_clean for k in keywords):
+        if all(k.lower().replace(" ", "").replace("_", "") in s_clean for k in keywords):
             return orig_name
     return None
 
@@ -361,30 +361,30 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI_상해 / BI_광주 / BI_종합) 전용 정밀 파서 (수정 완료)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (탭 명칭 직접 반영)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     target_s_name = None
     
-    # 첨부해주신 엑셀 탭 이름('BI_상해', 'BI_광주', 'BI_종합')과 완벽히 일치하도록 매칭 로직 강화
+    # 엑셀 하단 실제 탭 이름('BI종합', 'BI상해', 'BI광주') 정확히 매칭
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
-        if bi_target == "광주" and ("bi광주" in s_clean or ("광주" in s_clean and "bi" in s_clean)):
+        if bi_target == "광주" and s_clean == "bi광주":
             target_s_name = s_orig
             break
-        elif bi_target == "상해" and ("bi상해" in s_clean or ("상해" in s_clean and "bi" in s_clean)):
+        elif bi_target == "상해" and s_clean == "bi상해":
             target_s_name = s_orig
             break
-        elif bi_target == "종합" and ("bi종합" in s_clean or (s_clean == "bi")):
+        elif bi_target == "종합" and s_clean in ["bi종합", "bi"]:
             target_s_name = s_orig
             break
             
     # 보조 검색
     if not target_s_name:
         for s_orig in sheet_names:
-            s_clean = s_orig.strip().lower()
-            if bi_target.lower() in s_clean:
+            s_clean = s_orig.strip().lower().replace("_", "")
+            if bi_target.lower() in s_clean and "bi" in s_clean:
                 target_s_name = s_orig
                 break
 
