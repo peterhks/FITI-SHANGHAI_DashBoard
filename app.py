@@ -154,9 +154,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 업로드 파일 세션 완벽 고정 엔진
+# 3. 기본 파일명을 'performance_최신.xlsx'로 지정한 로드 엔진
 # =========================================================
-EXCEL_FILE = "복사본 performance_260825.xlsx"
+EXCEL_FILE = "performance_최신.xlsx"
 
 st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀 파일 업로드", type=["xlsx", "csv"])
@@ -165,19 +165,18 @@ if uploaded_file is not None:
     st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
     st.session_state["persistent_file_name"] = uploaded_file.name
 
-# 세션에 저장된 파일이 있으면 최우선 사용, 없으면 로컬 파일 체크
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(f"✅ 최신 업로드 파일 유지 중")
+    st.sidebar.success(f"✅ 업로드 파일 유지 중 ({st.session_state.get('persistent_file_name', '업로드 파일')})")
 elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
-    st.sidebar.info("📂 기본 로컬 엑셀 파일 사용 중")
+    st.sidebar.info(f"📂 기본 파일 '{EXCEL_FILE}' 자동 연동됨")
 else:
     raw_bytes = None
 
 if not raw_bytes:
-    st.warning("분석할 엑셀 파일을 업로드해 주세요.")
+    st.warning(f"'{EXCEL_FILE}' 파일을 찾을 수 없거나 업로드되지 않았습니다. 파일을 업로드해 주세요.")
     st.stop()
 
 def clean_series(series):
@@ -572,7 +571,7 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
 
     return kpi_res, chart_res
 
-# 💡 지사별 독립 파싱 수행
+# 💡 지사별 데이터 고유 분기 파싱
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
