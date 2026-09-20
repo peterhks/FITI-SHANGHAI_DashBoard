@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (예쁜 밀착형 네모 카드 UI 복원)
+# 1. 화면 기본 설정 및 디자인 스타일 (버튼 폭 100% 일치 및 밀착 고정)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -101,17 +101,21 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 💡 사이드바 네모 카드 스타일: 간격 바짝 밀착 및 100% 동일 폭 */
+    /* 💡 [핵심] 사이드바 버튼 가로 폭 100% 동일하게 강제 확장 및 간격 슬림 밀착 */
     [data-testid="stSidebar"] .element-container {
         margin-bottom: -4px !important;
+        width: 100% !important;
+    }
+    [data-testid="stSidebar"] div.stButton {
+        width: 100% !important;
     }
     [data-testid="stSidebar"] div.stButton > button {
         width: 100% !important;
         border-radius: 8px !important;
         text-align: center !important;
         font-weight: 700 !important;
-        font-size: 16px !important;
-        padding: 10px 14px !important;
+        font-size: 15px !important;
+        padding: 10px 10px !important;
         border: 1.5px solid #CBD5E1 !important;
         background-color: #F8FAFC !important;
         color: #0F172A !important;
@@ -606,7 +610,7 @@ all_pages = base_pages + bi_pages
 if "current_page" not in st.session_state:
     st.session_state["current_page"] = all_pages[0]
 
-if st.session_state["current_page"] not in all_pages:
+if "current_page" not in all_pages:
     st.session_state["current_page"] = all_pages[0]
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
