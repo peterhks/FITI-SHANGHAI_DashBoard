@@ -361,7 +361,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (강력 매칭)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
@@ -369,10 +369,10 @@ def parse_bi_sheet_by_type(file_source, bi_target="종합"):
     
     for s_orig in sheet_names:
         s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
-        if bi_target == "광주" and s_clean == "bi광주":
+        if bi_target == "광주" and s_clean in ["bi광주", "광주"]:
             target_s_name = s_orig
             break
-        elif bi_target == "상해" and s_clean == "bi상해":
+        elif bi_target == "상해" and s_clean in ["bi상해", "상해"]:
             target_s_name = s_orig
             break
         elif bi_target == "종합" and s_clean in ["bi종합", "bi"]:
@@ -511,7 +511,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 메뉴 및 BI 비밀번호 잠금 보안 인증 (엔터 즉시 로그인 적용)
+# 7. 사이드바 메뉴 및 BI 보안 인증 (엔터 로그인 적용)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -525,7 +525,6 @@ available_pages = [
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
 
-# 비밀번호 입력 시 엔터를 치면 곧바로 인증되도록 콜백 함수 연동
 def check_bi_password():
     pw_val = st.session_state.get("bi_pw_input", "")
     if pw_val == "fiti1965":
@@ -541,7 +540,6 @@ if st.session_state["bi_authorized"]:
         "[BI_광주] 사업별 실적 현황"
     ])
 
-# 요청 반영 2: 분석 페이지 선택을 네모 모양 카드형 UI 버튼으로 구현
 st.sidebar.markdown("##### 📌 페이지 선택")
 selected_card_page = st.sidebar.radio(
     "분석 페이지 선택",
@@ -555,7 +553,6 @@ st.sidebar.markdown("---")
 
 if not st.session_state["bi_authorized"]:
     st.sidebar.markdown("##### 🔒 BI 실적 보안 인증")
-    # on_change를 통해 엔터 입력 시 곧바로 검증 수행
     st.sidebar.text_input(
         "열람 비밀번호 입력:", 
         type="password", 
@@ -577,7 +574,6 @@ if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⏱️ [BI] 실적 기간 선택")
     
-    # 요청 반영 3: 사업별 실적 현황 구분 선택도 네모 모양 카드 박스로 구현
     bi_period_mode = st.sidebar.radio(
         "구분 선택",
         ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"],
