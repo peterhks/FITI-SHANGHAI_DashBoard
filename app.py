@@ -154,7 +154,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. 업로드 파일 세션 영구 백업 엔진 (새로고침/클릭 시 초기화 방지)
+# 3. 업로드 파일 세션 영구 보존 엔진
 # =========================================================
 EXCEL_FILE = "복사본 performance_260825.xlsx"
 
@@ -162,21 +162,26 @@ st.sidebar.markdown("### 📁 데이터 관리")
 uploaded_file = st.sidebar.file_uploader("실적 엑셀 파일 업로드", type=["xlsx", "csv"])
 
 if uploaded_file is not None:
-    # 업로드된 파일을 바이트 메모리로 변환하여 세션에 영구 보관
     st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
     st.session_state["persistent_file_name"] = uploaded_file.name
 
 if "persistent_file_bytes" in st.session_state:
-    target_file = io.BytesIO(st.session_state["persistent_file_bytes"])
+    raw_bytes = st.session_state["persistent_file_bytes"]
     st.sidebar.success(f"✅ 파일 유지 중 ({st.session_state.get('persistent_file_name', '업로드 파일')})")
 else:
-    target_file = EXCEL_FILE if os.path.exists(EXCEL_FILE) else None
-    if target_file:
+    if os.path.exists(EXCEL_FILE):
+        with open(EXCEL_FILE, "rb") as f:
+            raw_bytes = f.read()
         st.sidebar.info("📂 기본 로컬 엑셀 파일 사용 중")
+    else:
+        raw_bytes = None
 
-if not target_file:
+if not raw_bytes:
     st.warning("분석할 엑셀 파일을 업로드해 주세요.")
     st.stop()
+
+def get_file_stream():
+    return io.BytesIO(raw_bytes)
 
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -184,17 +189,14 @@ def clean_series(series):
     return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
 @st.cache_data
-def get_excel_sheets(file_bytes):
-    # BytesIO 객체는 포인터가 이동하므로 0으로 리셋 후 읽기
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
-    excel_obj = pd.ExcelFile(file_bytes)
+def get_excel_sheets(file_bytes_val):
+    stream = io.BytesIO(file_bytes_val)
+    excel_obj = pd.ExcelFile(stream)
     all_sheets = excel_obj.sheet_names
     sheet_dict = {s.strip().lower().replace(" ", "").replace("_", ""): s for s in all_sheets}
     return all_sheets, sheet_dict
 
-# 캐시 충돌 방지를 위해 바이트 데이터 전달
-sheet_names, sheet_dict = get_excel_sheets(st.session_state.get("persistent_file_bytes", target_file))
+sheet_names, sheet_dict = get_excel_sheets(raw_bytes)
 st.sidebar.caption(f"인식된 시트 총 {len(sheet_names)}개")
 
 def get_sheet_by_keyword(keywords):
@@ -207,11 +209,10 @@ def get_sheet_by_keyword(keywords):
 # 4. '종합' 시트 파서 (접수기준)
 # =========================================================
 @st.cache_data
-def parse_summary_data(file_bytes):
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
+def parse_summary_data(file_bytes_val):
+    stream = io.BytesIO(file_bytes_val)
     summary_sheet_name = get_sheet_by_keyword(["종합"]) or sheet_names[0]
-    raw_summary = pd.read_excel(file_bytes, sheet_name=summary_sheet_name, header=None)
+    raw_summary = pd.read_excel(stream, sheet_name=summary_sheet_name, header=None)
 
     h_idx = 0
     for idx, row in raw_summary.iterrows():
@@ -220,7 +221,8 @@ def parse_summary_data(file_bytes):
             h_idx = idx
             break
 
-    df_summary = pd.read_excel(file_bytes, sheet_name=summary_sheet_name, skiprows=h_idx)
+    stream.seek(0)
+    df_summary = pd.read_excel(stream, sheet_name=summary_sheet_name, skiprows=h_idx)
 
     for c in df_summary.columns:
         if df_summary[c].dtype == object:
@@ -280,7 +282,7 @@ def parse_summary_data(file_bytes):
 
     return summary_chart, calc_summary, col_25, col_26, target_categories
 
-summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(st.session_state.get("persistent_file_bytes", target_file))
+summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(raw_bytes)
 
 # =========================================================
 # 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
@@ -293,10 +295,9 @@ PART_SHEET_MAPPINGS = {
 }
 
 @st.cache_data
-def extract_pivot_block(file_bytes, sheet_name):
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
-    raw = pd.read_excel(file_bytes, sheet_name=sheet_name, header=None)
+def extract_pivot_block(file_bytes_val, sheet_name):
+    stream = io.BytesIO(file_bytes_val)
+    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
     pivot_r, pivot_c = None, None
     for r_i in range(min(20, len(raw))):
         for c_i in range(len(raw.columns)):
@@ -341,10 +342,9 @@ def extract_pivot_block(file_bytes, sheet_name):
     return pd.DataFrame(parsed_rows)
 
 @st.cache_data
-def extract_vendor_data_from_sheet(file_bytes, sheet_name):
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
-    raw = pd.read_excel(file_bytes, sheet_name=sheet_name, header=None)
+def extract_vendor_data_from_sheet(file_bytes_val, sheet_name):
+    stream = io.BytesIO(file_bytes_val)
+    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
     h_idx, buyer_col_idx, vendor_col_idx = None, None, None
     
     for r_i in range(min(15, len(raw))):
@@ -361,9 +361,8 @@ def extract_vendor_data_from_sheet(file_bytes, sheet_name):
     if h_idx is None or vendor_col_idx is None:
         return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
         
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
-    df_raw = pd.read_excel(file_bytes, sheet_name=sheet_name, skiprows=h_idx)
+    stream.seek(0)
+    df_raw = pd.read_excel(stream, sheet_name=sheet_name, skiprows=h_idx)
     v_col = df_raw.columns[vendor_col_idx]
     b_col = df_raw.columns[buyer_col_idx] if buyer_col_idx is not None and buyer_col_idx < len(df_raw.columns) else None
     
@@ -400,18 +399,16 @@ def extract_vendor_data_from_sheet(file_bytes, sheet_name):
 part_data_cache = {}
 vendor_data_cache = {}
 
-active_file_bytes = st.session_state.get("persistent_file_bytes", target_file)
-
 for cat in target_categories:
     keywords_list = PART_SHEET_MAPPINGS.get(cat, [])
     b_dfs, v_dfs = [], []
     for k_words in keywords_list:
         sheet_n = get_sheet_by_keyword(k_words)
         if sheet_n:
-            b_df = extract_pivot_block(active_file_bytes, sheet_n)
+            b_df = extract_pivot_block(raw_bytes, sheet_n)
             if not b_df.empty:
                 b_dfs.append(b_df)
-            v_df = extract_vendor_data_from_sheet(active_file_bytes, sheet_n)
+            v_df = extract_vendor_data_from_sheet(raw_bytes, sheet_n)
             if not v_df.empty:
                 v_dfs.append(v_df)
     
@@ -427,16 +424,12 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서 (시트명 완벽 매칭)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서
 # =========================================================
 @st.cache_data
-def parse_bi_sheet_by_type(file_bytes, branch_name="종합"):
-    if isinstance(file_bytes, io.BytesIO):
-        file_bytes.seek(0)
-    elif isinstance(file_bytes, bytes):
-        file_bytes = io.BytesIO(file_bytes)
-        
-    excel_obj = pd.ExcelFile(file_bytes)
+def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
+    stream = io.BytesIO(file_bytes_val)
+    excel_obj = pd.ExcelFile(stream)
     all_sheets = excel_obj.sheet_names
     
     target_s_name = None
@@ -485,8 +478,8 @@ def parse_bi_sheet_by_type(file_bytes, branch_name="종합"):
     if not target_s_name:
         return def_kpi, def_chart
 
-    file_bytes.seek(0)
-    raw = pd.read_excel(file_bytes, sheet_name=target_s_name, header=None)
+    stream.seek(0)
+    raw = pd.read_excel(stream, sheet_name=target_s_name, header=None)
 
     m_c25, m_c26, m_rate = None, None, None
     c_c25, c_c26, c_rate = None, None, None
@@ -530,17 +523,6 @@ def parse_bi_sheet_by_type(file_bytes, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    target_mappings = [
-        ("일반검사", ["검사", "일반검사"], "합계"),
-        ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
-        ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
-        ("섬유수출", ["섬유수출", "수출"], "합계"),
-        ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
-        ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
-        ("환경(환경+측정기기)", ["환경", "측정"], "합계"),
-        ("화학바이O(화학제품+생활안전)" if "화학바이오" in str(target_mappings) else ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계"))
-    ]
-    # 명확한 매핑 정의
     target_mappings = [
         ("일반검사", ["검사", "일반검사"], "합계"),
         ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
@@ -593,10 +575,10 @@ def parse_bi_sheet_by_type(file_bytes, branch_name="종합"):
 
     return kpi_res, chart_res
 
-# 💡 지사별 데이터 고유 분기 파싱 수행
-bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(active_file_bytes, "종합")
-bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(active_file_bytes, "상해")
-bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(active_file_bytes, "광주")
+# 💡 지사별 데이터를 안전한 바이트 스트림으로 독립 파싱
+bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
+bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
+bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
 # 7. 사이드바 순수 HTML 카드형 네비게이션 및 보안 인증
@@ -713,7 +695,7 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
-    # 💡 [핵심] 선택한 지사 메뉴에 맞게 상해, 광주, 종합의 고유 KPI 및 차트 팩 연결
+    # 💡 선택한 지사 메뉴에 맞게 상해, 광주, 종합의 고유 KPI 및 차트 팩 연결
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
         active_bi_charts = bi_guangzhou_charts
