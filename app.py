@@ -511,7 +511,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 깔끔한 네모 카드 메뉴 및 보안 인증
+# 7. 사이드바 전용 네모 카드형 UI 및 비밀번호 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -533,7 +533,7 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
 
-# 비번 인증 후에만 BI 페이지 목록이 활성화되도록 분기
+# 비번 인증 후에만 BI 페이지가 보임
 if st.session_state["bi_authorized"]:
     bi_pages = [
         "[BI_종합] 사업별 실적 현황",
@@ -553,6 +553,7 @@ if st.session_state["current_page"] not in all_pages:
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
+# 오직 사이드바 내부에서만 카드 메뉴 생성
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
     bg_color = "#003876" if is_active else "#F1F5F9"
@@ -568,16 +569,15 @@ for p in all_pages:
         padding: 10px 14px;
         margin-bottom: 6px;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 13px;
         text-align: center;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        cursor: pointer;
     ">
         {p}
     </div>
     """
-    st.markdown(card_html, unsafe_allow_html=True)
-    if st.sidebar.button(p, key=f"nav_card_btn_{p}"):
+    st.sidebar.markdown(card_html, unsafe_allow_html=True)
+    if st.sidebar.button(p, key=f"sidebar_nav_btn_{p}"):
         st.session_state["current_page"] = p
         st.rerun()
 
@@ -600,7 +600,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 8. 상단 종합 KPI 카드 및 네모 박스형 기간 선택 UI
+# 8. 상단 종합 KPI 카드 및 사이드바 기간 선택 UI
 # =========================================================
 card_unit = "원"
 
@@ -631,7 +631,7 @@ if page_menu.startswith("[BI_"):
             {bp}
         </div>
         """, unsafe_allow_html=True)
-        if st.sidebar.button(bp, key=f"period_card_btn_{bp}"):
+        if st.sidebar.button(bp, key=f"sidebar_period_btn_{bp}"):
             st.session_state["bi_period_mode"] = bp
             st.rerun()
             
