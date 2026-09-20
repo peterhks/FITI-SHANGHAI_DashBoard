@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (네모 카드 버튼 스타일 최적화)
+# 1. 화면 기본 설정 및 디자인 스타일 (사이드바 버튼 길이 동일화 및 선택 시 파란색 강조)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,7 +100,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 버튼을 세련된 네모 카드 형태로 일체화 */
+    /* 사이드바 모든 네모 박스 버튼의 길이 동일화 (100% 꽉 차게) */
     [data-testid="stSidebar"] button {
         width: 100% !important;
         border-radius: 8px !important;
@@ -108,12 +108,11 @@ st.markdown("""
         font-weight: 700 !important;
         font-size: 13px !important;
         padding: 10px 14px !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 5px !important;
         border: 1.5px solid #CBD5E1 !important;
         background-color: #F1F5F9 !important;
         color: #1E293B !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
-        transition: all 0.15s ease !important;
     }
     [data-testid="stSidebar"] button:hover {
         border-color: #003876 !important;
@@ -168,7 +167,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 고속 파싱 (접수기준)
+# 4. '종합' 시트 파서 (접수기준)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_source):
@@ -245,7 +244,7 @@ def parse_summary_data(file_source):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(target_file)
 
 # =========================================================
-# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 고속 캐싱)
+# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -381,7 +380,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 데이터 오인식 버그 완전 해결)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
@@ -399,10 +398,17 @@ def parse_bi_sheet_by_type(file_source, bi_target="종합"):
             target_s_name = s_orig
             break
             
+    # 정밀 매칭이 안 된 경우의 엄격한 보조 검색 (종합이 상해/광주에 섞이지 않도록 필터링)
     if not target_s_name:
         for s_orig in sheet_names:
-            s_clean = s_orig.strip().lower().replace("_", "")
-            if bi_target.lower() in s_clean and "bi" in s_clean:
+            s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
+            if bi_target == "광주" and "광주" in s_clean:
+                target_s_name = s_orig
+                break
+            elif bi_target == "상해" and "상해" in s_clean:
+                target_s_name = s_orig
+                break
+            elif bi_target == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean:
                 target_s_name = s_orig
                 break
 
@@ -531,7 +537,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 깔끔한 단일 네모 카드 메뉴 및 보안 인증
+# 7. 사이드바 완벽 단일화된 네모 카드 메뉴 및 보안 인증
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -572,9 +578,25 @@ if st.session_state["current_page"] not in all_pages:
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
-# 중복 없는 단일 네모 카드 버튼 생성
 for p in all_pages:
-    if st.sidebar.button(p, key=f"nav_card_single_{p}"):
+    is_active = (st.session_state["current_page"] == p)
+    # 선택된 카테고리는 파란색(#003876)으로 강조
+    bg_color = "#003876" if is_active else "#F1F5F9"
+    text_color = "#FFFFFF" if is_active else "#1E293B"
+    border_color = "#002B5C" if is_active else "#CBD5E1"
+    
+    # CSS 인젝션을 통해 버튼 내부 스타일 동적 적용
+    st.sidebar.markdown(f"""
+    <style>
+        div.stButton > button[kind="secondary"] {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+            border-color: {border_color} !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+    if st.sidebar.button(p, key=f"unified_card_btn_{p}"):
         st.session_state["current_page"] = p
         st.rerun()
 
@@ -592,7 +614,7 @@ if not st.session_state["bi_authorized"]:
     )
 else:
     st.sidebar.markdown("##### 🔓 BI 관리자 모드 활성화됨")
-    if st.sidebar.button("BI 잠금 (로그아웃)", key="logout_btn_unique"):
+    if st.sidebar.button("BI 잠금 (로그아웃)", key="logout_btn_unique_99"):
         st.session_state["bi_authorized"] = False
         st.rerun()
 
@@ -610,7 +632,20 @@ if page_menu.startswith("[BI_"):
         st.session_state["bi_period_mode"] = bi_periods[0]
         
     for bp in bi_periods:
-        if st.sidebar.button(bp, key=f"period_card_single_{bp}"):
+        is_p_active = (st.session_state["bi_period_mode"] == bp)
+        p_bg = "#1D4ED8" if is_p_active else "#F1F5F9"
+        p_txt = "#FFFFFF" if is_p_active else "#1E293B"
+        
+        st.sidebar.markdown(f"""
+        <style>
+            div.stButton > button[kind="secondary"] {{
+                background-color: {p_bg} !important;
+                color: {p_txt} !important;
+            }}
+        </style>
+        """, unsafe_allow_html=True)
+        
+        if st.sidebar.button(bp, key=f"unified_period_btn_{bp}"):
             st.session_state["bi_period_mode"] = bp
             st.rerun()
             
