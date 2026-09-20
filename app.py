@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import os
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (가독성 및 글씨 크기 최적화)
+# 1. 화면 기본 설정 및 디자인 스타일
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI 실적 분석",
@@ -100,7 +100,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 사이드바 네모 카드 스타일: 글씨 16px(3포인트 확대) 및 시인성 확보 */
+    /* 네모 카드 스타일: 가로 폭 100% 동일, 간격 슬림 밀착, 16px 글씨 */
     .sidebar-card-btn {
         display: block;
         width: 100%;
@@ -122,7 +122,6 @@ st.markdown("""
         background-color: #E2E8F0;
         color: #002B5C;
     }
-    /* 선택된 카드: 진한 파란색 배경에 선명한 하얀색 글씨로 시인성 극대화 */
     .sidebar-card-btn-active {
         display: block;
         width: 100%;
@@ -400,7 +399,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서 (상해/광주 독립 매칭 확실화)
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 정밀 파서
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_source, bi_target="종합"):
@@ -556,7 +555,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(target_file, "상�
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(target_file, "광주")
 
 # =========================================================
-# 7. 사이드바 순수 HTML 네모 카드 네비게이션
+# 7. 사이드바 순수 HTML 네모 카드형 UI 및 보안 인증 (인증 상태 영구 유지)
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
@@ -567,6 +566,12 @@ base_pages = [
     "[접수기준] 협력사 실적 현황"
 ]
 
+query_params = st.query_params
+
+# 쿼리 파라미터로 인증 상태 유지
+if "auth" in query_params and query_params["auth"] == "true":
+    st.session_state["bi_authorized"] = True
+
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
 
@@ -574,6 +579,7 @@ def check_bi_password():
     pw_val = st.session_state.get("bi_pw_input", "")
     if pw_val == "fiti1965":
         st.session_state["bi_authorized"] = True
+        st.query_params["auth"] = "true"
     else:
         st.session_state["bi_authorized"] = False
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
@@ -595,7 +601,6 @@ if "current_page" not in st.session_state:
 if st.session_state["current_page"] not in all_pages:
     st.session_state["current_page"] = all_pages[0]
 
-query_params = st.query_params
 if "page" in query_params:
     p_param = query_params["page"]
     if p_param in all_pages:
@@ -603,12 +608,14 @@ if "page" in query_params:
 
 st.sidebar.markdown("##### 📌 카테고리 선택")
 
+auth_param_str = "&auth=true" if st.session_state["bi_authorized"] else ""
+
 for p in all_pages:
     is_active = (st.session_state["current_page"] == p)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     
     card_link_html = f"""
-    <a href="?page={p}" class="{btn_class}" target="_self">
+    <a href="?page={p}{auth_param_str}" class="{btn_class}" target="_self">
         {p}
     </a>
     """
@@ -655,7 +662,7 @@ if page_menu.startswith("[BI_"):
         p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
         
         period_link_html = f"""
-        <a href="?page={page_menu}&period={bp}" class="{p_class}" target="_self">
+        <a href="?page={page_menu}&period={bp}{auth_param_str}" class="{p_class}" target="_self">
             {bp}
         </a>
         """
@@ -663,14 +670,18 @@ if page_menu.startswith("[BI_"):
             
     bi_period_mode = st.session_state["bi_period_mode"]
     
+    # 엑셀 시트 연결 정확도 보장 (상해, 광주 고유 데이터 분리)
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
+        bi_total_charts = bi_guangzhou_charts
         sub_prefix = "BI_광주"
     elif "상해" in page_menu:
         target_kpi_pack = bi_shanghai_kpi
+        bi_total_charts = bi_shanghai_charts
         sub_prefix = "BI_상해"
     else:
         target_kpi_pack = bi_total_kpi
+        bi_total_charts = bi_total_charts
         sub_prefix = "BI_종합"
 
     bi_pack = target_kpi_pack.get(bi_period_mode, target_kpi_pack["전체 총계 누계"])
