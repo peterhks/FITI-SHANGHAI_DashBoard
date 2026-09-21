@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (CSS 중괄호 오류 해결)
+# 1. 화면 기본 설정 및 디자인 스타일 (중국어 SimHei 폰트 반영)
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI Performance Analysis",
@@ -53,6 +53,7 @@ LANG_DICT = {
         "kpi_diff_sub": "전년 대비 실적차",
         "kpi_rate_sub": "전년 대비 성장률",
         "unit": "원",
+        "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
             "[접수기준] 종합 실적 현황": "[접수기준] 종합 실적 현황",
             "[접수기준] 사업별 실적 현황": "[접수기준] 사업별 실적 현황",
@@ -98,6 +99,7 @@ LANG_DICT = {
         "kpi_diff_sub": "较去年业绩差额",
         "kpi_rate_sub": "较去年增长率",
         "unit": "韩元",
+        "font_family": "'SimHei', '黑体', sans-serif",  # 💡 중국어 전용 SimHei(흑체) 폰트 적용
         "pages": {
             "[접수기준] 종합 실적 현황": "[接收基准] 综合业绩现状",
             "[접수기준] 사업별 실적 현황": "[接收基准] 各业务业绩现状",
@@ -143,6 +145,7 @@ LANG_DICT = {
         "kpi_diff_sub": "YoY Performance Gap",
         "kpi_rate_sub": "YoY Growth Rate",
         "unit": "KRW",
+        "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
             "[접수기준] 종합 실적 현황": "[Receipt Basis] Overall Performance",
             "[접수기준] 사업별 실적 현황": "[Receipt Basis] Performance by Business",
@@ -181,16 +184,17 @@ selected_lang = st.sidebar.selectbox(
 )
 st.session_state["selected_lang"] = selected_lang
 t = LANG_DICT[selected_lang]
+current_font = t["font_family"]
 
-# 💡 CSS 스타일 정의 (일반 st.markdown 사용으로 중괄호 에러 원천 차단)
-st.markdown("""
+# 💡 동적으로 선택된 언어의 폰트 적용 (중국어는 SimHei 적용)
+st.markdown(f"""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    html, body, [class*="css"] {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-    }
+    html, body, [class*="css"] {{
+        font-family: {current_font} !important;
+    }}
     
-    .fiti-header {
+    .fiti-header {{
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
         padding: 22px 28px;
         border-radius: 10px;
@@ -200,27 +204,27 @@ st.markdown("""
         color: #FFFFFF;
         margin-bottom: 22px;
         box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
-    }
-    .fiti-logo-text {
+    }}
+    .fiti-logo-text {{
         font-size: 28px;
         font-weight: 900;
         letter-spacing: -0.5px;
         border-right: 1.5px solid rgba(255, 255, 255, 0.25);
         padding-right: 22px;
-    }
-    .fiti-title-main {
+    }}
+    .fiti-title-main {{
         font-size: 21px;
         font-weight: 800;
         margin-bottom: 4px;
         letter-spacing: -0.3px;
-    }
-    .fiti-title-sub {
+    }}
+    .fiti-title-sub {{
         font-size: 13px;
         color: #D0E1FD;
         font-weight: 400;
-    }
+    }}
 
-    .kpi-card {
+    .kpi-card {{
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-radius: 12px;
@@ -228,38 +232,38 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         border-top: 4px solid #CBD5E1;
-    }
-    .kpi-card:hover {
+    }}
+    .kpi-card:hover {{
         transform: translateY(-2px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-    }
-    .kpi-title {
+    }}
+    .kpi-title {{
         font-size: 13px;
         font-weight: 600;
         color: #64748B;
         margin-bottom: 8px;
-    }
-    .kpi-num {
+    }}
+    .kpi-num {{
         font-size: 26px;
         font-weight: 800;
         color: #0F172A;
         letter-spacing: -0.5px;
-    }
-    .kpi-sub {
+    }}
+    .kpi-sub {{
         font-size: 12px;
         color: #94A3B8;
         margin-top: 6px;
-    }
-    .kpi-badge {
+    }}
+    .kpi-badge {{
         display: inline-block;
         padding: 3px 8px;
         border-radius: 6px;
         font-size: 12px;
         font-weight: 700;
         margin-top: 6px;
-    }
+    }}
 
-    .sidebar-card-btn {
+    .sidebar-card-btn {{
         display: block;
         width: 100%;
         border-radius: 8px;
@@ -274,13 +278,13 @@ st.markdown("""
         text-decoration: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         transition: all 0.15s ease;
-    }
-    .sidebar-card-btn:hover {
+    }}
+    .sidebar-card-btn:hover {{
         border-color: #003876;
         background-color: #E2E8F0;
         color: #002B5C;
-    }
-    .sidebar-card-btn-active {
+    }}
+    .sidebar-card-btn-active {{
         display: block;
         width: 100%;
         border-radius: 8px;
@@ -294,7 +298,7 @@ st.markdown("""
         color: #FFFFFF !important;
         text-decoration: none;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -944,7 +948,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행 (KeyError 에러 완전 해결)
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -974,6 +978,16 @@ def render_fullwidth_vertical_dashboard(
     cat_order
 ):
     df = data_df.copy()
+    
+    # 💡 원본 열 이름 호환성 보장 (컬럼명 에러 원천 방지)
+    c25_target = col_25 if col_25 in df.columns else "2025년 실적"
+    c26_target = col_26 if col_26 in df.columns else "2026년 실적"
+    
+    if "2025년 실적" not in df.columns and c25_target in df.columns:
+        df["2025년 실적"] = df[c25_target]
+    if "2026년 실적" not in df.columns and c26_target in df.columns:
+        df["2026년 실적"] = df[c26_target]
+
     if "증감액" not in df.columns:
         df["증감액"] = df["2026년 실적"] - df["2025년 실적"]
     if "증감률" not in df.columns or df["증감률"].isnull().all():
