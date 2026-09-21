@@ -6,7 +6,7 @@ import os
 import io
 
 # =========================================================
-# 1. 화면 기본 설정 및 디자인 스타일 (중국어 SimHei 폰트 반영)
+# 1. 화면 기본 설정 및 디자인 스타일
 # =========================================================
 st.set_page_config(
     page_title="FITI SHANGHAI Performance Analysis",
@@ -99,7 +99,7 @@ LANG_DICT = {
         "kpi_diff_sub": "较去年业绩差额",
         "kpi_rate_sub": "较去年增长率",
         "unit": "韩元",
-        "font_family": "'SimHei', '黑体', sans-serif",  # 💡 중국어 전용 SimHei(흑체) 폰트 적용
+        "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
             "[접수기준] 종합 실적 현황": "[接收基准] 综合业绩现状",
             "[접수기준] 사업별 실적 현황": "[接收基准] 各业务业绩现状",
@@ -170,23 +170,34 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 3. 사이드바 언어 선택
+# 3. URL 쿼리 파라미터 기반 언어 상태 연동 (유지 핵심)
 # =========================================================
-st.sidebar.markdown("### 🌐 언어 설정 / 语言设置 / Language")
+query_params = st.query_params
+
+if "lang" in query_params and query_params["lang"] in LANG_DICT:
+    st.session_state["selected_lang"] = query_params["lang"]
+
 if "selected_lang" not in st.session_state:
     st.session_state["selected_lang"] = "한국어"
 
+def on_lang_change():
+    st.query_params["lang"] = st.session_state["lang_selectbox"]
+
+st.sidebar.markdown("### 🌐 언어 설정 / 语言设置 / Language")
 selected_lang = st.sidebar.selectbox(
     "표시 언어 선택", 
     ["한국어", "中文 (중국어)", "English (영어)"],
     index=["한국어", "中文 (중국어)", "English (영어)"].index(st.session_state["selected_lang"]),
+    key="lang_selectbox",
+    on_change=on_lang_change,
     label_visibility="collapsed"
 )
+
 st.session_state["selected_lang"] = selected_lang
 t = LANG_DICT[selected_lang]
 current_font = t["font_family"]
 
-# 💡 동적으로 선택된 언어의 폰트 적용 (중국어는 SimHei 적용)
+# 스타일 주입
 st.markdown(f"""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -748,7 +759,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 8. 사이드바 네비게이션 및 다국어 매핑 적용
+# 8. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
 # =========================================================
 st.sidebar.markdown(f"### {t['page_select']}")
 
@@ -759,13 +770,20 @@ base_pages_keys = [
     "[접수기준] 협력사 실적 현황"
 ]
 
-query_params = st.query_params
-
 if "auth" in query_params and query_params["auth"] == "true":
     st.session_state["bi_authorized"] = True
 
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
+
+def check_bi_password():
+    pw_val = st.session_state.get("bi_pw_input", "")
+    if pw_val == "fiti1965":
+        st.session_state["bi_authorized"] = True
+        st.query_params["auth"] = "true"
+    else:
+        st.session_state["bi_authorized"] = False
+        st.sidebar.error(t["auth_fail"])
 
 if st.session_state["bi_authorized"]:
     bi_pages_keys = [
@@ -792,14 +810,16 @@ if "page" in query_params:
 st.sidebar.markdown(f"##### {t['cat_select']}")
 
 auth_param_str = "&auth=true" if st.session_state["bi_authorized"] else ""
+lang_param_str = f"&lang={selected_lang}"
 
 for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     display_name = t["pages"].get(p_key, p_key)
     
+    # 💡 페이지 이동 시 언어 설정(lang)과 인증 상태(auth)가 URL에 함께 유지되도록 구성
     card_link_html = f"""
-    <a href="?page={p_key}{auth_param_str}" class="{btn_class}" target="_self">
+    <a href="?page={p_key}{auth_param_str}{lang_param_str}" class="{btn_class}" target="_self">
         {display_name}
     </a>
     """
@@ -847,7 +867,7 @@ if page_menu.startswith("[BI_"):
         display_period = t["periods"].get(bp_key, bp_key)
         
         period_link_html = f"""
-        <a href="?page={page_menu}&period={bp_key}{auth_param_str}" class="{p_class}" target="_self">
+        <a href="?page={page_menu}&period={bp_key}{auth_param_str}{lang_param_str}" class="{p_class}" target="_self">
             {display_period}
         </a>
         """
@@ -948,7 +968,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (KeyError 에러 완전 해결)
+# 10. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -978,8 +998,6 @@ def render_fullwidth_vertical_dashboard(
     cat_order
 ):
     df = data_df.copy()
-    
-    # 💡 원본 열 이름 호환성 보장 (컬럼명 에러 원천 방지)
     c25_target = col_25 if col_25 in df.columns else "2025년 실적"
     c26_target = col_26 if col_26 in df.columns else "2026년 실적"
     
