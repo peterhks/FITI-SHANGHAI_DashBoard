@@ -161,7 +161,6 @@ EXCEL_FILE = "performance_최신.xlsx"
 
 st.sidebar.markdown("### 📁 데이터 관리")
 
-# 인증 상태 확인
 if "bi_authorized" not in st.session_state:
     st.session_state["bi_authorized"] = False
 
@@ -173,23 +172,22 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error("비밀번호가 일치하지 않습니다.")
 
-# 관리자 모드가 켜져 있을 때만 파일 업로더 노출 (모든 사용자가 덮어쓰는 것 방지)
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader("관리자용 최신 엑셀 덮어쓰기", type=["xlsx", "csv"])
     if uploaded_file is not None:
-        # 업로드된 파일을 서버의 기본 파일명으로 즉시 저장(동기화)하여 모든 사용자가 공유하게 함
         with open(EXCEL_FILE, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.sidebar.success("✅ 서버에 최신 엑셀 파일이 동기화되었습니다!")
+        # 파일이 변경되면 캐시를 깨끗하게 비워서 새로운 데이터가 즉시 반영되도록 함
+        st.cache_data.clear()
+        st.sidebar.success("✅ 서버 동기화 및 캐시 초기화 완료!")
         st.rerun()
 else:
     st.sidebar.caption("💡 엑셀 파일을 교체하려면 하단 'BI 관리자 모드'로 로그인하세요.")
 
-# 서버에 있는 공용 엑셀 파일을 모든 접속자가 공통으로 읽음
 if os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
-    st.sidebar.info(f"📂 공용 기준 파일 '{EXCEL_FILE}' 연동 중")
+    st.sidebar.info(f"📂 공용 기준 파일 연동 중")
 else:
     raw_bytes = None
 
@@ -220,7 +218,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 4. '종합' 시트 파서 (접수기준)
+# 4. '종합' 시트 파서 (속도 최적화 캐시 적용)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
@@ -299,7 +297,7 @@ def parse_summary_data(file_bytes_val):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(raw_bytes)
 
 # =========================================================
-# 5. 세부 파트 시트 파서 (바이어 및 협력사 데이터 로드)
+# 5. 세부 파트 시트 파서 (속도 최적화 캐시 적용)
 # =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
@@ -438,7 +436,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서
+# 6. BI 지사별(BI상해 / BI광주 / BI종합) 전용 독립 파서 (속도 최적화 캐시 적용)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -595,7 +593,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 7. 사이드바 초고속 HTML 링크 기반 네비게이션
+# 7. 사이드바 초고속 HTML 링크 네비게이션
 # =========================================================
 st.sidebar.markdown("### 📑 분석 페이지 선택")
 
