@@ -135,8 +135,6 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
-        "buyer_pie_25": "2025年主要买家业绩占比",
-        "buyer_pie_26": "2026年主要买家业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -185,8 +183,6 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
-        "buyer_pie_25": "2025 Performance Share by Buyer",
-        "buyer_pie_26": "2026 Performance Share by Buyer",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -331,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (폼 강제 제어 및 폭 통일 적용)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (반투명 글래스모피즘 박스 적용)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -339,7 +335,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.6), rgba(0, 10, 25, 0.75)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.55), rgba(0, 10, 25, 0.7)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -351,20 +347,19 @@ if not st.session_state["logged_in"]:
         }}
         header {{visibility: hidden;}}
         
-        /* 💡 [핵심] 로그인 폼 전체를 하나의 컴팩트한 상자로 제한하여 강제 중앙 정렬 */
+        /* 💡 [핵심] 배경이 은은하게 비치는 고급스러운 반투명 글래스모피즘 박스 적용 */
         [data-testid="stForm"] {{
-            max-width: 420px !important; 
-            margin: 10vh auto !important; 
-            background: rgba(0, 20, 45, 0.85) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            max-width: 480px !important; 
+            margin: 6vh auto !important; 
+            background: rgba(2, 14, 30, 0.55) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 20px !important;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6) !important;
             padding: 40px !important;
         }}
         
-        /* 💡 [핵심] 폼 내부의 이메일/비밀번호/버튼 길이를 컨테이너 내 100%로 강제하여 길이를 완벽히 일치시킴 */
         [data-testid="stForm"] [data-testid="stTextInput"] div[data-baseweb="input"] {{
             width: 100% !important;
         }}
@@ -372,24 +367,29 @@ if not st.session_state["logged_in"]:
             width: 100% !important;
             font-weight: 800 !important;
             font-size: 15px !important;
+            background-color: #3B82F6 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+        }}
+        [data-testid="stForm"] .stFormSubmitButton button:hover {{
+            background-color: #2563EB !important;
         }}
     </style>
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
         st.markdown("""
-        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] 화이트-실버 그라데이션, 글씨 확대, 절대 한줄 고정(nowrap) -->
-            <div style="font-size: 58px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #E2E8F0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.6);">FITI Shanghai</div>
-            <div style="font-size: 20px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
+            <div style="font-size: 52px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #E2E8F0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.6);">FITI Shanghai</div>
+            <div style="font-size: 19px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
             <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 3px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
         login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
         
-        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 14px; margin-bottom: 2px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 3px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
         
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -892,7 +892,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 권한별 페이지 제어
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
@@ -1517,7 +1517,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
+# 12. [BI] 사업별 실적 현황 렌더링 (마곡/오창 거점 비교 포함)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
