@@ -316,17 +316,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (엔터 로그인 지원)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (배경 적용 및 글씨 확대)
 # =========================================================
 if not st.session_state["logged_in"]:
     st.markdown("""
-    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(rgba(0, 30, 70, 0.65), rgba(0, 15, 35, 0.8)), url('https://images.unsplash.com/photo-1543834899-a3598e3b3334?auto=format&fit=crop&w=1920&q=80') no-repeat center center; background-size: cover; z-index: -1;"></div>
+    <style>
+        .stMain {
+            background: linear-gradient(rgba(0, 20, 50, 0.6), rgba(0, 10, 30, 0.75)), url('https://images.unsplash.com/photo-1543834899-a3598e3b3334?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+        }
+        header {visibility: hidden;}
+    </style>
     
-    <div style="max-width: 560px; margin: 40px auto; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); overflow: hidden; padding: 40px;">
-        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
-            <div style="font-size: 48px; font-weight: 900; letter-spacing: -1px; margin-bottom: 10px; color: #60A5FA;">FITI Shanghai</div>
-            <div style="font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 13px; color: #93C5FD; font-weight: 500;">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <div style="max-width: 580px; margin: 50px auto; background: rgba(0, 25, 55, 0.75); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 45px;">
+        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
+            <div style="font-size: 52px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; color: #60A5FA; text-shadow: 0 2px 10px rgba(96,165,250,0.4);">FITI Shanghai</div>
+            <div style="font-size: 24px; font-weight: 800; margin-bottom: 8px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 14px; color: #93C5FD; font-weight: 500;">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
@@ -336,10 +343,10 @@ if not st.session_state["logged_in"]:
             st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-bottom: 6px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
             login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
-            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-top: 12px; margin-bottom: 6px;'>비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-top: 14px; margin-bottom: 6px;'>비밀번호</p>", unsafe_allow_html=True)
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             
-            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
