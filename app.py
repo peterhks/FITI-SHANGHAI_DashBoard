@@ -162,6 +162,11 @@ LANG_DICT = {
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
+        "auth_title": "🔒 BI Security Auth",
+        "auth_input": "Enter password:",
+        "auth_fail": "Incorrect password.",
+        "auth_success": "🔓 BI Admin Mode Active",
+        "logout_btn": "Lock BI (Logout)",
         "kpi_25": "📅 '25 Total Performance",
         "kpi_26": "🚀 '26 Total Performance",
         "kpi_diff": "📈 Performance Diff",
@@ -316,7 +321,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (배경 적용 및 글씨 확대)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (폰트 크기 및 색상 요청 반영)
 # =========================================================
 if not st.session_state["logged_in"]:
     st.markdown("""
@@ -329,11 +334,13 @@ if not st.session_state["logged_in"]:
         header {visibility: hidden;}
     </style>
     
-    <div style="max-width: 580px; margin: 50px auto; background: rgba(0, 25, 55, 0.75); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 45px;">
+    <div style="max-width: 580px; margin: 40px auto; background: rgba(0, 25, 55, 0.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 45px;">
         <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
-            <div style="font-size: 52px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; color: #60A5FA; text-shadow: 0 2px 10px rgba(96,165,250,0.4);">FITI Shanghai</div>
+            <!-- 💡 [요청 반영] FITI Shanghai: 크기 3포인트 크게, 진하고 예쁜 블루 -->
+            <div style="font-size: 55px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; color: #3B82F6; text-shadow: 0 0 25px rgba(59,130,246,0.6);">FITI Shanghai</div>
             <div style="font-size: 24px; font-weight: 800; margin-bottom: 8px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 14px; color: #93C5FD; font-weight: 500;">飞迪商品检验（上海）有限公司 | 사업팀</div>
+            <!-- 💡 [요청 반영] 중국어 문구: 크기 2포인트 크게, 코랄 에메랄드 블루 -->
+            <div style="font-size: 16px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 15px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
@@ -341,6 +348,7 @@ if not st.session_state["logged_in"]:
     with col_l2:
         with st.form("login_form"):
             st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-bottom: 6px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            # 💡 [요청 반영] kshan 대신 인가된 메일 주소 의미의 플레이스홀더 적용
             login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
             st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-top: 14px; margin-bottom: 6px;'>비밀번호</p>", unsafe_allow_html=True)
