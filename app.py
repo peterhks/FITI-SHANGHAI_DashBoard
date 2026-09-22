@@ -35,7 +35,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
+# 2. 다국어 텍스트 사전 (buyer_pie 키값 에러 방어 추가)
 # =========================================================
 LANG_DICT = {
     "한국어": {
@@ -63,6 +63,8 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
+        "buyer_pie_25": "2025년 주요 바이어 실적 비중",
+        "buyer_pie_26": "2026년 주요 바이어 실적 비중",
         "center_compare": "마곡 본원 vs 오창 분원 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
@@ -112,6 +114,8 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
+        "buyer_pie_25": "2025年主要买家业绩占比",
+        "buyer_pie_26": "2026年主要买家业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -121,7 +125,7 @@ LANG_DICT = {
             "[접수기준] 협력사 실적 현황": "[接收基准] 各合作社业绩现状",
             "[BI_종합] 사업별 실적 현황": "[BI_综合] 各业务业绩现状",
             "[BI_상해] 사업별 실적 현황": "[BI_上海] 各业务业绩现状",
-            "[BI_광주] 사업별 실적 현황": "[BI_광州] 各业务业绩现状",
+            "[BI_광주] 사업별 실적 현황": "[BI_光州] 各业务业绩现状",
         },
         "periods": {
             "전체 총계 누계": "全体总计累计",
@@ -142,7 +146,7 @@ LANG_DICT = {
         "admin_upload": "Upload Public Excel (Admin Only)",
         "admin_caption": "💡 To replace Excel, login to 'BI Admin Mode' below.",
         "sync_success": "✅ Server public file & session synced!",
-        "shared_file_info": "📂 Server Public Latest File Linked",
+        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
         "file_not_found": "Excel file not found. Please login as admin to upload.",
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
@@ -160,6 +164,8 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
+        "buyer_pie_25": "2025 Performance Share by Buyer",
+        "buyer_pie_26": "2026 Performance Share by Buyer",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -1010,7 +1016,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (성장=레드 / 역성장=블루 색상 반전 적용)
+# 10. 공통 렌더러 및 본문 실행 (성장=레드 / 역성장=블루 적용 완료)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -1132,7 +1138,7 @@ def render_fullwidth_vertical_dashboard(
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickangle=0,  # 💡 비스듬함 완전 제거 및 수평 정렬
+            tickangle=0,
             tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
@@ -1171,7 +1177,7 @@ def render_fullwidth_vertical_dashboard(
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickangle=0,  # 💡 비스듬함 완전 제거
+            tickangle=0,
             tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
