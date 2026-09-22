@@ -14,6 +14,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+BI_8_CATEGORIES = [
+    "일반검사",
+    "섬유내수(패션잡화)",
+    "섬유내수(중국GB)",
+    "섬유수출",
+    "산업(토목+부품)",
+    "모빌리티(전장+의장)",
+    "환경(환경+측정기기)",
+    "화학바이오(화학제품+생활안전)"
+]
+
 MAGOK_CATEGORIES = [
     "법정검사", 
     "일반검사", 
@@ -629,7 +640,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 8. BI 지사별 파서 (요청하신 정확한 규칙 반영: 합계/소계 파싱)
+# 8. BI 지사별 파서 (요청하신 정확한 행 규칙 적용)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -728,10 +739,10 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    # 💡 사용자 요청 정확한 매핑 규칙 적용 (법정검사 합계, 일반검사 합계, 패션잡화 소계, 중국GB 소계, 단체/정부 소계, 수출 합계, 연구용역 합계, 제품인증 합계 등)
+    # 💡 [정밀 매핑 규칙] 팀장님 요청에 따른 합계/소계 엄격 매칭
     target_mappings = [
         ("법정검사", ["법정검사", "법정"], "합계"),
-        ("일반검사", ["일반검사", "검사"], "합계"),
+        ("일반검사", ["일반검사"], "합계"),
         ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
         ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
         ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"),
@@ -749,19 +760,18 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         for cat_name, keywords, match_type in target_mappings:
             matched_row_idx = None
             if col_25_i is not None:
-                for idx in range(min(180, len(raw))):
-                    row_cells = [str(raw.iat[idx, c]).strip().replace(" ", "").lower() for c in range(len(raw.columns))]
+                for idx in range(len(raw)):
+                    row_cells = [str(raw.iat[idx, c]).strip().replace(" ", "").lower() for c in range(min(3, len(raw.columns)))]
                     row_str = "".join(row_cells)
                     
-                    # 키워드 포함 여부 확인
-                    has_keyword = any(kw.lower().replace(" ", "") in row_str for kw in keywords)
-                    if has_keyword:
+                    # 키워드 포함 및 합계/소계 여부 동시 확인
+                    if any(kw.lower().replace(" ", "") in row_str for kw in keywords):
                         if match_type in row_str:
                             matched_row_idx = idx
                             break
                         elif matched_row_idx is None:
-                            matched_row_idx = idx # 임시 매칭 후 정확한 합계/소계 탐색
-            
+                            matched_row_idx = idx # 백업 매칭
+
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
                 v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
@@ -1153,15 +1163,39 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     with c_biz:
         selected_biz = st.selectbox("Select Business:", target_categories, key="tab4_biz_select")
     raw_v_df = vendor_data_cache.get(selected_biz, pd.DataFrame()).copy()
-    if not raw_v_df.empty:
-        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True).head(6)
-        render_fullwidth_vertical_dashboard(f"🏢 {current_page_display} ({selected_biz})", "📈 Vendor Performance Diff", "Vendor Summary Table", v_summary, "협력사명", v_summary["협력사명"].tolist())
+    if raw_v_df.empty:
+        st.warning("Vendor data not found.")
+    else:
+        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        vendor_list = ["전체 협력사 보기 (All Vendors)"] + v_summary["협력사명"].tolist()
+        with c_vendor:
+            selected_vendor = st.selectbox("Select Vendor:", vendor_list, key="tab4_vendor_select")
+        if selected_vendor == "전체 협력사 보기 (All Vendors)":
+            display_v_df = v_summary.head(6).copy()
+            render_fullwidth_vertical_dashboard(
+                title_top=f"🏢 {current_page_display} ({selected_biz})",
+                title_bottom="📈 Vendor Performance Diff",
+                table_title="Vendor Summary Table",
+                data_df=display_v_df,
+                x_col_name="협력사명",
+                cat_order=display_v_df["협력사명"].tolist()
+            )
+        else:
+            single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
+            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+            render_fullwidth_vertical_dashboard(
+                title_top=f"🏢 {selected_vendor} Performance by Buyer",
+                title_bottom="📈 Breakdown Diff",
+                table_title="Detailed Vendor Table",
+                data_df=b_breakdown,
+                x_col_name="바이어명",
+                cat_order=b_breakdown["바이어명"].tolist()
+            )
 
 # =========================================================
 # 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    # 💡 [핵심 수정] active_bi_charts["누계"] 데이터를 확실하게 가져오도록 보장
     active_chart_dict = active_bi_charts.get("누계")
     if active_chart_dict is not None and not active_chart_dict.empty:
         current_bi_chart_df = active_chart_dict.copy()
@@ -1211,7 +1245,7 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 마곡 센터 세부 사업 현황
+    # 💡 마곡 센터 세부 사업 현황 (요청하신 8개 항목 정확히 매칭)
     render_fullwidth_vertical_dashboard(
         title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
         title_bottom="📈 Magok Sub-categories Diff",
