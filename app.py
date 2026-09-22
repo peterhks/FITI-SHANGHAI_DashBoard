@@ -63,7 +63,7 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
-        "center_compare": "마곡 vs 오창 거점별 실적 비교",
+        "center_compare": "마곡 본원 vs 오창 분원 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -362,7 +362,6 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error(t["auth_fail"])
 
-# 💡 [보안 강화] 관리자 모드가 활성화된 상태에서만 업로더 노출
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
@@ -377,7 +376,6 @@ if st.session_state["bi_authorized"]:
 else:
     st.sidebar.caption(t["admin_caption"])
 
-# 파일 바이트 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
 elif os.path.exists(LOCAL_EXCEL_PATH):
@@ -395,16 +393,12 @@ if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
-# 💡 [요청 반영] 엑셀 파일의 시트 수와 총 행(Row) 개수 계산
+# 💡 [요청 반영] 행 수는 삭제하고 총 시트 수만 표시
 try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
     total_sheets_count = len(temp_excel.sheet_names)
-    total_rows_count = 0
-    for s_name in temp_excel.sheet_names:
-        df_temp = pd.read_excel(temp_stream, sheet_name=s_name, header=None)
-        total_rows_count += len(df_temp)
-    st.sidebar.info(f"{t['shared_file_info']}\n(총 시트: {total_sheets_count}개 | 총 행 수: {total_rows_count:,}행)")
+    st.sidebar.info(f"{t['shared_file_info']}\n(총 시트 수: {total_sheets_count}개)")
 except Exception:
     st.sidebar.info(t["shared_file_info"])
 
@@ -647,9 +641,6 @@ for cat in target_categories:
     else:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
-# =========================================================
-# 8. BI 지사별 파서 (마곡 8개 항목 및 오창 4개 항목 정밀 파싱)
-# =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     stream = io.BytesIO(file_bytes_val)
@@ -747,7 +738,6 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate if m_rate else c_rate, m_rate if m_rate else c_rate)
     }
 
-    # 💡 [정밀 매핑 규칙] 마곡 8개 항목 및 오창 4개 항목
     target_mappings = [
         ("법정검사", ["법정검사", "법정"], "합계"),
         ("일반검사", ["일반검사", "일반"], "합계"),
@@ -813,7 +803,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
+# 8. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
 # =========================================================
 st.sidebar.markdown(f"### {t['page_select']}")
 
@@ -898,7 +888,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 10. 상단 종합 KPI 카드 및 다국어 렌더링
+# 9. 상단 종합 KPI 카드 및 다국어 렌더링
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -1021,7 +1011,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 11. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1444,7 +1434,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 및 상세 렌더링
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고급 도넛 차트 적용)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1475,10 +1465,72 @@ elif page_menu.startswith("[BI_"):
 
     st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
     
-    center_compare_df = pd.DataFrame([
+    # 💡 [임원 보고용 고급 도넛 차트 추가] 마곡 본원 vs 오창 분원 비중 및 규모 비교
+    center_pie_df = pd.DataFrame([
         {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
     ])
+    
+    col_pie1, col_pie2 = st.columns(2)
+    center_colors = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
+
+    with col_pie1:
+        fig_center_25 = px.pie(
+            center_pie_df, 
+            names="거점구분", 
+            values="2025년 실적", 
+            hole=0.6,
+            title="2025년 거점별 실적 비중",
+            color="거점구분",
+            color_discrete_map=center_colors
+        )
+        tot_c25 = center_pie_df["2025년 실적"].sum()
+        fig_center_25.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_center_25.update_layout(
+            height=420,
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_c25/1e8:.1f}억" if tot_c25 >= 1e8 else f"Total<br>{tot_c25/1e4:.0f}만", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+        )
+        st.plotly_chart(fig_center_25, use_container_width=True)
+
+    with col_pie2:
+        fig_center_26 = px.pie(
+            center_pie_df, 
+            names="거점구분", 
+            values="2026년 실적", 
+            hole=0.6,
+            title="2026년 거점별 실적 비중",
+            color="거점구분",
+            color_discrete_map=center_colors
+        )
+        tot_c26 = center_pie_df["2026년 실적"].sum()
+        fig_center_26.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_center_26.update_layout(
+            height=420,
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_c26/1e8:.1f}억" if tot_c26 >= 1e8 else f"Total<br>{tot_c26/1e4:.0f}만", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+        )
+        st.plotly_chart(fig_center_26, use_container_width=True)
+
+    st.write("")
+    st.markdown("---")
+
+    # 거점 비교 요약 테이블 및 바 차트
+    center_compare_df = center_pie_df.copy()
     center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
     center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
