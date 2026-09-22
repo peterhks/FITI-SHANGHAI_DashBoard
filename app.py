@@ -14,25 +14,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-MAGOK_CATEGORIES = [
-    "법정검사", 
-    "일반검사", 
-    "섬유내수(패션잡화)", 
-    "섬유내수(중국GB)", 
-    "섬유내수(단체/정부)", 
-    "섬유수출", 
-    "연구용역", 
-    "제품인증(Q.SF)"
-]
-
-OCHANG_CATEGORIES = [
-    "산업(토목+부품)", 
-    "모빌리티(전장+의장)", 
-    "환경(환경+측정기기)", 
+BI_8_CATEGORIES = [
+    "일반검사",
+    "섬유내수(패션잡화)",
+    "섬유내수(중국GB)",
+    "섬유수출",
+    "산업(토목+부품)",
+    "모빌리티(전장+의장)",
+    "환경(환경+측정기기)",
     "화학바이오(화학제품+생활안전)"
 ]
-
-FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
 # 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
@@ -42,11 +33,11 @@ LANG_DICT = {
         "sys_title": "상해지사 실적 종합 분석 시스템",
         "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
-        "admin_upload": "공용 엑셀 파일 업로드 (모든 사용자 공유)",
-        "admin_caption": "💡 엑셀 파일을 업로드하면 서버에 저장되어 모든 사용자가 공유합니다.",
+        "admin_upload": "공용 엑셀 파일 업로드 (관리자 전용)",
+        "admin_caption": "💡 엑셀 파일을 교체하려면 하단 'BI 관리자 모드'로 로그인하세요.",
         "sync_success": "✅ 서버 공용 파일 및 세션 동기화 완료!",
         "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
-        "file_not_found": "분석할 엑셀 파일을 업로드해 주세요.",
+        "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 모드로 로그인하여 파일을 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
         "period_select": "⏱️ [BI] 실적 기간 선택",
@@ -63,9 +54,6 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
-        "buyer_pie_25": "2025년 주요 바이어 실적 비중",
-        "buyer_pie_26": "2026년 주요 바이어 실적 비중",
-        "center_compare": "마곡 vs 오창 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -93,11 +81,11 @@ LANG_DICT = {
         "sys_title": "上海分公司业绩综合分析系统",
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
         "data_mgmt": "📁 数据管理",
-        "admin_upload": "上传公共Excel文件 (所有用户共享)",
-        "admin_caption": "💡 上传Excel文件后将保存在服务器上供所有用户共享。",
+        "admin_upload": "上传公共Excel文件 (仅限管理员)",
+        "admin_caption": "💡 如需更换Excel文件，请登录底部的“BI管理员模式”。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
         "shared_file_info": "📂 服务器公共最新文件同步中",
-        "file_not_found": "请上传要分析的Excel文件。",
+        "file_not_found": "未找到要分析的Excel文件。请登录管理员模式上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
         "period_select": "⏱️ [BI] 业绩期间选择",
@@ -114,9 +102,6 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
-        "buyer_pie_25": "2025年主要买家业绩占比",
-        "buyer_pie_26": "2026年主要买家业绩占比",
-        "center_compare": "麻谷 vs 梧창 基地业绩对比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -144,11 +129,11 @@ LANG_DICT = {
         "sys_title": "Shanghai Branch Performance Analysis System",
         "sys_sub": "Shanghai Branch Business Performance & Analysis System | Business Team",
         "data_mgmt": "📁 Data Management",
-        "admin_upload": "Upload Public Excel (Shared)",
-        "admin_caption": "💡 Uploaded Excel is saved on server for all users.",
+        "admin_upload": "Upload Public Excel (Admin Only)",
+        "admin_caption": "💡 To replace Excel, login to 'BI Admin Mode' below.",
         "sync_success": "✅ Server public file & session synced!",
         "shared_file_info": "📂 Server Public Latest File Linked",
-        "file_not_found": "Please upload an Excel file to analyze.",
+        "file_not_found": "Excel file not found. Please login as admin to upload.",
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
@@ -165,9 +150,6 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
-        "buyer_pie_25": "2025 Performance Share by Buyer",
-        "buyer_pie_26": "2026 Performance Share by Buyer",
-        "center_compare": "Magok vs Ochang Center Comparison",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -350,25 +332,42 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 업로드 파일 영구 보존 엔진
+# 5. 보안 인증 및 관리자 모드 전용 업로드 엔진
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
 LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
 
 st.sidebar.markdown(f"### {t['data_mgmt']}")
-uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
 
-if uploaded_file is not None:
-    file_bytes = uploaded_file.getvalue()
-    with open(LOCAL_EXCEL_PATH, "wb") as f:
-        f.write(file_bytes)
-    st.session_state["persistent_file_bytes"] = file_bytes
-    st.session_state["persistent_file_name"] = uploaded_file.name
-    st.cache_data.clear()
-    st.sidebar.success(t["sync_success"])
-    st.rerun()
+if "bi_authorized" not in st.session_state:
+    st.session_state["bi_authorized"] = False
 
+def check_bi_password():
+    pw_val = st.session_state.get("bi_pw_input", "")
+    if pw_val == "fiti1965":
+        st.session_state["bi_authorized"] = True
+        st.query_params["auth"] = "true"
+    else:
+        st.session_state["bi_authorized"] = False
+        st.sidebar.error(t["auth_fail"])
+
+# 💡 [요청 반영] 관리자 모드가 활성화된 상태에서만 파일 업로더 노출
+if st.session_state["bi_authorized"]:
+    uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
+    if uploaded_file is not None:
+        file_bytes = uploaded_file.getvalue()
+        with open(LOCAL_EXCEL_PATH, "wb") as f:
+            f.write(file_bytes)
+        st.session_state["persistent_file_bytes"] = file_bytes
+        st.session_state["persistent_file_name"] = uploaded_file.name
+        st.cache_data.clear()
+        st.sidebar.success(t["sync_success"])
+        st.rerun()
+else:
+    st.sidebar.caption(t["admin_caption"])
+
+# 데이터 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
     st.sidebar.success(t["shared_file_info"])
@@ -626,11 +625,8 @@ for cat in target_categories:
     if v_dfs:
         vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True)
     else:
-        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실실적" if "2025년 실실적" in v_dfs else "2025년 실적", "2026년 실적"])
 
-# =========================================================
-# 8. BI 지사별 파서 (합계/소계 데이터 100% 매칭 보장)
-# =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     stream = io.BytesIO(file_bytes_val)
@@ -673,10 +669,10 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     }
     
     empty_df = pd.DataFrame({
-        "표준사업구분": FULL_BI_CATEGORIES,
-        "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-        "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-        "증감률": [0.0]*len(FULL_BI_CATEGORIES)
+        "표준사업구분": BI_8_CATEGORIES,
+        "2025년 실적": [0]*8,
+        "2026년 실적": [0]*8,
+        "증감률": [0.0]*8
     })
     def_chart = {"누계": empty_df, "월계": empty_df}
 
@@ -728,36 +724,28 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    # 💡 [정밀 매핑 규칙] 요청하신 모든 항목(합계/소계) 엄격 매칭
     target_mappings = [
-        ("법정검사", ["법정검사", "법정"], "합계"),
-        ("일반검사", ["일반검사", "일반"], "합계"),
-        ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
-        ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
-        ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"),
+        ("일반검사", ["검사", "일반검사"], "합계"),
+        ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
+        ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
         ("섬유수출", ["섬유수출", "수출"], "합계"),
-        ("연구용역", ["연구용역", "연구"], "합계"),
-        ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"),
         ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
         ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
         ("환경(환경+측정기기)", ["환경", "측정"], "합계"),
         ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
     ]
 
-    def build_full_category_chart(col_25_i, col_26_i, col_rate_i):
+    def build_8_category_chart(col_25_i, col_26_i, col_rate_i):
         results = []
-        for cat_name, keywords, match_type in target_mappings:
+        for cat_name, keywords, target_type in target_mappings:
             matched_row_idx = None
             if col_25_i is not None:
-                for idx in range(len(raw)):
-                    row_text = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
-                    if any(kw.lower().replace(" ", "") in row_text for kw in keywords):
-                        if match_type in row_text:
-                            matched_row_idx = idx
-                            break
-                        elif matched_row_idx is None:
-                            matched_row_idx = idx
-
+                for idx in range(min(160, len(raw))):
+                    row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "").lower()
+                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str):
+                        matched_row_idx = idx
+                        break
+            
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
                 v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
@@ -782,8 +770,8 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         return pd.DataFrame(results)
 
     chart_res = {
-        "누계": build_full_category_chart(c_c25, c_c26, c_rate),
-        "월계": build_full_category_chart(m_c25, m_c26, m_rate)
+        "누계": build_8_category_chart(c_c25, c_c26, c_rate),
+        "월계": build_8_category_chart(m_c25, m_c26, m_rate)
     }
 
     return kpi_res, chart_res
@@ -793,7 +781,7 @@ bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해"
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 본문 렌더링
+# 9. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
 # =========================================================
 st.sidebar.markdown(f"### {t['page_select']}")
 
@@ -859,11 +847,17 @@ for p_key in all_pages_keys:
     st.sidebar.markdown(card_link_html, unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
+
 st.sidebar.markdown("---")
 
 if not st.session_state["bi_authorized"]:
     st.sidebar.markdown(f"##### {t['auth_title']}")
-    st.sidebar.text_input(t["auth_input"], type="password", key="bi_pw_input", on_change=check_bi_password)
+    st.sidebar.text_input(
+        t["auth_input"], 
+        type="password", 
+        key="bi_pw_input", 
+        on_change=check_bi_password
+    )
 else:
     st.sidebar.markdown(f"##### {t['auth_success']}")
     if st.sidebar.button(t["logout_btn"], key="logout_btn_unique_99"):
@@ -871,15 +865,19 @@ else:
         st.query_params.clear()
         st.rerun()
 
-# KPI 카드 계산
+# =========================================================
+# 10. 상단 종합 KPI 카드 및 다국어 렌더링
+# =========================================================
 card_unit = t["unit"]
+
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"### {t['period_select']}")
+    
     bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
     if "bi_period_mode" not in st.session_state:
         st.session_state["bi_period_mode"] = bi_periods_keys[0]
-    
+        
     period_query = query_params.get("period", None)
     if period_query in bi_periods_keys:
         st.session_state["bi_period_mode"] = period_query
@@ -887,16 +885,15 @@ if page_menu.startswith("[BI_"):
     for bp_key in bi_periods_keys:
         is_p_active = (st.session_state["bi_period_mode"] == bp_key)
         p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
-        display_period = t["periods"].get(bp_key, bp_key)
+        
         period_link_html = f"""
         <a href="?page={page_menu}&period={bp_key}{auth_param_str}{lang_param_str}" class="{p_class}" target="_self">
-            {display_period}
+            {bp_key}
         </a>
         """
         st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
             
     bi_period_mode = st.session_state["bi_period_mode"]
-    display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
     
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
@@ -916,11 +913,30 @@ if page_menu.startswith("[BI_"):
     total_26 = float(bi_pack["26"])
     diff_val = float(bi_pack["diff"])
     diff_rate = float(bi_pack["rate"])
-    card_sub_desc = f"{sub_prefix} [{display_period_name}]"
+    card_sub_desc = f"{sub_prefix} [{bi_period_mode}]"
 else:
-    total_25 = float(summary_chart[col_25].sum())
-    total_26 = float(summary_chart[col_26].sum())
-    card_sub_desc = "TOTAL Summary"
+    selected_view_for_card = "전체 사업 보기"
+    if page_menu == "[접수기준] 사업별 실적 현황":
+        if "selected_biz_view" not in st.session_state:
+            st.session_state["selected_biz_view"] = "전체 사업 보기"
+        selected_view_for_card = st.session_state["selected_biz_view"]
+    elif page_menu in ["[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"]:
+        card_key = "selected_tab3_biz" if page_menu == "[접수기준] 바이어 실적 현황" else "tab4_biz_select"
+        if card_key not in st.session_state:
+            st.session_state[card_key] = target_categories[0]
+        selected_view_for_card = st.session_state[card_key]
+
+    if selected_view_for_card != "전체 사업 보기" and selected_view_for_card in target_categories:
+        target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
+        total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
+        total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
+        display_cat_name = t["categories_map"].get(selected_view_for_card, selected_view_for_card)
+        card_sub_desc = f"[{display_cat_name}] Total"
+    else:
+        total_25 = float(summary_chart[col_25].sum())
+        total_26 = float(summary_chart[col_26].sum())
+        card_sub_desc = "TOTAL Summary"
+
     diff_val = total_26 - total_25
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
@@ -930,6 +946,7 @@ badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
 diff_sign = "+" if is_positive else ""
 
 c1, c2, c3, c4 = st.columns(4)
+
 with c1:
     st.markdown(f"""
     <div class="kpi-card" style="border-top-color: #64748B;">
@@ -938,6 +955,7 @@ with c1:
         <div class="kpi-sub">{card_sub_desc}</div>
     </div>
     """, unsafe_allow_html=True)
+
 with c2:
     st.markdown(f"""
     <div class="kpi-card" style="border-top-color: #003876;">
@@ -946,6 +964,7 @@ with c2:
         <div class="kpi-sub">{card_sub_desc}</div>
     </div>
     """, unsafe_allow_html=True)
+
 with c3:
     st.markdown(f"""
     <div class="kpi-card" style="border-top-color: {diff_color};">
@@ -954,6 +973,7 @@ with c3:
         <span class="kpi-badge" style="background-color: {badge_bg}; color: {diff_color};">{t["kpi_diff_sub"]}</span>
     </div>
     """, unsafe_allow_html=True)
+
 with c4:
     st.markdown(f"""
     <div class="kpi-card" style="border-top-color: {diff_color};">
@@ -967,22 +987,35 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 차트 렌더러 (긴 글자 2줄 자동 개행 적용)
+# 11. 공통 렌더러 및 본문 실행
 # =========================================================
-def wrap_text_for_axis(text, max_len=10):
+def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
     if len(text_str) <= max_len:
         return text_str
-    if '(' in text_str and ')' in text_str:
-        parts = text_str.split('(')
-        return parts[0].strip() + "<br>(" + parts[1].strip()
     words = text_str.split(' ')
-    if len(words) > 1:
-        mid = len(words) // 2
-        return " ".join(words[:mid]) + "<br>" + " ".join(words[mid:])
-    return text_str[:max_len] + "<br>" + text_str[max_len:]
+    lines = []
+    current_line = ""
+    for word in words:
+        if current_line == "":
+            current_line = word
+        elif len(current_line) + 1 + len(word) <= max_len:
+            current_line += " " + word
+        else:
+            lines.append(current_line)
+            current_line = word
+    if current_line:
+        lines.append(current_line)
+    return "<br>".join(lines)
 
-def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, data_df, x_col_name, cat_order):
+def render_fullwidth_vertical_dashboard(
+    title_top, 
+    title_bottom, 
+    table_title, 
+    data_df, 
+    x_col_name, 
+    cat_order
+):
     df = data_df.copy()
     c25_target = col_25 if col_25 in df.columns else "2025년 실적"
     c26_target = col_26 if col_26 in df.columns else "2026년 실적"
@@ -998,8 +1031,8 @@ def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, da
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
     display_x_col = f"{x_col_name}_wrapped"
-    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=9))
-    wrapped_cat_order = [wrap_text_for_axis(c, max_len=9) for c in cat_order]
+    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=13))
+    wrapped_cat_order = [wrap_text_for_axis(c, max_len=13) for c in cat_order]
 
     def format_krw_scale(val):
         abs_v = abs(val)
@@ -1013,37 +1046,74 @@ def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, da
         else:
             return f"{val:,.0f}"
 
-    label_25, label_26, diff_texts, diff_colors = [], [], [], []
+    label_25 = []
+    label_26 = []
+    diff_texts = []
+    diff_colors = []
+
     for _, r in df.iterrows():
-        v25, v26 = r["2025년 실적"], r["2026년 실적"]
-        diff_v, rt = r["증감액"], r["증감률"]
-        s25, s26, sdiff = format_krw_scale(v25), format_krw_scale(v26), format_krw_scale(diff_v)
+        v25 = r["2025년 실적"]
+        v26 = r["2026년 실적"]
+        diff_v = r["증감액"]
+        rt = r["증감률"]
+
+        s25 = format_krw_scale(v25)
+        s26 = format_krw_scale(v26)
+        sdiff = format_krw_scale(diff_v)
+
         sign_r = "+" if rt > 0 else ""
         sign_v = "+" if diff_v > 0 else ""
 
-        label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
-        label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
-        diff_texts.append(f"<span style='font-size:14px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:12px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
+        label_25.append(f"<span style='font-size:14px; font-weight:700;'>{s25}</span>")
+        label_26.append(f"<span style='font-size:15px; font-weight:800;'>{s26}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
+        diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
         diff_colors.append("#E11D48" if diff_v >= 0 else "#2563EB")
 
     st.subheader(title_top)
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
-        x=df[display_x_col], y=df["2025년 실적"], name="2025",
+        x=df[display_x_col],
+        y=df["2025년 실적"],
+        name="2025",
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
-        text=label_25, textposition="outside", textfont=dict(size=13, color="#475569", weight="bold")
+        text=label_25,
+        textposition="outside",
+        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
     ))
     fig_bar.add_trace(go.Bar(
-        x=df[display_x_col], y=df["2026년 실적"], name="2026",
+        x=df[display_x_col],
+        y=df["2026년 실적"],
+        name="2026",
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
-        text=label_26, textposition="outside", textfont=dict(size=13, color="#0F172A", weight="bold")
+        text=label_26,
+        textposition="outside",
+        textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig_bar.update_layout(
-        height=540, bargap=0.25, bargroupgap=0.06,
-        yaxis=dict(rangemode='tozero', title=dict(text="Amount (KRW)", font=dict(size=14, weight="bold")), gridcolor="#F1F5F9"),
-        xaxis=dict(categoryorder='array', categoryarray=wrapped_cat_order, tickfont=dict(size=13, weight="bold")),
-        template="plotly_white", legend=dict(orientation="h", yanchor="bottom", y=1.05, x=0),
-        margin=dict(t=50, b=50, l=10, r=10)
+        height=520,
+        bargap=0.30,
+        bargroupgap=0.08,
+        yaxis=dict(
+            rangemode='tozero',
+            title=dict(text="Amount (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            gridcolor="#F1F5F9",
+            tickfont=dict(size=14, color="#475569", weight="bold")
+        ),
+        xaxis=dict(
+            categoryorder='array',
+            categoryarray=wrapped_cat_order,
+            tickfont=dict(size=14, weight="bold", color="#0F172A")
+        ),
+        template="plotly_white",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.05,
+            xanchor="left",
+            x=0,
+            font=dict(size=14, color="#1E293B", weight="bold")
+        ),
+        margin=dict(t=50, b=40, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -1051,15 +1121,29 @@ def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, da
     st.markdown(f"##### {title_bottom}")
     fig_diff = go.Figure()
     fig_diff.add_trace(go.Bar(
-        x=df[display_x_col], y=df["증감액"],
+        x=df[display_x_col],
+        y=df["증감액"],
         marker=dict(color=diff_colors, cornerradius=6),
-        text=diff_texts, textposition="outside", textfont=dict(size=13, weight="bold")
+        text=diff_texts,
+        textposition="outside",
+        textfont=dict(size=14, family="Pretendard", weight="bold")
     ))
     fig_diff.update_layout(
-        height=460, bargap=0.32,
-        yaxis=dict(title=dict(text="Diff (KRW)", font=dict(size=14, weight="bold")), gridcolor="#F1F5F9", zerolinecolor="#CBD5E1"),
-        xaxis=dict(categoryorder='array', categoryarray=wrapped_cat_order, tickfont=dict(size=13, weight="bold")),
-        template="plotly_white", margin=dict(t=30, b=50, l=10, r=10)
+        height=450,
+        bargap=0.38,
+        yaxis=dict(
+            title=dict(text="Diff (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            gridcolor="#F1F5F9",
+            zerolinecolor="#CBD5E1",
+            tickfont=dict(size=14, color="#475569", weight="bold")
+        ),
+        xaxis=dict(
+            categoryorder='array',
+            categoryarray=wrapped_cat_order,
+            tickfont=dict(size=14, weight="bold", color="#0F172A")
+        ),
+        template="plotly_white",
+        margin=dict(t=30, b=40, l=10, r=10)
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
@@ -1080,35 +1164,89 @@ def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, da
             "증감액": st.column_config.NumberColumn("Diff", format="₩%+,.0f"),
             "증감률(%)": st.column_config.NumberColumn("Rate", format="%+.1f%%"),
         },
-        hide_index=True, use_container_width=True
+        hide_index=True,
+        use_container_width=True
     )
 
-# =========================================================
-# 11. 페이지 분기 실행
-# =========================================================
+# 페이지 분기 실행
 current_page_display = t["pages"].get(page_menu, page_menu)
 
 if page_menu == "[접수기준] 종합 실적 현황":
     st.subheader(f"🥧 {current_page_display} - Share")
-    biz_colors = {"글로벌 바이어": "#2563EB", "패션잡화": "#F59E0B", "GB": "#10B981", "제품평가": "#8B5CF6"}
+    
+    biz_colors = {
+        "글로벌 바이어": "#2563EB",
+        "패션잡화": "#F59E0B",
+        "GB": "#10B981",
+        "제품평가": "#8B5CF6"
+    }
     
     pie_col1, pie_col2 = st.columns(2)
     with pie_col1:
-        fig_pie_25 = px.pie(summary_chart, names="표준사업구분", values=col_25, hole=0.6, title=t["pie_title_25"], color="표준사업구분", color_discrete_map=biz_colors)
+        fig_pie_25 = px.pie(
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_25, 
+            hole=0.6,
+            title=t["pie_title_25"], 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
+        )
         tot_v25 = summary_chart[col_25].sum()
-        fig_pie_25.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
-        fig_pie_25.update_layout(height=460, margin=dict(t=60, b=20), annotations=[dict(text=f"Total<br>{tot_v25/1e8:.1f}억", x=0.5, y=0.5, font_size=15, showarrow=False)])
+        fig_pie_25.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_25.update_layout(
+            height=460, 
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_v25/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+        )
         st.plotly_chart(fig_pie_25, use_container_width=True)
+        
     with pie_col2:
-        fig_pie_26 = px.pie(summary_chart, names="표준사업구분", values=col_26, hole=0.6, title=t["pie_title_26"], color="표준사업구분", color_discrete_map=biz_colors)
+        fig_pie_26 = px.pie(
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_26, 
+            hole=0.6,
+            title=t["pie_title_26"], 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
+        )
         tot_v26 = summary_chart[col_26].sum()
-        fig_pie_26.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
-        fig_pie_26.update_layout(height=460, margin=dict(t=60, b=20), annotations=[dict(text=f"Total<br>{tot_v26/1e8:.1f}억", x=0.5, y=0.5, font_size=15, showarrow=False)])
+        fig_pie_26.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_26.update_layout(
+            height=460, 
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_v26/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+        )
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
     st.write("")
     st.markdown("---")
-    render_fullwidth_vertical_dashboard(f"📌 {current_page_display}", "📈 Business Performance Diff & Growth Rate", "Summary Table", summary_chart, "표준사업구분", target_categories)
+    
+    render_fullwidth_vertical_dashboard(
+        title_top=f"📌 {current_page_display}",
+        title_bottom="📈 Business Performance Diff & Growth Rate",
+        table_title="Summary Table",
+        data_df=summary_chart,
+        x_col_name="표준사업구분",
+        cat_order=target_categories
+    )
 
 elif page_menu == "[접수기준] 사업별 실적 현황":
     biz_filter_options = ["전체 사업 보기"] + target_categories
@@ -1118,31 +1256,124 @@ elif page_menu == "[접수기준] 사업별 실적 현황":
         st.session_state["selected_biz_view"] = selected_view
         st.rerun()
 
-    display_df = summary_chart.copy() if selected_view == "전체 사업 보기" else calc_summary[calc_summary["표준사업구분"] == selected_view].copy()
-    x_col = "표준사업구분" if selected_view == "전체 사업 보기" else "세부항목"
-    x_categories = target_categories if selected_view == "전체 사업 보기" else display_df["세부항목"].unique().tolist()
-    
+    if selected_view == "전체 사업 보기":
+        display_df = summary_chart.copy()
+        x_col = "표준사업구분"
+        x_categories = target_categories
+    else:
+        display_df = calc_summary[calc_summary["표준사업구분"] == selected_view].copy()
+        x_col = "세부항목"
+        x_categories = display_df["세부항목"].unique().tolist()
+        
     display_df = display_df.rename(columns={col_25: "2025년 실적", col_26: "2026년 실적"})
     display_df["증감액"] = display_df["2026년 실적"] - display_df["2025년 실적"]
     display_df["증감률"] = ((display_df["증감액"] / display_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
-    render_fullwidth_vertical_dashboard(f"🏢 {current_page_display} ({selected_view})", "📈 Detailed Performance Diff", "Detailed Summary Table", display_df, x_col, x_categories)
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏢 {current_page_display} ({selected_view})",
+        title_bottom="📈 Detailed Performance Diff",
+        table_title="Detailed Summary Table",
+        data_df=display_df,
+        x_col_name=x_col,
+        cat_order=x_categories
+    )
 
 elif page_menu == "[접수기준] 바이어 실적 현황":
     current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
-    selected_biz = st.selectbox("Select Business:", target_categories, index=target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0, key="tab3_biz_selectbox")
+    current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
+    selected_biz = st.selectbox("Select Business:", target_categories, index=current_idx3, key="tab3_biz_selectbox")
     if selected_biz != st.session_state.get("selected_tab3_biz"):
         st.session_state["selected_tab3_biz"] = selected_biz
         st.rerun()
     
     raw_b_chart = part_data_cache.get(selected_biz, pd.DataFrame()).copy()
-    if not raw_b_chart.empty:
-        valid_buyers = raw_b_chart[~raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE", "기타"])].sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
-        top_buyers = valid_buyers.head(6).copy() if len(valid_buyers) > 6 else valid_buyers.copy()
+    target_row = summary_chart[summary_chart["표준사업구분"] == selected_biz]
+    target_tot_25 = float(target_row[col_25].values[0]) if not target_row.empty else 0.0
+    target_tot_26 = float(target_row[col_26].values[0]) if not target_row.empty else 0.0
+
+    if raw_b_chart.empty:
+        st.warning("Data not found.")
+    else:
+        is_dash = raw_b_chart["바이어명"].astype(str).str.strip().isin(["-", "–", "—", "", "NAN", "NONE", "기타"])
+        valid_buyers = raw_b_chart[~is_dash].sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        dash_buyers = raw_b_chart[is_dash]
+        
+        if len(valid_buyers) > 6:
+            top6 = valid_buyers.iloc[:6].copy()
+            rest = valid_buyers.iloc[6:].copy()
+            etc_25 = max(rest["2025년 실적"].sum() + dash_buyers["2025년 실적"].sum(), target_tot_25 - top6["2025년 실적"].sum())
+            etc_26 = max(rest["2026년 실적"].sum() + dash_buyers["2026년 실적"].sum(), target_tot_26 - top6["2026년 실적"].sum())
+            etc_row = pd.DataFrame([{"바이어명": "기타 (Etc)", "2025년 실적": etc_25, "2026년 실적": etc_26}])
+            top_buyers = pd.concat([top6, etc_row], ignore_index=True)
+        else:
+            top_buyers = valid_buyers.copy()
+
         top_buyers["증감액"] = top_buyers["2026년 실적"] - top_buyers["2025년 실적"]
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+        x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타 (Etc)"] + (["기타 (Etc)"] if "기타 (Etc)" in top_buyers["바이어명"].values else [])
+
+        st.subheader(f"🥧 {selected_biz} - Buyer Share")
         
-        render_fullwidth_vertical_dashboard(f"🤝 {current_page_display} ({selected_biz})", "📈 Buyer Performance Diff", "Buyer Summary Table", top_buyers, "바이어명", top_buyers["바이어명"].tolist())
+        pie_col1, pie_col2 = st.columns(2)
+        with pie_col1:
+            fig_buyer_pie_25 = px.pie(
+                top_buyers, 
+                names="바이어명", 
+                values="2025년 실적", 
+                hole=0.6,
+                title=t["buyer_pie_25"]
+            )
+            tot_b25 = top_buyers["2025년 실적"].sum()
+            fig_buyer_pie_25.update_traces(
+                textposition='inside', 
+                textinfo='label+percent', 
+                textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+                marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            )
+            fig_buyer_pie_25.update_layout(
+                height=460, 
+                title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+                margin=dict(t=60, b=20, l=10, r=10), 
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억" if tot_b25 >= 1e8 else f"Total<br>{tot_b25/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+            )
+            st.plotly_chart(fig_buyer_pie_25, use_container_width=True)
+            
+        with pie_col2:
+            fig_buyer_pie_26 = px.pie(
+                top_buyers, 
+                names="바이어명", 
+                values="2026년 실적", 
+                hole=0.6,
+                title=t["buyer_pie_26"]
+            )
+            tot_b26 = top_buyers["2026년 실적"].sum()
+            fig_buyer_pie_26.update_traces(
+                textposition='inside', 
+                textinfo='label+percent', 
+                textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+                marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            )
+            fig_buyer_pie_26.update_layout(
+                height=460, 
+                title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+                margin=dict(t=60, b=20, l=10, r=10), 
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억" if tot_b26 >= 1e8 else f"Total<br>{tot_b26/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+            )
+            st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
+
+        st.write("")
+        st.markdown("---")
+
+        render_fullwidth_vertical_dashboard(
+            title_top=f"🤝 {current_page_display} ({selected_biz})",
+            title_bottom="📈 Buyer Performance Diff",
+            table_title="Buyer Summary Table",
+            data_df=top_buyers,
+            x_col_name="바이어명",
+            cat_order=x_buyer_names
+        )
 
 elif page_menu == "[접수기준] 협력사 실적 현황":
     c_biz, c_vendor = st.columns([4, 6])
@@ -1152,11 +1383,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     if raw_v_df.empty:
         st.warning("Vendor data not found.")
     else:
-        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
-        col_v25 = next((c for c in v_summary.columns if "25" in str(c)), v_summary.columns[1])
-        col_v26 = next((c for c in v_summary.columns if "26" in str(c)), v_summary.columns[2])
-        v_summary = v_summary.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"}).sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
-        
+        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         vendor_list = ["전체 협력사 보기 (All Vendors)"] + v_summary["협력사명"].tolist()
         with c_vendor:
             selected_vendor = st.selectbox("Select Vendor:", vendor_list, key="tab4_vendor_select")
@@ -1172,8 +1399,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
         else:
             single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
-            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[[col_v25, col_v26]].sum()
-            b_breakdown = b_breakdown.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"}).sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 {selected_vendor} Performance by Buyer",
                 title_bottom="📈 Breakdown Diff",
@@ -1184,15 +1410,19 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링 (그래프 출력 보장)
+# 12. [BI] 사업별 실적 현황 렌더링 (안정화 완료)
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    # 💡 [안전 보장 로직] 누계 데이터프레임이 비어있지 않도록 확실하게 추출
     active_chart_dict = active_bi_charts.get("누계")
     if active_chart_dict is not None and not active_chart_dict.empty:
         current_bi_chart_df = active_chart_dict.copy()
     else:
-        current_bi_chart_df = parse_bi_sheet_by_type(raw_bytes, page_menu.split("_")[1].replace("]", ""))[1]["누계"].copy()
+        current_bi_chart_df = pd.DataFrame({
+            "표준사업구분": BI_8_CATEGORIES,
+            "2025년 실적": [0]*len(BI_8_CATEGORIES),
+            "2026년 실적": [0]*len(BI_8_CATEGORIES),
+            "증감률": [0.0]*len(BI_8_CATEGORIES)
+        })
     
     if "상해" in page_menu:
         center_title_prefix = "🏭 [BI_상해]"
@@ -1201,69 +1431,11 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    # 마곡 및 오창 데이터 필터링
-    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
-    magok_25 = magok_df["2025년 실적"].sum()
-    magok_26 = magok_df["2026년 실적"].sum()
-
-    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
-    ochang_25 = ochang_df["2025년 실적"].sum()
-    ochang_26 = ochang_df["2026년 실적"].sum()
-
-    st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
-    
-    # 거점 비교 요약 테이블 및 바 차트
-    center_compare_df = pd.DataFrame([
-        {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
-        {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
-    ])
-    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
-    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
-
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 마곡 vs 오창 거점별 실적 비교 요약",
-        title_bottom="📈 Center Growth Comparison",
-        table_title="Magok & Ochang Summary Table",
-        data_df=center_compare_df,
-        x_col_name="거점구분",
-        cat_order=["마곡 센터 (Magok)", "오창 센터 (Ochang)"]
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    # 💡 마곡 센터 세부 사업 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
-        title_bottom="📈 Magok Sub-categories Diff",
-        table_title="Magok Detailed Summary Table",
-        data_df=magok_df,
-        x_col_name="표준사업구분",
-        cat_order=MAGOK_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    # 💡 오창 센터 세부 사업 현황
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏭 오창 센터 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
-        title_bottom="📈 Ochang Sub-categories Diff",
-        table_title="Ochang Detailed Summary Table",
-        data_df=ochang_df,
-        x_col_name="표준사업구분",
-        cat_order=OCHANG_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    # 💡 전체 통합 사업별 실적 현황
-    render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 전체 사업별 상세 실적 현황",
-        title_bottom="📈 All Categories Performance Diff",
-        table_title="All Categories Detailed Summary Table",
+        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황 ({display_period_name})",
+        title_bottom="📈 BI 8 Categories Performance Diff",
+        table_title="BI Detailed Summary Table",
         data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=FULL_BI_CATEGORIES
+        cat_order=BI_8_CATEGORIES
     )
