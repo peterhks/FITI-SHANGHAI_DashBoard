@@ -719,7 +719,7 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     kpi_res = {
         "전체 총계 누계": extract_row_vals(total_r_idx, c_c25, c_c26, c_rate, empty_kpi),
         "사업 소계 누계": extract_row_vals(subtotal_r_idx, c_c25, c_c26, c_rate, empty_kpi),
-        "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
+        "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, m_rate if m_rate else c_rate)
     }
 
     target_mappings = [
@@ -868,6 +868,9 @@ else:
 # =========================================================
 card_unit = t["unit"]
 
+# 💡 [안정화] display_period_name 변수를 상단에서 미리 정의하여 NameError 완전 차단
+display_period_name = "전체 총계 누계"
+
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"### {t['period_select']}")
@@ -892,6 +895,7 @@ if page_menu.startswith("[BI_"):
         st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
             
     bi_period_mode = st.session_state["bi_period_mode"]
+    display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
     
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
@@ -911,7 +915,7 @@ if page_menu.startswith("[BI_"):
     total_26 = float(bi_pack["26"])
     diff_val = float(bi_pack["diff"])
     diff_rate = float(bi_pack["rate"])
-    card_sub_desc = f"{sub_prefix} [{bi_period_mode}]"
+    card_sub_desc = f"{sub_prefix} [{display_period_name}]"
 else:
     selected_view_for_card = "전체 사업 보기"
     if page_menu == "[접수기준] 사업별 실적 현황":
