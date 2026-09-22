@@ -14,17 +14,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-BI_8_CATEGORIES = [
-    "일반검사",
-    "섬유내수(패션잡화)",
-    "섬유내수(중국GB)",
-    "섬유수출",
-    "산업(토목+부품)",
-    "모빌리티(전장+의장)",
-    "환경(환경+측정기기)",
-    "화학바이오(화학제품+생활안전)"
-]
-
 MAGOK_CATEGORIES = [
     "법정검사", 
     "일반검사", 
@@ -640,7 +629,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 8. BI 지사별 파서 (요청하신 정확한 행 규칙 적용)
+# 8. BI 지사별 파서 (정확한 행 매칭 규칙 적용 - 누락 제로)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -739,10 +728,10 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    # 💡 [정밀 매핑 규칙] 팀장님 요청에 따른 합계/소계 엄격 매칭
+    # 💡 [정밀 매핑 규칙] 팀장님 요청 반영 (법정검사 합계, 일반검사 합계, 패션잡화 소계, 중국GB 소계, 단체/정부 소계, 수출 합계, 연구용역 합계, 제품인증 합계)
     target_mappings = [
         ("법정검사", ["법정검사", "법정"], "합계"),
-        ("일반검사", ["일반검사"], "합계"),
+        ("일반검사", ["일반검사", "일반"], "합계"),
         ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
         ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
         ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"),
@@ -761,16 +750,15 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
             matched_row_idx = None
             if col_25_i is not None:
                 for idx in range(len(raw)):
-                    row_cells = [str(raw.iat[idx, c]).strip().replace(" ", "").lower() for c in range(min(3, len(raw.columns)))]
+                    row_cells = [str(raw.iat[idx, c]).strip().replace(" ", "").lower() for c in range(len(raw.columns))]
                     row_str = "".join(row_cells)
                     
-                    # 키워드 포함 및 합계/소계 여부 동시 확인
                     if any(kw.lower().replace(" ", "") in row_str for kw in keywords):
                         if match_type in row_str:
                             matched_row_idx = idx
                             break
                         elif matched_row_idx is None:
-                            matched_row_idx = idx # 백업 매칭
+                            matched_row_idx = idx
 
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
@@ -1214,7 +1202,6 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    # 마곡 및 오창 데이터 필터링
     magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     magok_25 = magok_df["2025년 실적"].sum()
     magok_26 = magok_df["2026년 실적"].sum()
@@ -1225,7 +1212,6 @@ elif page_menu.startswith("[BI_"):
 
     st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
     
-    # 거점 비교 요약 테이블 및 바 차트
     center_compare_df = pd.DataFrame([
         {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1245,7 +1231,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 마곡 센터 세부 사업 현황 (요청하신 8개 항목 정확히 매칭)
     render_fullwidth_vertical_dashboard(
         title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
         title_bottom="📈 Magok Sub-categories Diff",
@@ -1258,7 +1243,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 오창 센터 세부 사업 현황
     render_fullwidth_vertical_dashboard(
         title_top=f"🏭 오창 센터 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
         title_bottom="📈 Ochang Sub-categories Diff",
@@ -1271,7 +1255,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 전체 통합 사업별 실적 현황
     render_fullwidth_vertical_dashboard(
         title_top=f"{center_title_prefix} 전체 사업별 상세 실적 현황",
         title_bottom="📈 All Categories Performance Diff",
