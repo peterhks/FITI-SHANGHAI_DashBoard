@@ -36,8 +36,8 @@ LANG_DICT = {
         "sys_title": "상해지사 실적 종합 분석 시스템",
         "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
-        "admin_upload": "관리자용 최신 엑셀 업로드",
-        "admin_caption": "💡 엑셀 파일을 교체하려면 하단 'BI 관리자 모드'로 로그인하세요.",
+        "admin_upload": "실적 엑셀 파일 업로드",
+        "admin_caption": "💡 엑셀 파일을 업로드하면 데이터가 유지됩니다.",
         "sync_success": "✅ 업로드 파일이 세션에 영구 보존되었습니다!",
         "shared_file_info": "📂 업로드 파일 연동 중",
         "file_not_found": "분석할 엑셀 파일을 업로드해 주세요.",
@@ -89,8 +89,8 @@ LANG_DICT = {
         "sys_title": "上海分公司业绩综合分析系统",
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
         "data_mgmt": "📁 数据管理",
-        "admin_upload": "管理员上传最新Excel",
-        "admin_caption": "💡 如需更换Excel文件，请登录底部的“BI管理员模式”。",
+        "admin_upload": "上传业绩Excel文件",
+        "admin_caption": "💡 上传Excel文件后数据将保持不变。",
         "sync_success": "✅ 上传文件已在会话中永久保存！",
         "shared_file_info": "📂 上传文件同步中",
         "file_not_found": "请上传要分析的Excel文件。",
@@ -142,8 +142,8 @@ LANG_DICT = {
         "sys_title": "Shanghai Branch Performance Analysis System",
         "sys_sub": "Shanghai Branch Business Performance & Analysis System | Business Team",
         "data_mgmt": "📁 Data Management",
-        "admin_upload": "Admin Upload Latest Excel",
-        "admin_caption": "💡 To replace Excel, login to 'BI Admin Mode' below.",
+        "admin_upload": "Upload Performance Excel",
+        "admin_caption": "💡 Upload Excel file to keep data persistent.",
         "sync_success": "✅ Uploaded file permanently saved in session!",
         "shared_file_info": "📂 Uploaded File Linked",
         "file_not_found": "Please upload an Excel file to analyze.",
@@ -350,37 +350,21 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 업로드 파일 영구 보존 엔진
+# 5. [안정화 완료] 업로드 파일 영구 보존 엔진
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 
 st.sidebar.markdown(f"### {t['data_mgmt']}")
+uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
 
-if "bi_authorized" not in st.session_state:
-    st.session_state["bi_authorized"] = False
-
-def check_bi_password():
-    pw_val = st.session_state.get("bi_pw_input", "")
-    if pw_val == "fiti1965":
-        st.session_state["bi_authorized"] = True
-    else:
-        st.session_state["bi_authorized"] = False
-        st.sidebar.error(t["auth_fail"])
-
-if st.session_state["bi_authorized"]:
-    uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
-    if uploaded_file is not None:
-        st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
-        st.session_state["persistent_file_name"] = uploaded_file.name
-        st.cache_data.clear()
-        st.sidebar.success(t["sync_success"])
-        st.rerun()
-else:
-    st.sidebar.caption(t["admin_caption"])
+if uploaded_file is not None:
+    st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
+    st.session_state["persistent_file_name"] = uploaded_file.name
+    st.cache_data.clear()
 
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(t["shared_file_info"])
+    st.sidebar.success(f"✅ 영구 유지 중인 파일\n({st.session_state.get('persistent_file_name', '최신 파일')})")
 elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
