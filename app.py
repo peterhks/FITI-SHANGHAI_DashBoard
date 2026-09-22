@@ -54,6 +54,8 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 점유율",
         "pie_title_26": "2026년 사업별 실적 점유율",
+        "buyer_pie_25": "2025년 주요 바이어 실적 점유율",
+        "buyer_pie_26": "2026년 주요 바이어 실적 점유율",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -102,6 +104,8 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
+        "buyer_pie_25": "2025年主要买家业绩占比",
+        "buyer_pie_26": "2026年主要买家业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -150,6 +154,8 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
+        "buyer_pie_25": "2025 Performance Share by Buyer",
+        "buyer_pie_26": "2026 Performance Share by Buyer",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -972,7 +978,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (점유율 파이 차트 복구 완료)
+# 10. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1166,7 +1172,6 @@ if page_menu == "[접수기준] 종합 실적 현황":
         cat_order=target_categories
     )
     
-    # 💡 이전에 보셨던 사업별 점유율 파이 차트 복구
     st.write("")
     st.subheader(f"🥧 {t['pie_title_25'].replace('2025년', '')} Share")
     
@@ -1299,6 +1304,56 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
             x_col_name="바이어명",
             cat_order=x_buyer_names
         )
+        
+        # 💡 [접수기준] 바이어 실적 현황 페이지 하단에도 원형 그래프(도넛 차트) 추가
+        st.write("")
+        st.subheader(f"🥧 {selected_biz} - Buyer Share")
+        
+        pie_col1, pie_col2 = st.columns(2)
+        with pie_col1:
+            fig_buyer_pie_25 = px.pie(
+                top_buyers, 
+                names="바이어명", 
+                values="2025년 실적", 
+                hole=0.55,
+                title=t["buyer_pie_25"]
+            )
+            fig_buyer_pie_25.update_traces(
+                textposition='inside', 
+                textinfo='label+percent', 
+                textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+                marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            )
+            fig_buyer_pie_25.update_layout(
+                height=460, 
+                title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+                margin=dict(t=60, b=20, l=10, r=10), 
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+            )
+            st.plotly_chart(fig_buyer_pie_25, use_container_width=True)
+            
+        with pie_col2:
+            fig_buyer_pie_26 = px.pie(
+                top_buyers, 
+                names="바이어명", 
+                values="2026년 실적", 
+                hole=0.55,
+                title=t["buyer_pie_26"]
+            )
+            fig_buyer_pie_26.update_traces(
+                textposition='inside', 
+                textinfo='label+percent', 
+                textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
+                marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            )
+            fig_buyer_pie_26.update_layout(
+                height=460, 
+                title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+                margin=dict(t=60, b=20, l=10, r=10), 
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+            )
+            st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
+
 elif page_menu == "[접수기준] 협력사 실적 현황":
     c_biz, c_vendor = st.columns([4, 6])
     with c_biz:
