@@ -14,19 +14,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-BI_8_CATEGORIES = [
-    "일반검사",
-    "섬유내수(패션잡화)",
-    "섬유내수(중국GB)",
-    "섬유수출",
-    "산업(토목+부품)",
-    "모빌리티(전장+의장)",
-    "환경(환경+측정기기)",
+MAGOK_CATEGORIES = [
+    "법정검사", 
+    "일반검사", 
+    "섬유내수(패션잡화)", 
+    "섬유내수(중국GB)", 
+    "섬유내수(단체/정부)", 
+    "섬유수출", 
+    "연구용역", 
+    "제품인증(Q.SF)"
+]
+
+OCHANG_CATEGORIES = [
+    "산업(토목+부품)", 
+    "모빌리티(전장+의장)", 
+    "환경(환경+측정기기)", 
     "화학바이오(화학제품+생활안전)"
 ]
 
-# 💡 [안정화 핵심] 전역적으로 참조되는 표준 사업 카테고리 정의
-target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
+FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
 # 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
@@ -57,6 +63,7 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
+        "center_compare": "마곡 vs 오창 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -355,6 +362,7 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error(t["auth_fail"])
 
+# 💡 [보안 강화] 관리자 모드가 활성화된 상태에서만 업로더 노출
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
@@ -369,25 +377,36 @@ if st.session_state["bi_authorized"]:
 else:
     st.sidebar.caption(t["admin_caption"])
 
+# 파일 바이트 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(t["shared_file_info"])
 elif os.path.exists(LOCAL_EXCEL_PATH):
     with open(LOCAL_EXCEL_PATH, "rb") as f:
         raw_bytes = f.read()
     st.session_state["persistent_file_bytes"] = raw_bytes
-    st.sidebar.info(t["shared_file_info"])
 elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
     st.session_state["persistent_file_bytes"] = raw_bytes
-    st.sidebar.info(t["shared_file_info"])
 else:
     raw_bytes = None
 
 if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
+
+# 💡 [요청 반영] 엑셀 파일의 시트 수와 총 행(Row) 개수 계산
+try:
+    temp_stream = io.BytesIO(raw_bytes)
+    temp_excel = pd.ExcelFile(temp_stream)
+    total_sheets_count = len(temp_excel.sheet_names)
+    total_rows_count = 0
+    for s_name in temp_excel.sheet_names:
+        df_temp = pd.read_excel(temp_stream, sheet_name=s_name, header=None)
+        total_rows_count += len(df_temp)
+    st.sidebar.info(f"{t['shared_file_info']}\n(총 시트: {total_sheets_count}개 | 총 행 수: {total_rows_count:,}행)")
+except Exception:
+    st.sidebar.info(t["shared_file_info"])
 
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -477,6 +496,7 @@ def parse_summary_data(file_bytes_val):
     else:
         calc_summary["세부항목"] = calc_summary["표준사업구분"]
 
+    target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
     summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
     summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
     summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
@@ -627,6 +647,9 @@ for cat in target_categories:
     else:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
+# =========================================================
+# 8. BI 지사별 파서 (마곡 8개 항목 및 오창 4개 항목 정밀 파싱)
+# =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     stream = io.BytesIO(file_bytes_val)
@@ -669,10 +692,10 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     }
     
     empty_df = pd.DataFrame({
-        "표준사업구분": BI_8_CATEGORIES,
-        "2025년 실적": [0]*8,
-        "2026년 실적": [0]*8,
-        "증감률": [0.0]*8
+        "표준사업구분": FULL_BI_CATEGORIES,
+        "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
+        "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
+        "증감률": [0.0]*len(FULL_BI_CATEGORIES)
     })
     def_chart = {"누계": empty_df, "월계": empty_df}
 
@@ -724,28 +747,36 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate if m_rate else c_rate, m_rate if m_rate else c_rate)
     }
 
+    # 💡 [정밀 매핑 규칙] 마곡 8개 항목 및 오창 4개 항목
     target_mappings = [
-        ("일반검사", ["검사", "일반검사"], "합계"),
-        ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
-        ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
+        ("법정검사", ["법정검사", "법정"], "합계"),
+        ("일반검사", ["일반검사", "일반"], "합계"),
+        ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
+        ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
+        ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"),
         ("섬유수출", ["섬유수출", "수출"], "합계"),
+        ("연구용역", ["연구용역", "연구"], "합계"),
+        ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"),
         ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
         ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
         ("환경(환경+측정기기)", ["환경", "측정"], "합계"),
         ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
     ]
 
-    def build_8_category_chart(col_25_i, col_26_i, col_rate_i):
+    def build_full_category_chart(col_25_i, col_26_i, col_rate_i):
         results = []
-        for cat_name, keywords, target_type in target_mappings:
+        for cat_name, keywords, match_type in target_mappings:
             matched_row_idx = None
             if col_25_i is not None:
-                for idx in range(min(160, len(raw))):
-                    row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "").lower()
-                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str):
-                        matched_row_idx = idx
-                        break
-            
+                for idx in range(len(raw)):
+                    row_text = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
+                    if any(kw.lower().replace(" ", "") in row_text for kw in keywords):
+                        if match_type in row_text:
+                            matched_row_idx = idx
+                            break
+                        elif matched_row_idx is None:
+                            matched_row_idx = idx
+
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
                 v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
@@ -770,18 +801,19 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         return pd.DataFrame(results)
 
     chart_res = {
-        "누계": build_8_category_chart(c_c25, c_c26, c_rate),
-        "월계": build_8_category_chart(m_c25, m_c26, m_rate)
+        "누계": build_full_category_chart(c_c25, c_c26, c_rate),
+        "월계": build_full_category_chart(m_c25, m_c26, m_rate)
     }
 
     return kpi_res, chart_res
 
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
-bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
+bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
+bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 8. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
+# 9. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
 # =========================================================
 st.sidebar.markdown(f"### {t['page_select']}")
 
@@ -866,7 +898,7 @@ else:
         st.rerun()
 
 # =========================================================
-# 9. 상단 종합 KPI 카드 및 다국어 렌더링
+# 10. 상단 종합 KPI 카드 및 다국어 렌더링
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -989,7 +1021,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 11. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1412,7 +1444,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 사업별 실적 현황 렌더링 (NameError 완벽 차단)
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 및 상세 렌더링
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1420,10 +1452,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [0]*len(BI_8_CATEGORIES),
-            "2026년 실적": [0]*len(BI_8_CATEGORIES),
-            "증감률": [0.0]*len(BI_8_CATEGORIES)
+            "표준사업구분": FULL_BI_CATEGORIES,
+            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1433,11 +1465,64 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
+    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
+    magok_25 = magok_df["2025년 실적"].sum()
+    magok_26 = magok_df["2026년 실적"].sum()
+
+    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
+    ochang_25 = ochang_df["2025년 실적"].sum()
+    ochang_26 = ochang_df["2026년 실적"].sum()
+
+    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    
+    center_compare_df = pd.DataFrame([
+        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
+        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
+    ])
+    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
+    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황 ({display_period_name})",
-        title_bottom="📈 BI 8 Categories Performance Diff",
-        table_title="BI Detailed Summary Table",
+        title_top=f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교",
+        title_bottom="📈 Center Growth Comparison",
+        table_title="Magok & Ochang Summary Table",
+        data_df=center_compare_df,
+        x_col_name="거점구분",
+        cat_order=["마곡 본원 (Magok)", "오창 분원 (Ochang)"]
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏛️ 마곡 본원 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
+        title_bottom="📈 Magok Sub-categories Diff",
+        table_title="Magok Detailed Summary Table",
+        data_df=magok_df,
+        x_col_name="표준사업구분",
+        cat_order=MAGOK_CATEGORIES
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏭 오창 분원 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
+        title_bottom="📈 Ochang Sub-categories Diff",
+        table_title="Ochang Detailed Summary Table",
+        data_df=ochang_df,
+        x_col_name="표준사업구분",
+        cat_order=OCHANG_CATEGORIES
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황",
+        title_bottom="📈 All Categories Performance Diff",
+        table_title="All Categories Detailed Summary Table",
         data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES
+        cat_order=FULL_BI_CATEGORIES
     )
