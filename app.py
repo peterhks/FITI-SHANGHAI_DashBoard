@@ -36,12 +36,11 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 초기화 (세션 기반)
+# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
 # =========================================================
 if "user_db" not in st.session_state:
-    # 기본 관리자 및 테스트 계정 설정 (이메일, 비밀번호, 권한 등급)
-    # 권한 등급: 'admin' (전체 관리자), 'bi_user' (접수+BI), 'general_user' (접수 전용)
     st.session_state["user_db"] = {
+        "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "최고 관리자"},
         "admin@fiti.re.kr": {"pw": "fiti1965", "role": "admin", "name": "시스템 관리자"},
         "leader@fiti.re.kr": {"pw": "fiti1234", "role": "bi_user", "name": "상해지사 팀장"},
         "staff@fiti.re.kr": {"pw": "fiti5678", "role": "general_user", "name": "일반 담당자"}
@@ -317,24 +316,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 초기 로그인 화면 (인증 안 된 경우 웹사이트 진입 통제)
+# 5. 프리미엄 블루 로그인 화면 (전문가 스타일 진입 통제)
 # =========================================================
 if not st.session_state["logged_in"]:
     st.markdown("""
-    <div style="max-width: 480px; margin: 80px auto; padding: 40px; background: #FFFFFF; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid #002B5C;">
-        <div style="text-align: center; margin-bottom: 25px;">
-            <h1 style="color: #002B5C; font-size: 24px; font-weight: 900; margin-bottom: 5px;">FITI 상해지사</h1>
-            <p style="color: #64748B; font-size: 14px; font-weight: 600;">실적 종합 분석 시스템 로그인</p>
+    <div style="max-width: 520px; margin: 60px auto; background: #FFFFFF; border-radius: 16px; box-shadow: 0 15px 35px rgba(0,43,92,0.15); overflow: hidden; border: 1px solid #E2E8F0;">
+        <div style="background: linear-gradient(135deg, #002B5C 0%, #003876 100%); padding: 32px 30px; display: flex; align-items: center; gap: 20px; color: #FFFFFF;">
+            <div style="font-size: 32px; font-weight: 900; letter-spacing: -0.5px; border-right: 1.5px solid rgba(255, 255, 255, 0.3); padding-right: 20px;">FITI</div>
+            <div>
+                <div style="font-size: 20px; font-weight: 800; margin-bottom: 4px;">상해지사 실적 종합 분석 시스템</div>
+                <div style="font-size: 12px; color: #D0E1FD; font-weight: 400;">상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀</div>
+            </div>
+        </div>
+        <div style="padding: 35px 30px 25px 30px;">
+            <p style="color: #64748B; font-size: 13px; font-weight: 600; margin-bottom: 20px; text-align: center;">시스템을 이용하시려면 인가된 계정으로 로그인해 주세요.</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
     with col_l2:
         with st.form("login_form"):
-            login_email = st.text_input("이메일 주소 (ID)", placeholder="예: leader@fiti.re.kr")
+            login_email = st.text_input("이메일 주소 (ID)", placeholder="예: kshan@fiti.re.kr")
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
-            submit_login = st.form_submit_button("로그인", use_container_width=True)
+            submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
                 user_record = st.session_state["user_db"].get(login_email.strip())
@@ -344,7 +349,6 @@ if not st.session_state["logged_in"]:
                     st.session_state["current_user_role"] = user_record["role"]
                     st.session_state["current_user_name"] = user_record["name"]
                     
-                    # 로그인 로그 기록 추가
                     st.session_state["login_history"].append({
                         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "email": login_email.strip(),
@@ -380,7 +384,7 @@ st.markdown(f"""
     <div style="text-align: right; font-size: 13px; color: #D0E1FD;">
         <b>{st.session_state['current_user_name']}</b>님 환영합니다.<br>
         <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px;">
-            권한: {'전체 관리자' if st.session_state['current_user_role']=='admin' else ('BI+접수 관리자' if st.session_state['current_user_role']=='bi_user' else '접수 전용 담당자')}
+            권한: {'최고 관리자' if st.session_state['current_user_role']=='admin' else ('BI+접수 관리자' if st.session_state['current_user_role']=='bi_user' else '접수 전용 담당자')}
         </span>
     </div>
 </div>
@@ -395,7 +399,6 @@ LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
 
 st.sidebar.markdown(f"### {t['data_mgmt']}")
 
-# 파일 업로드 (관리자 권한인 경우에만 노출)
 if st.session_state["current_user_role"] in ["admin", "bi_user"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
@@ -410,7 +413,6 @@ if st.session_state["current_user_role"] in ["admin", "bi_user"]:
 else:
     st.sidebar.caption("💡 엑셀 업로드 권한은 관리자 및 BI 담당자에게만 부여됩니다.")
 
-# 데이터 바이트 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
 elif os.path.exists(LOCAL_EXCEL_PATH):
@@ -838,7 +840,6 @@ bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
-# 권한별 접근 가능한 페이지 정의 (1번 카테고리: 접수기준만 / 2번 카테고리: 접수 + BI 모두)
 if user_role == "general_user":
     all_pages_keys = [
         "[접수기준] 종합 실적 현황",
@@ -889,7 +890,6 @@ if st.sidebar.button("로그아웃", use_container_width=True):
     st.session_state["current_user_name"] = ""
     st.rerun()
 
-# 💡 [요청 반영] 관리자 전용 사용자 관리 및 로그인 로그 조회 아코디언 메뉴
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛠️ 사용자 및 로그인 관리"):
         st.markdown("#### 등록된 담당자 목록")
@@ -934,7 +934,7 @@ if page_menu.startswith("[BI_"):
         st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
             
     bi_period_mode = st.session_state["bi_period_mode"]
-    display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
+    display_period_name = t["periods"].get(bi_period_mode, bp_key)
     
     if "광주" in page_menu:
         target_kpi_pack = bi_guangzhou_kpi
@@ -1028,7 +1028,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 11. 공통 렌더러 및 본문 실행 (성장=레드, 역성장=블루 반영)
+# 11. 공통 렌더러 및 본문 실행 (성장=레드, 역성장=블루)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -1109,7 +1109,6 @@ def render_fullwidth_vertical_dashboard(
 
         label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
         
-        # 💡 [요청 반영] 성장(+%)은 레드(#E11D48), 역성장(-%)은 블루(#1D4ED8)
         rate_color = "#E11D48" if rt >= 0 else "#1D4ED8"
         label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:{rate_color};'>({sign_r}{rt:0.1f}%)</span>")
         
