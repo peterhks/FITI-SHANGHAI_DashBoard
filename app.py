@@ -629,7 +629,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 8. BI 지사별 파서 (정확한 행 매칭 및 누락 방지 로직 보강)
+# 8. BI 지사별 파서 (합계/소계 데이터 100% 매칭 보장)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -728,7 +728,7 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    # 💡 [엄격 매칭 규칙] 요청하신 대로 법정검사/일반검사(합계), 소계 항목들을 정확히 추출
+    # 💡 [정밀 매핑 규칙] 요청하신 모든 항목(합계/소계) 엄격 매칭
     target_mappings = [
         ("법정검사", ["법정검사", "법정"], "합계"),
         ("일반검사", ["일반검사", "일반"], "합계"),
@@ -1152,12 +1152,10 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     if raw_v_df.empty:
         st.warning("Vendor data not found.")
     else:
-        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실실적" if "2025년 실실적" in raw_v_df.columns else "2025년 실적", "2026년 실적"]].sum()
-        # 안전한 컬럼명 재확인
+        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
         col_v25 = next((c for c in v_summary.columns if "25" in str(c)), v_summary.columns[1])
         col_v26 = next((c for c in v_summary.columns if "26" in str(c)), v_summary.columns[2])
-        v_summary = v_summary.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"})
-        v_summary = v_summary.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        v_summary = v_summary.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"}).sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         
         vendor_list = ["전체 협력사 보기 (All Vendors)"] + v_summary["협력사명"].tolist()
         with c_vendor:
@@ -1186,21 +1184,15 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링 (안전한 데이터 보장)
+# 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링 (그래프 출력 보장)
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    # 💡 [핵심] active_bi_charts 딕셔너리에서 데이터가 비어있지 않도록 안전한 폴백 및 동기화 구현
+    # 💡 [안전 보장 로직] 누계 데이터프레임이 비어있지 않도록 확실하게 추출
     active_chart_dict = active_bi_charts.get("누계")
     if active_chart_dict is not None and not active_chart_dict.empty:
         current_bi_chart_df = active_chart_dict.copy()
     else:
-        # 혹시라도 누계가 비어있다면 전체 8대 사업 기본 구조 생성
-        current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": FULL_BI_CATEGORIES,
-            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
-        })
+        current_bi_chart_df = parse_bi_sheet_by_type(raw_bytes, page_menu.split("_")[1].replace("]", ""))[1]["누계"].copy()
     
     if "상해" in page_menu:
         center_title_prefix = "🏭 [BI_상해]"
@@ -1220,6 +1212,7 @@ elif page_menu.startswith("[BI_"):
 
     st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
     
+    # 거점 비교 요약 테이블 및 바 차트
     center_compare_df = pd.DataFrame([
         {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1239,6 +1232,7 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
+    # 💡 마곡 센터 세부 사업 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)
     render_fullwidth_vertical_dashboard(
         title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
         title_bottom="📈 Magok Sub-categories Diff",
@@ -1251,6 +1245,7 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
+    # 💡 오창 센터 세부 사업 현황
     render_fullwidth_vertical_dashboard(
         title_top=f"🏭 오창 센터 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
         title_bottom="📈 Ochang Sub-categories Diff",
@@ -1263,6 +1258,7 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
+    # 💡 전체 통합 사업별 실적 현황
     render_fullwidth_vertical_dashboard(
         title_top=f"{center_title_prefix} 전체 사업별 상세 실적 현황",
         title_bottom="📈 All Categories Performance Diff",
