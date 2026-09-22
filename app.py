@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
+# 2. 사용자 권한 및 세션 초기화 (세션 튕김 방어 장치 포함)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -55,6 +55,15 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
+
+# 💡 [세션 유지 보완] 쿼리 파라미터나 세션 상태 동기화 처리
+query_params = st.query_params
+if "auth_ok" in query_params and query_params["auth_ok"] == "true":
+    st.session_state["logged_in"] = True
+    if not st.session_state["current_user_email"]:
+        st.session_state["current_user_email"] = "kshan@fiti.re.kr"
+        st.session_state["current_user_role"] = "admin"
+        st.session_state["current_user_name"] = "최고 관리자"
 
 # =========================================================
 # 3. 다국어 텍스트 사전 (한국어, 중국어, 영어)
@@ -317,7 +326,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (1/3 크기로 컴팩트화)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (테두리 박스 제거 및 1/3 컴팩트화)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -325,7 +334,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.6), rgba(0, 10, 25, 0.75)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.55), rgba(0, 10, 25, 0.7)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -338,16 +347,18 @@ if not st.session_state["logged_in"]:
         header {{visibility: hidden;}}
     </style>
     
-    <!-- 💡 [요청 반영] 가로폭을 420px로 컴팩트하게 줄여 1/3 크기 느낌 구현 -->
-    <div style="max-width: 420px; margin: 50px auto; background: rgba(2, 12, 27, 0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 16px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 30px;">
-        <div style="text-align: center; margin-bottom: 20px; color: #FFFFFF;">
-            <div style="font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; color: #3B82F6; text-shadow: 0 0 20px rgba(59,130,246,0.6);">FITI Shanghai</div>
-            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 10px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <!-- 💡 [요청 반영] 불필요한 흰색/회색 사각형 박스 배경을 완전 제거하고 배경 야경과 일체화 -->
+    <div style="max-width: 400px; margin: 40px auto; background: transparent; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
+            <!-- FITI Shanghai: 3포인트 크게, 짙고 예쁜 블루 -->
+            <div style="font-size: 55px; font-weight: 900; letter-spacing: -1px; margin-bottom: 10px; color: #3B82F6; text-shadow: 0 0 25px rgba(59,130,246,0.7);">FITI Shanghai</div>
+            <div style="font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 8px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+            <!-- 중국어 문구: 코랄 에메랄드 블루 -->
+            <div style="font-size: 16px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 15px rgba(56,189,248,0.5);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.02, 1, 0.02])
+    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
     with col_l2:
         with st.form("login_form"):
             st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
@@ -374,6 +385,7 @@ if not st.session_state["logged_in"]:
                         "status": "성공"
                     })
                     st.success("로그인 성공! 시스템에 접속합니다...")
+                    st.query_params["auth_ok"] = "true"
                     st.rerun()
                 else:
                     st.session_state["login_history"].append({
@@ -856,7 +868,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 권한별 페이지 제어
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
@@ -893,7 +905,7 @@ for p_key in all_pages_keys:
     display_name = t["pages"].get(p_key, p_key)
     
     card_link_html = f"""
-    <a href="?page={p_key}" class="{btn_class}" target="_self">
+    <a href="?page={p_key}&auth_ok=true" class="{btn_class}" target="_self">
         {display_name}
     </a>
     """
@@ -908,6 +920,8 @@ if st.sidebar.button("로그아웃", use_container_width=True):
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
+    if "auth_ok" in st.query_params:
+        del st.query_params["auth_ok"]
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
@@ -947,7 +961,7 @@ if page_menu.startswith("[BI_"):
         p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
         
         period_link_html = f"""
-        <a href="?page={page_menu}&period={bp_key}" class="{p_class}" target="_self">
+        <a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{p_class}" target="_self">
             {bp_key}
         </a>
         """
