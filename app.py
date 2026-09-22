@@ -393,7 +393,7 @@ if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
-# 💡 [요청 반영] 행 수는 삭제하고 총 시트 수만 표시
+# 💡 [요청 반영] 행 수는 제외하고 총 시트 수만 표시
 try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
@@ -1434,7 +1434,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고급 도넛 차트 적용)
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고시인성 도넛 차트 적용)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1442,10 +1442,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": FULL_BI_CATEGORIES,
-            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
+            "표준사업구분": BI_8_CATEGORIES,
+            "2025년 실적": [0]*len(BI_8_CATEGORIES),
+            "2026년 실적": [0]*len(BI_8_CATEGORIES),
+            "증감률": [0.0]*len(BI_8_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1465,7 +1465,7 @@ elif page_menu.startswith("[BI_"):
 
     st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
     
-    # 💡 [임원 보고용 고급 도넛 차트 추가] 마곡 본원 vs 오창 분원 비중 및 규모 비교
+    # 💡 [임원 보고용 고시인성 도넛 차트 적용] 글자 크기와 굵기를 대폭 키워 시인성 극대화
     center_pie_df = pd.DataFrame([
         {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1488,15 +1488,15 @@ elif page_menu.startswith("[BI_"):
         fig_center_25.update_traces(
             textposition='inside', 
             textinfo='label+percent', 
-            textfont=dict(size=14, color="#FFFFFF", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=3))
         )
         fig_center_25.update_layout(
-            height=420,
-            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
-            margin=dict(t=60, b=20, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-            annotations=[dict(text=f"Total<br>{tot_c25/1e8:.1f}억" if tot_c25 >= 1e8 else f"Total<br>{tot_c25/1e4:.0f}만", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+            height=460,
+            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
+            margin=dict(t=60, b=30, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
+            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e8:.1f}억</span>" if tot_c25 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
         )
         st.plotly_chart(fig_center_25, use_container_width=True)
 
@@ -1514,15 +1514,15 @@ elif page_menu.startswith("[BI_"):
         fig_center_26.update_traces(
             textposition='inside', 
             textinfo='label+percent', 
-            textfont=dict(size=14, color="#FFFFFF", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=3))
         )
         fig_center_26.update_layout(
-            height=420,
-            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
-            margin=dict(t=60, b=20, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-            annotations=[dict(text=f"Total<br>{tot_c26/1e8:.1f}억" if tot_c26 >= 1e8 else f"Total<br>{tot_c26/1e4:.0f}만", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+            height=460,
+            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
+            margin=dict(t=60, b=30, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
+            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e8:.1f}억</span>" if tot_c26 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
         )
         st.plotly_chart(fig_center_26, use_container_width=True)
 
