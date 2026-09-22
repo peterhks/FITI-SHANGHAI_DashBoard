@@ -393,7 +393,7 @@ if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
-# 💡 [요청 반영] 행 수는 제외하고 총 시트 수만 표시
+# 💡 [요청 반영] 행 수는 삭제하고 총 시트 수만 표시
 try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
@@ -1011,26 +1011,34 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행 (X축 글자 2~3줄 자동 개행 적용, 회전 없음)
 # =========================================================
-def wrap_text_for_axis(text, max_len=14):
+def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
     if len(text_str) <= max_len:
         return text_str
+    
+    # 괄호나 띄어쓰기 기준으로 자연스럽게 2~3줄로 분할
+    if '(' in text_str and ')' in text_str:
+        parts = text_str.split('(')
+        return parts[0].strip() + "<br>(" + parts[1].strip()
+    
     words = text_str.split(' ')
-    lines = []
-    current_line = ""
-    for word in words:
-        if current_line == "":
-            current_line = word
-        elif len(current_line) + 1 + len(word) <= max_len:
-            current_line += " " + word
+    if len(words) > 1:
+        if len(words) >= 3:
+            third = len(words) // 3
+            return " ".join(words[:third]) + "<br>" + " ".join(words[third:2*third]) + "<br>" + " ".join(words[2*third:])
         else:
-            lines.append(current_line)
-            current_line = word
-    if current_line:
-        lines.append(current_line)
-    return "<br>".join(lines)
+            mid = len(words) // 2
+            return " ".join(words[:mid]) + "<br>" + " ".join(words[mid:])
+            
+    # 공백 없는 긴 단어는 강제로 끊기
+    if len(text_str) > 14:
+        return text_str[:7] + "<br>" + text_str[7:14] + "<br>" + text_str[14:]
+    elif len(text_str) > 7:
+        return text_str[:7] + "<br>" + text_str[7:]
+        
+    return text_str
 
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -1055,8 +1063,8 @@ def render_fullwidth_vertical_dashboard(
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
     display_x_col = f"{x_col_name}_wrapped"
-    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=13))
-    wrapped_cat_order = [wrap_text_for_axis(c, max_len=13) for c in cat_order]
+    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=9))
+    wrapped_cat_order = [wrap_text_for_axis(c, max_len=9) for c in cat_order]
 
     def format_krw_scale(val):
         abs_v = abs(val)
@@ -1088,9 +1096,9 @@ def render_fullwidth_vertical_dashboard(
         sign_r = "+" if rt > 0 else ""
         sign_v = "+" if diff_v > 0 else ""
 
-        label_25.append(f"<span style='font-size:14px; font-weight:700;'>{s25}</span>")
-        label_26.append(f"<span style='font-size:15px; font-weight:800;'>{s26}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
-        diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
+        label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
+        label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
+        diff_texts.append(f"<span style='font-size:14px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:12px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
         diff_colors.append("#E11D48" if diff_v >= 0 else "#2563EB")
 
     st.subheader(title_top)
@@ -1102,7 +1110,7 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=label_25,
         textposition="outside",
-        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
+        textfont=dict(size=13, color="#475569", family="Pretendard", weight="bold")
     ))
     fig_bar.add_trace(go.Bar(
         x=df[display_x_col],
@@ -1111,22 +1119,23 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=label_26,
         textposition="outside",
-        textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
+        textfont=dict(size=13, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig_bar.update_layout(
-        height=520,
-        bargap=0.30,
-        bargroupgap=0.08,
+        height=560,
+        bargap=0.28,
+        bargroupgap=0.06,
         yaxis=dict(
             rangemode='tozero',
-            title=dict(text="Amount (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="Amount (KRW)", font=dict(size=14, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
-            tickfont=dict(size=14, color="#475569", weight="bold")
+            tickfont=dict(size=13, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickfont=dict(size=14, weight="bold", color="#0F172A")
+            tickangle=0,  # 💡 [핵심] 비스듬한 회전 각도를 0도로 완전 고정하여 2~3줄로 정렬
+            tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         legend=dict(
@@ -1137,7 +1146,7 @@ def render_fullwidth_vertical_dashboard(
             x=0,
             font=dict(size=14, color="#1E293B", weight="bold")
         ),
-        margin=dict(t=50, b=40, l=10, r=10)
+        margin=dict(t=50, b=60, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -1150,24 +1159,25 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color=diff_colors, cornerradius=6),
         text=diff_texts,
         textposition="outside",
-        textfont=dict(size=14, family="Pretendard", weight="bold")
+        textfont=dict(size=13, family="Pretendard", weight="bold")
     ))
     fig_diff.update_layout(
-        height=450,
-        bargap=0.38,
+        height=480,
+        bargap=0.35,
         yaxis=dict(
-            title=dict(text="Diff (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="Diff (KRW)", font=dict(size=14, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             zerolinecolor="#CBD5E1",
-            tickfont=dict(size=14, color="#475569", weight="bold")
+            tickfont=dict(size=13, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickfont=dict(size=14, weight="bold", color="#0F172A")
+            tickangle=0,  # 💡 [핵심] 비스듬한 회전 각도를 0도로 고정
+            tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
-        margin=dict(t=30, b=40, l=10, r=10)
+        margin=dict(t=30, b=60, l=10, r=10)
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
@@ -1434,7 +1444,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고시인성 도넛 차트 적용)
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고급 도넛 차트 적용)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1442,10 +1452,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [0]*len(BI_8_CATEGORIES),
-            "2026년 실적": [0]*len(BI_8_CATEGORIES),
-            "증감률": [0.0]*len(BI_8_CATEGORIES)
+            "표준사업구분": FULL_BI_CATEGORIES,
+            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1465,7 +1475,6 @@ elif page_menu.startswith("[BI_"):
 
     st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
     
-    # 💡 [임원 보고용 고시인성 도넛 차트 적용] 글자 크기와 굵기를 대폭 키워 시인성 극대화
     center_pie_df = pd.DataFrame([
         {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1529,7 +1538,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 거점 비교 요약 테이블 및 바 차트
     center_compare_df = center_pie_df.copy()
     center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
     center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
