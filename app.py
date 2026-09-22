@@ -52,6 +52,8 @@ LANG_DICT = {
         "kpi_rate": "📊 증감 퍼센트",
         "kpi_diff_sub": "전년 대비 실적차",
         "kpi_rate_sub": "전년 대비 성장률",
+        "pie_title_25": "2025년 사업별 실적 점유율",
+        "pie_title_26": "2026년 사업별 실적 점유율",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -98,6 +100,8 @@ LANG_DICT = {
         "kpi_rate": "📊 增减百分比",
         "kpi_diff_sub": "较去年业绩差额",
         "kpi_rate_sub": "较去年增长率",
+        "pie_title_25": "2025年各业务业绩占比",
+        "pie_title_26": "2026年各业务业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -144,6 +148,8 @@ LANG_DICT = {
         "kpi_rate": "📊 Growth Rate",
         "kpi_diff_sub": "YoY Performance Gap",
         "kpi_rate_sub": "YoY Growth Rate",
+        "pie_title_25": "2025 Performance Share by Business",
+        "pie_title_26": "2026 Performance Share by Business",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -170,7 +176,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 3. URL 쿼리 파라미터 기반 언어 상태 연동 (유지 핵심)
+# 3. 사이드바 언어 선택
 # =========================================================
 query_params = st.query_params
 
@@ -197,7 +203,6 @@ st.session_state["selected_lang"] = selected_lang
 t = LANG_DICT[selected_lang]
 current_font = t["font_family"]
 
-# 스타일 주입
 st.markdown(f"""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -388,7 +393,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 6. '종합' 시트 파서 (속도 최적화 캐시 적용)
+# 6. '종합' 시트 파서
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
@@ -817,7 +822,6 @@ for p_key in all_pages_keys:
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     display_name = t["pages"].get(p_key, p_key)
     
-    # 💡 페이지 이동 시 언어 설정(lang)과 인증 상태(auth)가 URL에 함께 유지되도록 구성
     card_link_html = f"""
     <a href="?page={p_key}{auth_param_str}{lang_param_str}" class="{btn_class}" target="_self">
         {display_name}
@@ -968,7 +972,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행 (점유율 파이 차트 복구 완료)
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1161,6 +1165,69 @@ if page_menu == "[접수기준] 종합 실적 현황":
         x_col_name="표준사업구분",
         cat_order=target_categories
     )
+    
+    # 💡 이전에 보셨던 사업별 점유율 파이 차트 복구
+    st.write("")
+    st.subheader(f"🥧 {t['pie_title_25'].replace('2025년', '')} Share")
+    
+    biz_colors = {
+        "글로벌 바이어": "#2563EB",
+        "패션잡화": "#F59E0B",
+        "GB": "#10B981",
+        "제품평가": "#8B5CF6"
+    }
+    
+    pie_col1, pie_col2 = st.columns(2)
+    with pie_col1:
+        fig_pie_25 = px.pie(
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_25, 
+            hole=0.55,
+            title=t["pie_title_25"], 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
+        )
+        fig_pie_25.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=15, color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_25.update_layout(
+            height=460, 
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_pie_25, use_container_width=True)
+        
+    with pie_col2:
+        fig_pie_26 = px.pie(
+            summary_chart, 
+            names="표준사업구분", 
+            values=col_26, 
+            hole=0.55,
+            title=t["pie_title_26"], 
+            category_orders={"표준사업구분": target_categories},
+            color="표준사업구분", 
+            color_discrete_map=biz_colors
+        )
+        fig_pie_26.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=15, color="#FFFFFF", weight="bold"), 
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_pie_26.update_layout(
+            height=460, 
+            title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
+            margin=dict(t=60, b=20, l=10, r=10), 
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_pie_26, use_container_width=True)
+
 elif page_menu == "[접수기준] 사업별 실적 현황":
     biz_filter_options = ["전체 사업 보기"] + target_categories
     current_idx = biz_filter_options.index(st.session_state.get("selected_biz_view", "전체 사업 보기"))
