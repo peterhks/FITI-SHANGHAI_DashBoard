@@ -352,7 +352,6 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error(t["auth_fail"])
 
-# 💡 [요청 반영] 관리자 모드가 활성화된 상태에서만 파일 업로더 노출
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
@@ -367,7 +366,6 @@ if st.session_state["bi_authorized"]:
 else:
     st.sidebar.caption(t["admin_caption"])
 
-# 데이터 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
     st.sidebar.success(t["shared_file_info"])
@@ -625,7 +623,7 @@ for cat in target_categories:
     if v_dfs:
         vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True)
     else:
-        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실실적" if "2025년 실실적" in v_dfs else "2025년 실적", "2026년 실적"])
+        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -1410,7 +1408,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 사업별 실적 현황 렌더링 (안정화 완료)
+# 12. [BI] 사업별 실적 현황 렌더링 (NameError 완벽 해결)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
