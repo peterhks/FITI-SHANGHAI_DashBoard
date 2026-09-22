@@ -25,8 +25,24 @@ BI_8_CATEGORIES = [
     "화학바이오(화학제품+생활안전)"
 ]
 
-MAGOK_CATEGORIES = ["일반검사", "섬유내수(패션잡화)", "섬유내수(중국GB)", "섬유수출"]
-OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "환경(환경+측정기기)", "화학바이오(화학제품+생활안전)"]
+# 💡 요청하신 확장된 마곡 및 오창 세부 사업 카테고리 정의
+MAGOK_CATEGORIES = [
+    "법정검사", 
+    "일반검사", 
+    "섬유내수(패션잡화)", 
+    "섬유내수(중국GB)", 
+    "섬유내수(단체/정부)", 
+    "섬유수출", 
+    "연구용역", 
+    "제품인증(Q.SF)"
+]
+
+OCHANG_CATEGORIES = [
+    "산업(토목+부품)", 
+    "모빌리티(전장+의장)", 
+    "환경(환경+측정기기)", 
+    "화학바이오(화학제품+생활안전)"
+]
 
 # =========================================================
 # 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
@@ -344,7 +360,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. [완벽 동기화] 서버 물리 저장 + 세션 이중 보존 엔진
+# 5. 업로드 파일 영구 보존 엔진
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -663,11 +679,14 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": empty_kpi
     }
     
+    # 💡 마곡 확장 항목을 포함한 전체 리스트 파싱 구조
+    FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
+    
     empty_df = pd.DataFrame({
-        "표준사업구분": BI_8_CATEGORIES,
-        "2025년 실적": [0]*8,
-        "2026년 실적": [0]*8,
-        "증감률": [0.0]*8
+        "표준사업구분": FULL_BI_CATEGORIES,
+        "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
+        "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
+        "증감률": [0.0]*len(FULL_BI_CATEGORIES)
     })
     def_chart = {"누계": empty_df, "월계": empty_df}
 
@@ -719,25 +738,30 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
+    # 💡 마곡 및 오창 전체 확장 매핑 규칙
     target_mappings = [
-        ("일반검사", ["검사", "일반검사"], "합계"),
+        ("법정검사", ["법정검사", "법정"], "합계"),
+        ("일반검사", ["일반검사", "검사"], "합계"),
         ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
         ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
+        ("섬유내수(단체/정부)", ["단체", "정부", "내수(단체"], "합계"),
         ("섬유수출", ["섬유수출", "수출"], "합계"),
+        ("연구용역", ["연구", "용역", "연구용역"], "합계"),
+        ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"),
         ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
         ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
         ("환경(환경+측정기기)", ["환경", "측정"], "합계"),
         ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
     ]
 
-    def build_8_category_chart(col_25_i, col_26_i, col_rate_i):
+    def build_full_category_chart(col_25_i, col_26_i, col_rate_i):
         results = []
         for cat_name, keywords, target_type in target_mappings:
             matched_row_idx = None
             if col_25_i is not None:
-                for idx in range(min(160, len(raw))):
+                for idx in range(min(180, len(raw))):
                     row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "").lower()
-                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str):
+                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str or "합계" in row_str):
                         matched_row_idx = idx
                         break
             
@@ -765,8 +789,8 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         return pd.DataFrame(results)
 
     chart_res = {
-        "누계": build_8_category_chart(c_c25, c_c26, c_rate),
-        "월계": build_8_category_chart(m_c25, m_c26, m_rate)
+        "누계": build_full_category_chart(c_c25, c_c26, c_rate),
+        "월계": build_full_category_chart(m_c25, m_c26, m_rate)
     }
 
     return kpi_res, chart_res
@@ -984,26 +1008,24 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행 (긴 글자 2줄 자동 개행 적용)
 # =========================================================
-def wrap_text_for_axis(text, max_len=14):
+def wrap_text_for_axis(text, max_len=10):
     text_str = str(text)
     if len(text_str) <= max_len:
         return text_str
+    
+    # 💡 괄호나 띄어쓰기 기준으로 자연스럽게 2줄로 쪼개기
+    if '(' in text_str and ')' in text_str:
+        parts = text_str.split('(')
+        return parts[0].strip() + "<br>(" + parts[1].strip()
+    
     words = text_str.split(' ')
-    lines = []
-    current_line = ""
-    for word in words:
-        if current_line == "":
-            current_line = word
-        elif len(current_line) + 1 + len(word) <= max_len:
-            current_line += " " + word
-        else:
-            lines.append(current_line)
-            current_line = word
-    if current_line:
-        lines.append(current_line)
-    return "<br>".join(lines)
+    if len(words) > 1:
+        mid = len(words) // 2
+        return " ".join(words[:mid]) + "<br>" + " ".join(words[mid:])
+        
+    return text_str[:max_len] + "<br>" + text_str[max_len:]
 
 def render_fullwidth_vertical_dashboard(
     title_top, 
@@ -1028,8 +1050,8 @@ def render_fullwidth_vertical_dashboard(
         df["증감률"] = ((df["증감액"] / df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
 
     display_x_col = f"{x_col_name}_wrapped"
-    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=13))
-    wrapped_cat_order = [wrap_text_for_axis(c, max_len=13) for c in cat_order]
+    df[display_x_col] = df[x_col_name].apply(lambda x: wrap_text_for_axis(x, max_len=9))
+    wrapped_cat_order = [wrap_text_for_axis(c, max_len=9) for c in cat_order]
 
     def format_krw_scale(val):
         abs_v = abs(val)
@@ -1061,9 +1083,9 @@ def render_fullwidth_vertical_dashboard(
         sign_r = "+" if rt > 0 else ""
         sign_v = "+" if diff_v > 0 else ""
 
-        label_25.append(f"<span style='font-size:14px; font-weight:700;'>{s25}</span>")
-        label_26.append(f"<span style='font-size:15px; font-weight:800;'>{s26}</span><br><span style='font-size:13px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
-        diff_texts.append(f"<span style='font-size:15px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:13px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
+        label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
+        label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
+        diff_texts.append(f"<span style='font-size:14px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:12px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
         diff_colors.append("#E11D48" if diff_v >= 0 else "#2563EB")
 
     st.subheader(title_top)
@@ -1075,7 +1097,7 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color="#94A3B8", line=dict(color="#64748B", width=1), cornerradius=6),
         text=label_25,
         textposition="outside",
-        textfont=dict(size=14, color="#475569", family="Pretendard", weight="bold")
+        textfont=dict(size=13, color="#475569", family="Pretendard", weight="bold")
     ))
     fig_bar.add_trace(go.Bar(
         x=df[display_x_col],
@@ -1084,22 +1106,22 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color="#1D4ED8", line=dict(color="#1E40AF", width=1), cornerradius=6),
         text=label_26,
         textposition="outside",
-        textfont=dict(size=14, color="#0F172A", family="Pretendard", weight="bold")
+        textfont=dict(size=13, color="#0F172A", family="Pretendard", weight="bold")
     ))
     fig_bar.update_layout(
-        height=520,
-        bargap=0.30,
-        bargroupgap=0.08,
+        height=540,
+        bargap=0.25,
+        bargroupgap=0.06,
         yaxis=dict(
             rangemode='tozero',
-            title=dict(text="Amount (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="Amount (KRW)", font=dict(size=14, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
-            tickfont=dict(size=14, color="#475569", weight="bold")
+            tickfont=dict(size=13, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickfont=dict(size=14, weight="bold", color="#0F172A")
+            tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
         legend=dict(
@@ -1110,7 +1132,7 @@ def render_fullwidth_vertical_dashboard(
             x=0,
             font=dict(size=14, color="#1E293B", weight="bold")
         ),
-        margin=dict(t=50, b=40, l=10, r=10)
+        margin=dict(t=50, b=50, l=10, r=10)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -1123,24 +1145,24 @@ def render_fullwidth_vertical_dashboard(
         marker=dict(color=diff_colors, cornerradius=6),
         text=diff_texts,
         textposition="outside",
-        textfont=dict(size=14, family="Pretendard", weight="bold")
+        textfont=dict(size=13, family="Pretendard", weight="bold")
     ))
     fig_diff.update_layout(
-        height=450,
-        bargap=0.38,
+        height=460,
+        bargap=0.32,
         yaxis=dict(
-            title=dict(text="Diff (KRW)", font=dict(size=15, color="#1E293B", weight="bold")),
+            title=dict(text="Diff (KRW)", font=dict(size=14, color="#1E293B", weight="bold")),
             gridcolor="#F1F5F9",
             zerolinecolor="#CBD5E1",
-            tickfont=dict(size=14, color="#475569", weight="bold")
+            tickfont=dict(size=13, color="#475569", weight="bold")
         ),
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickfont=dict(size=14, weight="bold", color="#0F172A")
+            tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
-        margin=dict(t=30, b=40, l=10, r=10)
+        margin=dict(t=30, b=50, l=10, r=10)
     )
     st.plotly_chart(fig_diff, use_container_width=True)
 
@@ -1407,11 +1429,11 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 11. [BI] 마곡 vs 오창 거점 분리 및 고시인성 비교 차트 구현
+# 11. [BI] 마곡 vs 오창 거점 분리 및 비교 현황 (실제 데이터 렌더링 보장)
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    # 💡 [핵심 수정] 데이터프레임 컬럼명이 깨지지 않도록 안전하게 동기화 파싱 보장
-    raw_bi_df = active_bi_charts["누계"].copy()
+    # 💡 [핵심 수정] 지사별(종합/상해/광주) 딕셔너리에서 데이터프레임을 완벽히 가져옴
+    current_bi_chart_df = active_bi_charts["월계" if "월계" in bi_period_mode else "누계"].copy()
     
     if "상해" in page_menu:
         center_title_prefix = "🏭 [BI_상해]"
@@ -1420,18 +1442,18 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    # 마곡 및 오창 데이터 추출
-    magok_df = raw_bi_df[raw_bi_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
-    ochang_df = raw_bi_df[raw_bi_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
-
+    # 마곡 및 오창 데이터 필터링
+    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     magok_25 = magok_df["2025년 실적"].sum()
     magok_26 = magok_df["2026년 실적"].sum()
+
+    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
     ochang_25 = ochang_df["2025년 실적"].sum()
     ochang_26 = ochang_df["2026년 실적"].sum()
 
     st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
     
-    # 💡 [개선] 시인성이 떨어지는 원형 차트 대신, 한눈에 확 들어오는 거점별 비교 바 차트 적용
+    # 거점별 요약 비교 테이블 및 바 차트 렌더링
     center_compare_df = pd.DataFrame([
         {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1451,9 +1473,9 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 마곡 센터 내부 상세 4대 사업 비교
+    # 💡 마곡 센터 내부 세부 사업별 현황 렌더링
     render_fullwidth_vertical_dashboard(
-        title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (일반검사 / 패션잡화 / 중국GB / 수출)",
+        title_top=f"🏛️ 마곡 센터 세부 사업별 실적 현황 (법정/일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구, Q.SF)",
         title_bottom="📈 Magok Sub-categories Diff",
         table_title="Magok Detailed Summary Table",
         data_df=magok_df,
@@ -1464,9 +1486,9 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 오창 센터 내부 상세 4대 사업 비교
+    # 💡 오창 센터 내부 세부 사업별 현황 렌더링
     render_fullwidth_vertical_dashboard(
-        title_top=f"🏭 오창 센터 세부 사업별 실적 현황 (산업 / 모빌리티 / 환경 / 화학바이오)",
+        title_top=f"🏭 오창 센터 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
         title_bottom="📈 Ochang Sub-categories Diff",
         table_title="Ochang Detailed Summary Table",
         data_df=ochang_df,
@@ -1477,12 +1499,12 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 전체 8대 사업 상세 통합 차트
+    # 💡 전체 통합 사업별 실적 현황 렌더링
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 8대 사업별 전체 상세 실적 현황",
-        title_bottom="📈 BI 8 Categories Performance Diff",
-        table_title="BI Detailed Summary Table",
-        data_df=raw_bi_df,
+        title_top=f"{center_title_prefix} 전체 사업별 상세 실적 현황",
+        title_bottom="📈 All Categories Performance Diff",
+        table_title="All Categories Detailed Summary Table",
+        data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES
+        cat_order=FULL_BI_CATEGORIES if 'FULL_BI_CATEGORIES' in locals() else (MAGOK_CATEGORIES + OCHANG_CATEGORIES)
     )
