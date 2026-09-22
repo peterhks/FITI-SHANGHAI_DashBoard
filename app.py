@@ -59,8 +59,6 @@ LANG_DICT = {
         "pie_title_26": "2026년 사업별 실적 비중",
         "buyer_pie_25": "2025년 주요 바이어 실적 비중",
         "buyer_pie_26": "2026년 주요 바이어 실적 비중",
-        "magok_title": "마곡 센터 (Magok Center)",
-        "ochang_title": "오창 센터 (Ochang Center)",
         "center_compare": "마곡 vs 오창 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
@@ -112,8 +110,6 @@ LANG_DICT = {
         "pie_title_26": "2026年各业务业绩占比",
         "buyer_pie_25": "2025年主要买家业绩占比",
         "buyer_pie_26": "2026年主要买家业绩占比",
-        "magok_title": "麻谷中心 (Magok Center)",
-        "ochang_title": "梧창中心 (Ochang Center)",
         "center_compare": "麻谷 vs 梧창 基地业绩对比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
@@ -165,8 +161,6 @@ LANG_DICT = {
         "pie_title_26": "2026 Performance Share by Business",
         "buyer_pie_25": "2025 Performance Share by Buyer",
         "buyer_pie_26": "2026 Performance Share by Buyer",
-        "magok_title": "Magok Center",
-        "ochang_title": "Ochang Center",
         "center_compare": "Magok vs Ochang Center Comparison",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
@@ -210,7 +204,7 @@ def on_lang_change():
 st.sidebar.markdown(f"### 🌐 언어 설정 / 语言设置 / Language")
 selected_lang = st.sidebar.selectbox(
     "표시 언어 선택", 
-    ["한국_kor", "中文 (중국어)", "English (영어)"] if False else ["한국어", "中文 (중국어)", "English (영어)"],
+    ["한국어", "中文 (중국어)", "English (영어)"],
     index=["한국어", "中文 (중국어)", "English (영어)"].index(st.session_state["selected_lang"]),
     key="lang_selectbox",
     on_change=on_lang_change,
@@ -360,18 +354,15 @@ st.sidebar.markdown(f"### {t['data_mgmt']}")
 uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
 
 if uploaded_file is not None:
-    # 1) 서버 로컬 디스크에 물리적 저장 (다른 사용자도 즉시 공유 가능)
     file_bytes = uploaded_file.getvalue()
     with open(LOCAL_EXCEL_PATH, "wb") as f:
         f.write(file_bytes)
-    # 2) 세션에도 박제하여 유실 원천 방어
     st.session_state["persistent_file_bytes"] = file_bytes
     st.session_state["persistent_file_name"] = uploaded_file.name
     st.cache_data.clear()
     st.sidebar.success(t["sync_success"])
     st.rerun()
 
-# 로드 우선순위: 세션 박제 -> 서버 디스크 파일 -> 기본 파일
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
     st.sidebar.success(t["shared_file_info"])
@@ -1416,10 +1407,11 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 11. [BI] 마곡 vs 오창 거점 분리 및 시인성 극대화 비교 차트 구현
+# 11. [BI] 마곡 vs 오창 거점 분리 및 고시인성 비교 차트 구현
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    current_bi_chart_df = active_bi_charts["월계" if "월계" in bi_period_mode else "누계"].copy()
+    # 💡 [핵심 수정] 데이터프레임 컬럼명이 깨지지 않도록 안전하게 동기화 파싱 보장
+    raw_bi_df = active_bi_charts["누계"].copy()
     
     if "상해" in page_menu:
         center_title_prefix = "🏭 [BI_상해]"
@@ -1428,17 +1420,18 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
+    # 마곡 및 오창 데이터 추출
+    magok_df = raw_bi_df[raw_bi_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
+    ochang_df = raw_bi_df[raw_bi_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
+
     magok_25 = magok_df["2025년 실적"].sum()
     magok_26 = magok_df["2026년 실적"].sum()
-
-    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
     ochang_25 = ochang_df["2025년 실적"].sum()
     ochang_26 = ochang_df["2026년 실적"].sum()
 
     st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
     
-    # 💡 [개선] 시인성이 떨어지는 원형 차트 대신, 한눈에 비교되는 세련된 거점별 비교 바 차트 적용
+    # 💡 [개선] 시인성이 떨어지는 원형 차트 대신, 한눈에 확 들어오는 거점별 비교 바 차트 적용
     center_compare_df = pd.DataFrame([
         {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1489,7 +1482,7 @@ elif page_menu.startswith("[BI_"):
         title_top=f"{center_title_prefix} 8대 사업별 전체 상세 실적 현황",
         title_bottom="📈 BI 8 Categories Performance Diff",
         table_title="BI Detailed Summary Table",
-        data_df=current_bi_chart_df,
+        data_df=raw_bi_df,
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
