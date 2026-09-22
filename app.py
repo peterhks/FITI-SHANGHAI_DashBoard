@@ -56,7 +56,7 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
 
-# 💡 [세션 유지 보완] 쿼리 파라미터 세션 동기화 처리
+# 세션 유지 보완 (쿼리 파라미터 동기화)
 query_params = st.query_params
 if "auth_ok" in query_params and query_params["auth_ok"] == "true":
     st.session_state["logged_in"] = True
@@ -135,8 +135,6 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
-        "buyer_pie_25": "2025年主要买家业绩占比",
-        "buyer_pie_26": "2026年主要买家业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -172,6 +170,11 @@ LANG_DICT = {
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
+        "auth_title": "🔒 BI Security Auth",
+        "auth_input": "Enter password:",
+        "auth_fail": "Incorrect password.",
+        "auth_success": "🔓 BI Admin Mode Active",
+        "logout_btn": "Lock BI (Logout)",
         "kpi_25": "📅 '25 Total Performance",
         "kpi_26": "🚀 '26 Total Performance",
         "kpi_diff": "📈 Performance Diff",
@@ -180,8 +183,6 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
-        "buyer_pie_25": "2025 Performance Share by Buyer",
-        "buyer_pie_26": "2026 Performance Share by Buyer",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -208,13 +209,19 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용
+# 4. 스타일 및 디자인 공통 적용 (입력창 5cm 폭 고정 스타일 추가)
 # =========================================================
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     html, body, [class*="css"] {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    }
+    
+    /* 로그인 입력창 가로폭을 딱 300px(약 5cm)로 컴팩트하게 제한 */
+    .stTextInput input {
+        max-width: 300px !important;
+        margin: 0 auto !important;
     }
     
     .fiti-header {
@@ -326,7 +333,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (15cm 컴팩트 가로폭 및 고급 타이틀 룩)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (5cm 폭 및 5포인트 확대 로고)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -334,7 +341,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.6), rgba(0, 10, 25, 0.75)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.55), rgba(0, 10, 25, 0.7)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -347,23 +354,22 @@ if not st.session_state["logged_in"]:
         header {{visibility: hidden;}}
     </style>
     
-    <!-- 💡 [요청 반영] 가로폭을 딱 380px로 고정하여 약 15cm 비율의 컴팩트한 감성 구현 -->
-    <div style="max-width: 380px; margin: 40px auto; background: transparent; padding: 10px;">
-        <div style="text-align: center; margin-bottom: 22px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] FITI Shanghai: 품격 있는 화이트-실버 그라데이션 및 네온 블루 포인트 룩 -->
-            <div style="font-size: 42px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; background: linear-gradient(135deg, #FFFFFF 30%, #60A5FA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.5);">FITI Shanghai</div>
-            <div style="font-size: 17px; font-weight: 800; margin-bottom: 6px; color: #F1F5F9; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 12px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <div style="max-width: 380px; margin: 30px auto; background: transparent; padding: 10px;">
+        <div style="text-align: center; margin-bottom: 20px; color: #FFFFFF;">
+            <!-- 💡 [요청 반영] FITI Shanghai: 기존보다 5포인트 더 키워 압도적인 시인성 확보 -->
+            <div style="font-size: 63px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; background: linear-gradient(135deg, #FFFFFF 20%, #3B82F6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 25px rgba(0,0,0,0.6);">FITI Shanghai</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 6px; color: #F1F5F9; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.01, 1, 0.01])
+    col_l1, col_l2, col_l3 = st.columns([0.5, 2, 0.5])
     with col_l2:
         with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-bottom: 3px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-bottom: 3px; text-align: center;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
             login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
-            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 8px; margin-bottom: 3px;'>비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 10px; margin-bottom: 3px; text-align: center;'>비밀번호</p>", unsafe_allow_html=True)
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             
             st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
