@@ -135,6 +135,8 @@ LANG_DICT = {
         "kpi_rate_sub": "较去年增长率",
         "pie_title_25": "2025年各业务业绩占比",
         "pie_title_26": "2026年各业务业绩占比",
+        "buyer_pie_25": "2025年主要买家业绩占比",
+        "buyer_pie_26": "2026年主要买家业绩占比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -183,6 +185,8 @@ LANG_DICT = {
         "kpi_rate_sub": "YoY Growth Rate",
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
+        "buyer_pie_25": "2025 Performance Share by Buyer",
+        "buyer_pie_26": "2026 Performance Share by Buyer",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -209,22 +213,13 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (입력창 폭 380px 고정 및 왼쪽 정렬)
+# 4. 스타일 및 디자인 공통 적용
 # =========================================================
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     html, body, [class*="css"] {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-    }
-    
-    /* 💡 [요청 반영] 로그인 입력창 및 버튼 가로폭을 380px로 통일하고 왼쪽 정렬 */
-    .stTextInput input, .stFormSubmitButton button {
-        width: 380px !important;
-        max-width: 100% !important;
-        display: block !important;
-        margin-left: 0 !important;
-        margin-right: auto !important;
     }
     
     .fiti-header {
@@ -336,7 +331,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (FITI Shanghai 화이트-실버 그라데이션 적용)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (폼 강제 제어 및 폭 통일 적용)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -355,56 +350,77 @@ if not st.session_state["logged_in"]:
             min-height: 100vh;
         }}
         header {{visibility: hidden;}}
+        
+        /* 💡 [핵심] 로그인 폼 전체를 하나의 컴팩트한 상자로 제한하여 강제 중앙 정렬 */
+        [data-testid="stForm"] {{
+            max-width: 420px !important; 
+            margin: 10vh auto !important; 
+            background: rgba(0, 20, 45, 0.85) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+            padding: 40px !important;
+        }}
+        
+        /* 💡 [핵심] 폼 내부의 이메일/비밀번호/버튼 길이를 컨테이너 내 100%로 강제하여 길이를 완벽히 일치시킴 */
+        [data-testid="stForm"] [data-testid="stTextInput"] div[data-baseweb="input"] {{
+            width: 100% !important;
+        }}
+        [data-testid="stForm"] .stFormSubmitButton button {{
+            width: 100% !important;
+            font-weight: 800 !important;
+            font-size: 15px !important;
+        }}
     </style>
-    
-    <div style="max-width: 650px; margin: 40px auto; background: transparent; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] 화이트-실버 그라데이션 전문가 컬러, 크기 확대, white-space: nowrap으로 무조건 일자 정렬 -->
-            <div style="font-size: 58px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #CBD5E1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 25px rgba(0,0,0,0.6);">FITI Shanghai</div>
-            <div style="font-size: 21px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 14px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
-        </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
-    with col_l2:
-        with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
-            login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
-            
-            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 4px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
-            login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-            
-            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-            submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
-            
-            if submit_login:
-                user_record = st.session_state["user_db"].get(login_email.strip())
-                if user_record and user_record["pw"] == login_pw.strip():
-                    st.session_state["logged_in"] = True
-                    st.session_state["current_user_email"] = login_email.strip()
-                    st.session_state["current_user_role"] = user_record["role"]
-                    st.session_state["current_user_name"] = user_record["name"]
-                    
-                    st.session_state["login_history"].append({
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "email": login_email.strip(),
-                        "name": user_record["name"],
-                        "status": "성공"
-                    })
-                    st.success("로그인 성공! 시스템에 접속합니다...")
-                    st.query_params["auth_ok"] = "true"
-                    st.rerun()
-                else:
-                    st.session_state["login_history"].append({
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "email": login_email.strip() if login_email else "입력없음",
-                        "name": "미인증",
-                        "status": "실패"
-                    })
-                    st.error("이메일 또는 비밀번호가 일치하지 않습니다.")
+    with st.form("login_form"):
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
+            <!-- 💡 [요청 반영] 화이트-실버 그라데이션, 글씨 확대, 절대 한줄 고정(nowrap) -->
+            <div style="font-size: 58px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #E2E8F0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.6);">FITI Shanghai</div>
+            <div style="font-size: 20px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+        login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
+        
+        st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 14px; margin-bottom: 2px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
+        login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
+        
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
+        
+        if submit_login:
+            user_record = st.session_state["user_db"].get(login_email.strip())
+            if user_record and user_record["pw"] == login_pw.strip():
+                st.session_state["logged_in"] = True
+                st.session_state["current_user_email"] = login_email.strip()
+                st.session_state["current_user_role"] = user_record["role"]
+                st.session_state["current_user_name"] = user_record["name"]
+                
+                st.session_state["login_history"].append({
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "email": login_email.strip(),
+                    "name": user_record["name"],
+                    "status": "성공"
+                })
+                st.success("로그인 성공! 시스템에 접속합니다...")
+                st.query_params["auth_ok"] = "true"
+                st.rerun()
+            else:
+                st.session_state["login_history"].append({
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "email": login_email.strip() if login_email else "입력없음",
+                    "name": "미인증",
+                    "status": "실패"
+                })
+                st.error("이메일 또는 비밀번호가 일치하지 않습니다.")
     
-    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # =========================================================
@@ -500,7 +516,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 8. 파서 함수 정의 (완벽 복구 완료)
+# 8. 파서 함수 정의 (접수/BI 데이터 완벽 유지)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
@@ -876,7 +892,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
@@ -1501,7 +1517,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 사업별 실적 현황 렌더링
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1509,10 +1525,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": BI_8_CATEGORIES,
-            "2025년 실적": [0]*len(BI_8_CATEGORIES),
-            "2026년 실적": [0]*len(BI_8_CATEGORIES),
-            "증감률": [0.0]*len(BI_8_CATEGORIES)
+            "표준사업구분": FULL_BI_CATEGORIES,
+            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
+            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1522,11 +1538,124 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
+    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
+    magok_25 = magok_df["2025년 실적"].sum()
+    magok_26 = magok_df["2026년 실적"].sum()
+
+    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
+    ochang_25 = ochang_df["2025년 실적"].sum()
+    ochang_26 = ochang_df["2026년 실적"].sum()
+
+    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    
+    center_pie_df = pd.DataFrame([
+        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
+        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
+    ])
+    
+    col_pie1, col_pie2 = st.columns(2)
+    center_colors = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
+
+    with col_pie1:
+        fig_center_25 = px.pie(
+            center_pie_df, 
+            names="거점구분", 
+            values="2025년 실적", 
+            hole=0.6,
+            title="2025년 거점별 실적 비중",
+            color="거점구분",
+            color_discrete_map=center_colors
+        )
+        tot_c25 = center_pie_df["2025년 실적"].sum()
+        fig_center_25.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=3))
+        )
+        fig_center_25.update_layout(
+            height=460,
+            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
+            margin=dict(t=60, b=30, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
+            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e8:.1f}억</span>" if tot_c25 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
+        )
+        st.plotly_chart(fig_center_25, use_container_width=True)
+
+    with col_pie2:
+        fig_center_26 = px.pie(
+            center_pie_df, 
+            names="거점구분", 
+            values="2026년 실적", 
+            hole=0.6,
+            title="2026년 거점별 실적 비중",
+            color="거점구분",
+            color_discrete_map=center_colors
+        )
+        tot_c26 = center_pie_df["2026년 실적"].sum()
+        fig_center_26.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=3))
+        )
+        fig_center_26.update_layout(
+            height=460,
+            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
+            margin=dict(t=60, b=30, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
+            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e8:.1f}억</span>" if tot_c26 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
+        )
+        st.plotly_chart(fig_center_26, use_container_width=True)
+
+    st.write("")
+    st.markdown("---")
+
+    center_compare_df = center_pie_df.copy()
+    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
+    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황 ({display_period_name})",
-        title_bottom="📈 BI 8 Categories Performance Diff",
-        table_title="BI Detailed Summary Table",
+        title_top=f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교",
+        title_bottom="📈 Center Growth Comparison",
+        table_title="Magok & Ochang Summary Table",
+        data_df=center_compare_df,
+        x_col_name="거점구분",
+        cat_order=["마곡 본원 (Magok)", "오창 분원 (Ochang)"]
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏛️ 마곡 본원 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
+        title_bottom="📈 Magok Sub-categories Diff",
+        table_title="Magok Detailed Summary Table",
+        data_df=magok_df,
+        x_col_name="표준사업구분",
+        cat_order=MAGOK_CATEGORIES
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"🏭 오창 분원 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
+        title_bottom="📈 Ochang Sub-categories Diff",
+        table_title="Ochang Detailed Summary Table",
+        data_df=ochang_df,
+        x_col_name="표준사업구분",
+        cat_order=OCHANG_CATEGORIES
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    render_fullwidth_vertical_dashboard(
+        title_top=f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황",
+        title_bottom="📈 All Categories Performance Diff",
+        table_title="All Categories Detailed Summary Table",
         data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=BI_8_CATEGORIES
+        cat_order=FULL_BI_CATEGORIES
     )
