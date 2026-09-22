@@ -25,6 +25,10 @@ BI_8_CATEGORIES = [
     "화학바이오(화학제품+생활안전)"
 ]
 
+# 💡 마곡 및 오창 거점 분류 맵핑
+MAGOK_CATEGORIES = ["일반검사", "섬유내수(패션잡화)", "섬유내수(중국GB)", "섬유수출"]
+OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "환경(환경+측정기기)", "화학바이오(화학제품+생활안전)"]
+
 # =========================================================
 # 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
 # =========================================================
@@ -56,6 +60,9 @@ LANG_DICT = {
         "pie_title_26": "2026년 사업별 실적 비중",
         "buyer_pie_25": "2025년 주요 바이어 실적 비중",
         "buyer_pie_26": "2026년 주요 바이어 실적 비중",
+        "magok_title": "마곡 센터 실적 비중",
+        "ochang_title": "오창 센터 실적 비중",
+        "center_compare": "마곡 vs 오창 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -106,6 +113,9 @@ LANG_DICT = {
         "pie_title_26": "2026年各业务业绩占比",
         "buyer_pie_25": "2025年主要买家业绩占比",
         "buyer_pie_26": "2026年主要买家业绩占比",
+        "magok_title": "麻谷中心业绩占比",
+        "ochang_title": "梧창中心业绩占比",
+        "center_compare": "麻谷 vs 梧창 基地业绩对比",
         "unit": "韩元",
         "font_family": "'SimHei', '黑体', sans-serif",
         "pages": {
@@ -156,6 +166,9 @@ LANG_DICT = {
         "pie_title_26": "2026 Performance Share by Business",
         "buyer_pie_25": "2025 Performance Share by Buyer",
         "buyer_pie_26": "2026 Performance Share by Buyer",
+        "magok_title": "Magok Center Share",
+        "ochang_title": "Ochang Center Share",
+        "center_compare": "Magok vs Ochang Center Comparison",
         "unit": "KRW",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -195,7 +208,7 @@ if "selected_lang" not in st.session_state:
 def on_lang_change():
     st.query_params["lang"] = st.session_state["lang_selectbox"]
 
-st.sidebar.markdown("### 🌐 언어 설정 / 语言设置 / Language")
+st.sidebar.markdown(f"### 🌐 언어 설정 / 语言设置 / Language")
 selected_lang = st.sidebar.selectbox(
     "표시 언어 선택", 
     ["한국어", "中文 (중국어)", "English (영어)"],
@@ -338,7 +351,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. [핵심 수정] 업로드 파일 영구 보존 엔진 (세션 박제 + 서버 파일 폴백)
+# 5. 업로드 파일 영구 보존 엔진
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 
@@ -355,11 +368,9 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error(t["auth_fail"])
 
-# 관리자 모드일 때만 업로더 표시
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
-        # 업로드된 파일 바이트를 세션에 영구 백업하여 절대 안 날아가게 함
         st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
         st.session_state["persistent_file_name"] = uploaded_file.name
         st.cache_data.clear()
@@ -368,10 +379,9 @@ if st.session_state["bi_authorized"]:
 else:
     st.sidebar.caption(t["admin_caption"])
 
-# 데이터 로드 우선순위: 1) 세션에 박제된 파일 바이트 -> 2) 서버의 기본 EXCEL_FILE
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
-    st.sidebar.success(f"✅ 영구 유지 중인 파일")
+    st.sidebar.success(t["shared_file_info"])
 elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
@@ -984,7 +994,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (상단 도넛 차트 및 하이엔드 시인성 적용)
+# 10. 공통 렌더러 및 본문 실행 (마곡/오창 거점 분리 및 비교 기능 포함)
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1169,7 +1179,6 @@ def render_fullwidth_vertical_dashboard(
 current_page_display = t["pages"].get(page_menu, page_menu)
 
 if page_menu == "[접수기준] 종합 실적 현황":
-    # 💡 [하이엔드 디자인] 원형 도넛 차트를 상단에 배치하고 내부 총합 표시
     st.subheader(f"🥧 {current_page_display} - Share")
     
     biz_colors = {
@@ -1275,6 +1284,7 @@ elif page_menu == "[접수기준] 사업별 실적 현황":
         x_col_name=x_col,
         cat_order=x_categories
     )
+
 elif page_menu == "[접수기준] 바이어 실적 현황":
     current_tab3_biz = st.session_state.get("selected_tab3_biz", target_categories[0])
     current_idx3 = target_categories.index(current_tab3_biz) if current_tab3_biz in target_categories else 0
@@ -1309,7 +1319,6 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
         x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타 (Etc)"] + (["기타 (Etc)"] if "기타 (Etc)" in top_buyers["바이어명"].values else [])
 
-        # 💡 [하이엔드 디자인] 바이어별 도넛 차트를 상단에 배치하고 내부 총합 표시
         st.subheader(f"🥧 {selected_biz} - Buyer Share")
         
         pie_col1, pie_col2 = st.columns(2)
@@ -1397,7 +1406,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
         else:
             single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
-            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+            b_breakdown = single_v_detail.groupby("바이어명", as_index=eslint_safe := False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 {selected_vendor} Performance by Buyer",
                 title_bottom="📈 Breakdown Diff",
@@ -1406,12 +1415,118 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
                 x_col_name="바이어명",
                 cat_order=b_breakdown["바이어명"].tolist()
             )
+
+# =========================================================
+# 11. [BI] 거점별 분기 및 비교 기능 구현 (마곡 vs 오창)
+# =========================================================
 elif page_menu.startswith("[BI_"):
+    # 선택된 BI 지사별 차트 데이터 가져오기
+    current_bi_chart_df = active_bi_charts["월계" if "월계" in bi_period_mode else "누계"].copy()
+    
+    if "상해" in page_menu:
+        center_title_prefix = "🏭 [BI_상해]"
+    elif "광주" in page_menu:
+        center_title_prefix = "🏭 [BI_광주]"
+    else:
+        center_title_prefix = "📊 [BI_종합]"
+
+    # 마곡 카테고리 데이터 필터링 및 합계
+    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
+    magok_25 = magok_df["2025년 실적"].sum()
+    magok_26 = magok_df["2026년 실적"].sum()
+
+    # 오창 카테고리 데이터 필터링 및 합계
+    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
+    ochang_25 = ochang_df["2025년 실적"].sum()
+    ochang_26 = ochang_df["2026년 실적"].sum()
+
+    # 💡 1. 마곡 vs 오창 거점별 토탈 비교 도넛 차트 및 상단 시각화
+    st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
+    
+    col_mg, col_oc = st.columns(2)
+    
+    magok_colors = {"일반검사": "#2563EB", "섬유내수(패션잡화)": "#3B82F6", "섬유내수(중국GB)": "#60A5FA", "섬유수출": "#93C5FD"}
+    ochang_colors = {"산업(토목+부품)": "#10B981", "모빌리티(전장+의장)": "#34D399", "환경(환경+측정기기)": "#6EE7B7", "화학바이오(화학제품+생활안전)": "#A7F3D0"}
+
+    with col_mg:
+        fig_magok = px.pie(
+            magok_df, 
+            names="표준사업구분", 
+            values="2026년 실적", 
+            hole=0.6,
+            title=f"🏛️ 마곡 센터 (Magok Total: {magok_26/1e8:.1f}억)",
+            color="표준사업구분",
+            color_discrete_map=magok_colors
+        )
+        fig_magok.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=13, color="#FFFFFF", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_magok.update_layout(
+            height=420,
+            title=dict(font=dict(size=16, color="#0F172A", weight="bold")),
+            margin=dict(t=50, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Magok<br>{magok_26/1e8:.1f}억", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+        )
+        st.plotly_chart(fig_magok, use_container_width=True)
+
+    with col_oc:
+        fig_ochang = px.pie(
+            ochang_df, 
+            names="표준사업구분", 
+            values="2026년 실적", 
+            hole=0.6,
+            title=f"🏭 오창 센터 (Ochang Total: {ochang_26/1e8:.1f}억)",
+            color="표준사업구분",
+            color_discrete_map=ochang_colors
+        )
+        fig_ochang.update_traces(
+            textposition='inside', 
+            textinfo='label+percent', 
+            textfont=dict(size=13, color="#FFFFFF", weight="bold"),
+            marker=dict(line=dict(color='#FFFFFF', width=2.5))
+        )
+        fig_ochang.update_layout(
+            height=420,
+            title=dict(font=dict(size=16, color="#0F172A", weight="bold")),
+            margin=dict(t=50, b=20, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Ochang<br>{ochang_26/1e8:.1f}억", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+        )
+        st.plotly_chart(fig_ochang, use_container_width=True)
+
+    st.write("")
+    st.markdown("---")
+
+    # 💡 2. 마곡 vs 오창 거점 비교 요약 테이블 및 바 차트
+    center_compare_df = pd.DataFrame([
+        {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
+        {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
+    ])
+    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
+    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+
     render_fullwidth_vertical_dashboard(
-        title_top=f"📊 {current_page_display} ({display_period_name})",
+        title_top=f"{center_title_prefix} 마곡 vs 오창 거점별 2025년 vs 2026년 비교",
+        title_bottom="📈 Center Performance Diff & Growth Rate",
+        table_title="Magok & Ochang Summary Table",
+        data_df=center_compare_df,
+        x_col_name="거점구분",
+        cat_order=["마곡 센터 (Magok)", "오창 센터 (Ochang)"]
+    )
+
+    st.write("")
+    st.markdown("---")
+
+    # 💡 3. 전체 8대 사업 상세 바 차트 및 테이블
+    render_fullwidth_vertical_dashboard(
+        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황",
         title_bottom="📈 BI 8 Categories Performance Diff",
         table_title="BI Detailed Summary Table",
-        data_df=active_bi_charts["월계" if "월계" in bi_period_mode else "누계"],
+        data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
         cat_order=BI_8_CATEGORIES
     )
