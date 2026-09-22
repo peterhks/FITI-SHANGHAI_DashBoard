@@ -316,40 +316,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (진입 통제)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (엔터 로그인 지원)
 # =========================================================
 if not st.session_state["logged_in"]:
-    st.markdown(f"""
-    <style>
-        /* Streamlit 기본 여백을 줄여 배경 이미지가 화면 전체에 꽉 차도록 설정 */
-        .stMain {{
-            background: linear-gradient(rgba(0, 20, 50, 0.65), rgba(0, 10, 30, 0.8)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
-            background-size: cover;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        /* 불필요한 상단 여백 제거 */
-        header {{visibility: hidden;}}
-    </style>
-    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(rgba(0, 30, 70, 0.6), rgba(0, 15, 35, 0.75)), url('https://images.unsplash.com/photo-1543834899-a3598e3b3334?auto=format&fit=crop&w=1920&q=80') no-repeat center center; background-size: cover; z-index: -1;"></div>
+    st.markdown("""
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(rgba(0, 30, 70, 0.65), rgba(0, 15, 35, 0.8)), url('https://images.unsplash.com/photo-1543834899-a3598e3b3334?auto=format&fit=crop&w=1920&q=80') no-repeat center center; background-size: cover; z-index: -1;"></div>
     
-    <div style="max-width: 480px; margin: 80px auto; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); overflow: hidden; padding: 40px;">
-        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
-            <div style="font-size: 36px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; color: #60A5FA;">FITI Shanghai</div>
-            <div style="font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 12px; color: #93C5FD; font-weight: 400;">飞迪商品检验（上海）有限公司</div>
+    <div style="max-width: 560px; margin: 40px auto; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); overflow: hidden; padding: 40px;">
+        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
+            <div style="font-size: 48px; font-weight: 900; letter-spacing: -1px; margin-bottom: 10px; color: #60A5FA;">FITI Shanghai</div>
+            <div style="font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #93C5FD; font-weight: 500;">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
+    col_l1, col_l2, col_l3 = st.columns([0.05, 1, 0.05])
     with col_l2:
         with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;'>계정 인증 (Authorized Login)</p>", unsafe_allow_html=True)
-            # 💡 [요청 반영] kshan@fiti.re.kr 대신 인가된 회사 이메일 주소 안내 텍스트 적용
-            login_email = st.text_input("이메일 주소 (ID)", placeholder="예: 인가된 회사 이메일 주소 (@fiti.re.kr)")
-            login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
+            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-bottom: 6px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
+            
+            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-top: 12px; margin-bottom: 6px;'>비밀번호</p>", unsafe_allow_html=True)
+            login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
+            
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
@@ -1472,7 +1462,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 적용)
+# 12. [BI] 사업별 실적 현황 렌더링
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1480,10 +1470,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": FULL_BI_CATEGORIES,
-            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
+            "표준사업구분": BI_8_CATEGORIES,
+            "2025년 실적": [0]*len(BI_8_CATEGORIES),
+            "2026년 실적": [0]*len(BI_8_CATEGORIES),
+            "증감률": [0.0]*len(BI_8_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1493,124 +1483,11 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
-    magok_25 = magok_df["2025년 실적"].sum()
-    magok_26 = magok_df["2026년 실적"].sum()
-
-    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
-    ochang_25 = ochang_df["2025년 실적"].sum()
-    ochang_26 = ochang_df["2026년 실적"].sum()
-
-    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
-    
-    center_pie_df = pd.DataFrame([
-        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
-        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
-    ])
-    
-    col_pie1, col_pie2 = st.columns(2)
-    center_colors = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
-
-    with col_pie1:
-        fig_center_25 = px.pie(
-            center_pie_df, 
-            names="거점구분", 
-            values="2025년 실적", 
-            hole=0.6,
-            title="2025년 거점별 실적 비중",
-            color="거점구분",
-            color_discrete_map=center_colors
-        )
-        tot_c25 = center_pie_df["2025년 실적"].sum()
-        fig_center_25.update_traces(
-            textposition='inside', 
-            textinfo='label+percent', 
-            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=3))
-        )
-        fig_center_25.update_layout(
-            height=460,
-            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
-            margin=dict(t=60, b=30, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
-            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e8:.1f}억</span>" if tot_c25 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
-        )
-        st.plotly_chart(fig_center_25, use_container_width=True)
-
-    with col_pie2:
-        fig_center_26 = px.pie(
-            center_pie_df, 
-            names="거점구분", 
-            values="2026년 실적", 
-            hole=0.6,
-            title="2026년 거점별 실적 비중",
-            color="거점구분",
-            color_discrete_map=center_colors
-        )
-        tot_c26 = center_pie_df["2026년 실적"].sum()
-        fig_center_26.update_traces(
-            textposition='inside', 
-            textinfo='label+percent', 
-            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=3))
-        )
-        fig_center_26.update_layout(
-            height=460,
-            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
-            margin=dict(t=60, b=30, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
-            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e8:.1f}억</span>" if tot_c26 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
-        )
-        st.plotly_chart(fig_center_26, use_container_width=True)
-
-    st.write("")
-    st.markdown("---")
-
-    center_compare_df = center_pie_df.copy()
-    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
-    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
-
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교",
-        title_bottom="📈 Center Growth Comparison",
-        table_title="Magok & Ochang Summary Table",
-        data_df=center_compare_df,
-        x_col_name="거점구분",
-        cat_order=["마곡 본원 (Magok)", "오창 분원 (Ochang)"]
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏛️ 마곡 본원 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
-        title_bottom="📈 Magok Sub-categories Diff",
-        table_title="Magok Detailed Summary Table",
-        data_df=magok_df,
-        x_col_name="표준사업구분",
-        cat_order=MAGOK_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏭 오창 분원 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
-        title_bottom="📈 Ochang Sub-categories Diff",
-        table_title="Ochang Detailed Summary Table",
-        data_df=ochang_df,
-        x_col_name="표준사업구분",
-        cat_order=OCHANG_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황",
-        title_bottom="📈 All Categories Performance Diff",
-        table_title="All Categories Detailed Summary Table",
+        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황 ({display_period_name})",
+        title_bottom="📈 BI 8 Categories Performance Diff",
+        table_title="BI Detailed Summary Table",
         data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=FULL_BI_CATEGORIES
+        cat_order=BI_8_CATEGORIES
     )
