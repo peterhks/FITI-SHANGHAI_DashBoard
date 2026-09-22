@@ -629,7 +629,7 @@ for cat in target_categories:
         vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
-# 8. BI 지사별 파서 (정확한 행 매칭 규칙 적용 - 누락 제로)
+# 8. BI 지사별 파서 (정확한 행 매칭 및 누락 방지 로직 보강)
 # =========================================================
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
@@ -728,7 +728,7 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate, empty_kpi)
     }
 
-    # 💡 [정밀 매핑 규칙] 팀장님 요청 반영 (법정검사 합계, 일반검사 합계, 패션잡화 소계, 중국GB 소계, 단체/정부 소계, 수출 합계, 연구용역 합계, 제품인증 합계)
+    # 💡 [엄격 매칭 규칙] 요청하신 대로 법정검사/일반검사(합계), 소계 항목들을 정확히 추출
     target_mappings = [
         ("법정검사", ["법정검사", "법정"], "합계"),
         ("일반검사", ["일반검사", "일반"], "합계"),
@@ -750,11 +750,9 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
             matched_row_idx = None
             if col_25_i is not None:
                 for idx in range(len(raw)):
-                    row_cells = [str(raw.iat[idx, c]).strip().replace(" ", "").lower() for c in range(len(raw.columns))]
-                    row_str = "".join(row_cells)
-                    
-                    if any(kw.lower().replace(" ", "") in row_str for kw in keywords):
-                        if match_type in row_str:
+                    row_text = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
+                    if any(kw.lower().replace(" ", "") in row_text for kw in keywords):
+                        if match_type in row_text:
                             matched_row_idx = idx
                             break
                         elif matched_row_idx is None:
@@ -1154,7 +1152,13 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     if raw_v_df.empty:
         st.warning("Vendor data not found.")
     else:
-        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        v_summary = raw_v_df.groupby("협력사명", as_index=False)[["2025년 실실적" if "2025년 실실적" in raw_v_df.columns else "2025년 실적", "2026년 실적"]].sum()
+        # 안전한 컬럼명 재확인
+        col_v25 = next((c for c in v_summary.columns if "25" in str(c)), v_summary.columns[1])
+        col_v26 = next((c for c in v_summary.columns if "26" in str(c)), v_summary.columns[2])
+        v_summary = v_summary.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"})
+        v_summary = v_summary.sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+        
         vendor_list = ["전체 협력사 보기 (All Vendors)"] + v_summary["협력사명"].tolist()
         with c_vendor:
             selected_vendor = st.selectbox("Select Vendor:", vendor_list, key="tab4_vendor_select")
@@ -1170,7 +1174,8 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
         else:
             single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
-            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[[col_v25, col_v26]].sum()
+            b_breakdown = b_breakdown.rename(columns={col_v25: "2025년 실적", col_v26: "2026년 실적"}).sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 {selected_vendor} Performance by Buyer",
                 title_bottom="📈 Breakdown Diff",
@@ -1181,13 +1186,15 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링
+# 12. [BI] 마곡 vs 오창 거점별 실적 비교 및 상세 렌더링 (안전한 데이터 보장)
 # =========================================================
 elif page_menu.startswith("[BI_"):
+    # 💡 [핵심] active_bi_charts 딕셔너리에서 데이터가 비어있지 않도록 안전한 폴백 및 동기화 구현
     active_chart_dict = active_bi_charts.get("누계")
     if active_chart_dict is not None and not active_chart_dict.empty:
         current_bi_chart_df = active_chart_dict.copy()
     else:
+        # 혹시라도 누계가 비어있다면 전체 8대 사업 기본 구조 생성
         current_bi_chart_df = pd.DataFrame({
             "표준사업구분": FULL_BI_CATEGORIES,
             "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
@@ -1202,6 +1209,7 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
+    # 마곡 및 오창 데이터 필터링
     magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     magok_25 = magok_df["2025년 실적"].sum()
     magok_26 = magok_df["2026년 실적"].sum()
