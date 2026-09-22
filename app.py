@@ -121,7 +121,7 @@ LANG_DICT = {
             "[접수기준] 협력사 실적 현황": "[接收基准] 各合作社业绩现状",
             "[BI_종합] 사업별 실적 현황": "[BI_综合] 各业务业绩现状",
             "[BI_상해] 사업별 실적 현황": "[BI_上海] 各业务业绩现状",
-            "[BI_광주] 사업별 실적 현황": "[BI_光州] 各业务业绩现状",
+            "[BI_광주] 사업별 실적 현황": "[BI_광州] 各业务业绩现状",
         },
         "periods": {
             "전체 총계 누계": "全体总计累计",
@@ -393,7 +393,6 @@ if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
-# 💡 [요청 반영] 행 수는 삭제하고 총 시트 수만 표시
 try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
@@ -1011,18 +1010,15 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (X축 글자 2~3줄 자동 개행 적용, 회전 없음)
+# 10. 공통 렌더러 및 본문 실행 (성장=레드 / 역성장=블루 색상 반전 적용)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
     if len(text_str) <= max_len:
         return text_str
-    
-    # 괄호나 띄어쓰기 기준으로 자연스럽게 2~3줄로 분할
     if '(' in text_str and ')' in text_str:
         parts = text_str.split('(')
         return parts[0].strip() + "<br>(" + parts[1].strip()
-    
     words = text_str.split(' ')
     if len(words) > 1:
         if len(words) >= 3:
@@ -1031,13 +1027,10 @@ def wrap_text_for_axis(text, max_len=9):
         else:
             mid = len(words) // 2
             return " ".join(words[:mid]) + "<br>" + " ".join(words[mid:])
-            
-    # 공백 없는 긴 단어는 강제로 끊기
     if len(text_str) > 14:
         return text_str[:7] + "<br>" + text_str[7:14] + "<br>" + text_str[14:]
     elif len(text_str) > 7:
         return text_str[:7] + "<br>" + text_str[7:]
-        
     return text_str
 
 def render_fullwidth_vertical_dashboard(
@@ -1097,9 +1090,14 @@ def render_fullwidth_vertical_dashboard(
         sign_v = "+" if diff_v > 0 else ""
 
         label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
-        label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:#1D4ED8;'>({sign_r}{rt:0.1f}%)</span>")
-        diff_texts.append(f"<span style='font-size:14px; font-weight:800;'>{sign_v}{sdiff}</span><br><span style='font-size:12px; font-weight:700;'>({sign_r}{rt:0.1f}%)</span>")
-        diff_colors.append("#E11D48" if diff_v >= 0 else "#2563EB")
+        
+        # 💡 [요청 반영] 성장(+%)은 레드 계열(#E11D48), 역성장(-%)은 블루 계열(#1D4ED8)
+        rate_color = "#E11D48" if rt >= 0 else "#1D4ED8"
+        label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:{rate_color};'>({sign_r}{rt:0.1f}%)</span>")
+        
+        diff_text_color = "#E11D48" if diff_v >= 0 else "#1D4ED8"
+        diff_texts.append(f"<span style='font-size:14px; font-weight:800; color:{diff_text_color};'>{sign_v}{sdiff}</span><br><span style='font-size:12px; font-weight:700; color:{diff_text_color};'>({sign_r}{rt:0.1f}%)</span>")
+        diff_colors.append("#E11D48" if diff_v >= 0 else "#1D4ED8")
 
     st.subheader(title_top)
     fig_bar = go.Figure()
@@ -1134,7 +1132,7 @@ def render_fullwidth_vertical_dashboard(
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickangle=0,  # 💡 [핵심] 비스듬한 회전 각도를 0도로 완전 고정하여 2~3줄로 정렬
+            tickangle=0,  # 💡 비스듬함 완전 제거 및 수평 정렬
             tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
@@ -1173,7 +1171,7 @@ def render_fullwidth_vertical_dashboard(
         xaxis=dict(
             categoryorder='array',
             categoryarray=wrapped_cat_order,
-            tickangle=0,  # 💡 [핵심] 비스듬한 회전 각도를 0도로 고정
+            tickangle=0,  # 💡 비스듬함 완전 제거
             tickfont=dict(size=13, weight="bold", color="#0F172A")
         ),
         template="plotly_white",
@@ -1444,7 +1442,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (회장님 보고용 고급 도넛 차트 적용)
+# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 적용)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
