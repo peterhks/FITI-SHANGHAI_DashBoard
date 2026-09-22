@@ -122,7 +122,7 @@ LANG_DICT = {
         "admin_upload": "上传公共Excel文件 (仅限管理员)",
         "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
-        "shared_file_info": "📂 服务器公共最新文件同步中",
+        "shared_file_info": "📂 서버 공용最新文件同步中",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
@@ -327,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (불필요한 박스 프레임 완전 제거)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (흰색 박스 완전 제거 및 투명 글래스 연동)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -335,7 +335,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.45), rgba(0, 10, 25, 0.6)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.4), rgba(0, 10, 25, 0.55)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -347,10 +347,10 @@ if not st.session_state["logged_in"]:
         }}
         header {{visibility: hidden;}}
         
-        /* 💡 [핵심] 불필요한 바깥쪽 카드 프레임 및 테두리를 완전히 없애고 배경과 자연스럽게 밀착 */
+        /* 💡 [핵심] 로그인 폼 주변의 불필요한 테두리 상자를 완전 투명하게 제거 */
         [data-testid="stForm"] {{
             max-width: 420px !important; 
-            margin: 6vh auto !important; 
+            margin: 4vh auto !important; 
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -381,16 +381,17 @@ if not st.session_state["logged_in"]:
     with st.form("login_form"):
         st.markdown("""
         <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
-            <div style="font-size: 48px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #CBD5E1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.7);">FITI Shanghai</div>
-            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.7);">상해지사 실적 종합 분석 시스템</div>
+            <!-- 💡 [요청 반영] 흰색 박스가 완전히 사라지고 야경 배경 위에 로고가 일자로 선명하게 표시됨 -->
+            <div style="font-size: 48px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #E2E8F0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.8);">FITI Shanghai</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.8);">상해지사 실적 종합 분석 시스템</div>
             <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.5);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #F1F5F9; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.8);'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
         login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
         
-        st.markdown("<p style='color: #F1F5F9; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.8);'>비밀번호</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>비밀번호</p>", unsafe_allow_html=True)
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
         
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
