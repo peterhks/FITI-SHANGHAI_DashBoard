@@ -327,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (반투명 글래스모피즘 및 전체 크기 축소)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (불필요한 박스 프레임 완전 제거)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -335,7 +335,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.5), rgba(0, 10, 25, 0.65)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.45), rgba(0, 10, 25, 0.6)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -347,29 +347,30 @@ if not st.session_state["logged_in"]:
         }}
         header {{visibility: hidden;}}
         
-        /* 💡 [핵심] 배경이 은은하게 비치는 반투명 글래스모피즘 박스 적용 (투명도 45% + 블러 효과) 및 전체 크기 살짝 축소 */
+        /* 💡 [핵심] 불필요한 바깥쪽 카드 프레임 및 테두리를 완전히 없애고 배경과 자연스럽게 밀착 */
         [data-testid="stForm"] {{
-            max-width: 400px !important; 
-            margin: 4vh auto !important; 
-            background: rgba(2, 12, 25, 0.45) !important;
-            backdrop-filter: blur(14px) !important;
-            -webkit-backdrop-filter: blur(14px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.22) !important;
-            border-radius: 16px !important;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
-            padding: 30px !important;
+            max-width: 420px !important; 
+            margin: 6vh auto !important; 
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 10px !important;
         }}
         
         [data-testid="stForm"] [data-testid="stTextInput"] div[data-baseweb="input"] {{
             width: 100% !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+            border-radius: 8px !important;
         }}
         [data-testid="stForm"] .stFormSubmitButton button {{
             width: 100% !important;
             font-weight: 800 !important;
-            font-size: 14px !important;
+            font-size: 15px !important;
             background-color: #3B82F6 !important;
             color: #FFFFFF !important;
             border: none !important;
+            border-radius: 8px !important;
+            padding: 10px !important;
         }}
         [data-testid="stForm"] .stFormSubmitButton button:hover {{
             background-color: #2563EB !important;
@@ -379,21 +380,20 @@ if not st.session_state["logged_in"]:
     
     with st.form("login_form"):
         st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] 크기를 살짝 컴팩트하게 줄이고 화이트-실버 그라데이션 및 한줄 고정 적용 -->
-            <div style="font-size: 46px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 25%, #CBD5E1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 3px 18px rgba(0,0,0,0.5);">FITI Shanghai</div>
-            <div style="font-size: 17px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF; text-shadow: 0 2px 5px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 12px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 10px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
+            <div style="font-size: 48px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #CBD5E1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.7);">FITI Shanghai</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.7);">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.5);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-bottom: 2px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #F1F5F9; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.8);'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
         login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
         
-        st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 10px; margin-bottom: 2px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #F1F5F9; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.8);'>비밀번호</p>", unsafe_allow_html=True)
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
         
-        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
         
         if submit_login:
@@ -893,7 +893,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 권한별 페이지 제어
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
