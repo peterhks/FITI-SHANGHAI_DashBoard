@@ -33,11 +33,11 @@ LANG_DICT = {
         "sys_title": "상해지사 실적 종합 분석 시스템",
         "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
-        "admin_upload": "관리자용 최신 엑셀 덮어쓰기",
+        "admin_upload": "관리자용 최신 엑셀 업로드",
         "admin_caption": "💡 엑셀 파일을 교체하려면 하단 'BI 관리자 모드'로 로그인하세요.",
-        "sync_success": "✅ 서버 동기화 및 캐시 초기화 완료!",
-        "shared_file_info": "📂 공용 기준 파일 연동 중",
-        "file_not_found": "파일을 찾을 수 없습니다. 관리자 모드로 로그인하여 파일을 업로드해 주세요.",
+        "sync_success": "✅ 업로드 파일이 세션에 영구 보존되었습니다!",
+        "shared_file_info": "📂 업로드 파일 연동 중",
+        "file_not_found": "분석할 엑셀 파일을 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
         "period_select": "⏱️ [BI] 실적 기간 선택",
@@ -83,11 +83,11 @@ LANG_DICT = {
         "sys_title": "上海分公司业绩综合分析系统",
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
         "data_mgmt": "📁 数据管理",
-        "admin_upload": "管理员最新Excel覆盖上传",
+        "admin_upload": "管理员上传最新Excel",
         "admin_caption": "💡 如需更换Excel文件，请登录底部的“BI管理员模式”。",
-        "sync_success": "✅ 服务器同步及缓存初始化完成！",
-        "shared_file_info": "📂 公共标准文件同步中",
-        "file_not_found": "未找到文件。请登录管理员模式上传文件。",
+        "sync_success": "✅ 上传文件已在会话中永久保存！",
+        "shared_file_info": "📂 上传文件同步中",
+        "file_not_found": "请上传要分析的Excel文件。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
         "period_select": "⏱️ [BI] 业绩期间选择",
@@ -133,11 +133,11 @@ LANG_DICT = {
         "sys_title": "Shanghai Branch Performance Analysis System",
         "sys_sub": "Shanghai Branch Business Performance & Analysis System | Business Team",
         "data_mgmt": "📁 Data Management",
-        "admin_upload": "Admin Latest Excel Upload",
+        "admin_upload": "Admin Upload Latest Excel",
         "admin_caption": "💡 To replace Excel, login to 'BI Admin Mode' below.",
-        "sync_success": "✅ Server sync & cache cleared!",
-        "shared_file_info": "📂 Public Standard File Linked",
-        "file_not_found": "File not found. Please login as admin to upload.",
+        "sync_success": "✅ Uploaded file permanently saved in session!",
+        "shared_file_info": "📂 Uploaded File Linked",
+        "file_not_found": "Please upload an Excel file to analyze.",
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
@@ -182,7 +182,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 3. 사이드바 언어 선택
+# 3. 사이드바 언어 선택 및 쿼리 연동
 # =========================================================
 query_params = st.query_params
 
@@ -338,7 +338,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 서버 파일 자동 공유 및 관리자 업로드 동기화 엔진
+# 5. [핵심 수정] 업로드 파일 영구 보존 엔진 (세션 박제 + 서버 파일 폴백)
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 
@@ -355,18 +355,24 @@ def check_bi_password():
         st.session_state["bi_authorized"] = False
         st.sidebar.error(t["auth_fail"])
 
+# 관리자 모드일 때만 업로더 표시
 if st.session_state["bi_authorized"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
-        with open(EXCEL_FILE, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        # 업로드된 파일 바이트를 세션에 영구 백업하여 절대 안 날아가게 함
+        st.session_state["persistent_file_bytes"] = uploaded_file.getvalue()
+        st.session_state["persistent_file_name"] = uploaded_file.name
         st.cache_data.clear()
         st.sidebar.success(t["sync_success"])
         st.rerun()
 else:
     st.sidebar.caption(t["admin_caption"])
 
-if os.path.exists(EXCEL_FILE):
+# 데이터 로드 우선순위: 1) 세션에 박제된 파일 바이트 -> 2) 서버의 기본 EXCEL_FILE
+if "persistent_file_bytes" in st.session_state:
+    raw_bytes = st.session_state["persistent_file_bytes"]
+    st.sidebar.success(f"✅ 영구 유지 중인 파일")
+elif os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as f:
         raw_bytes = f.read()
     st.sidebar.info(t["shared_file_info"])
@@ -978,7 +984,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행
+# 10. 공통 렌더러 및 본문 실행 (상단 도넛 차트 및 하이엔드 시인성 적용)
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1163,7 +1169,7 @@ def render_fullwidth_vertical_dashboard(
 current_page_display = t["pages"].get(page_menu, page_menu)
 
 if page_menu == "[접수기준] 종합 실적 현황":
-    # 💡 [개선] 원형 그래프(도넛 차트)를 실적현황 위로 올려서 상단 배치
+    # 💡 [하이엔드 디자인] 원형 도넛 차트를 상단에 배치하고 내부 총합 표시
     st.subheader(f"🥧 {current_page_display} - Share")
     
     biz_colors = {
@@ -1179,23 +1185,25 @@ if page_menu == "[접수기준] 종합 실적 현황":
             summary_chart, 
             names="표준사업구분", 
             values=col_25, 
-            hole=0.55,
+            hole=0.6,
             title=t["pie_title_25"], 
             category_orders={"표준사업구분": target_categories},
             color="표준사업구분", 
             color_discrete_map=biz_colors
         )
+        tot_v25 = summary_chart[col_25].sum()
         fig_pie_25.update_traces(
             textposition='inside', 
             textinfo='label+percent', 
-            textfont=dict(size=15, color="#FFFFFF", weight="bold"), 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
             marker=dict(line=dict(color='#FFFFFF', width=2.5))
         )
         fig_pie_25.update_layout(
             height=460, 
             title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
             margin=dict(t=60, b=20, l=10, r=10), 
-            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_v25/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
         )
         st.plotly_chart(fig_pie_25, use_container_width=True)
         
@@ -1204,23 +1212,25 @@ if page_menu == "[접수기준] 종합 실적 현황":
             summary_chart, 
             names="표준사업구분", 
             values=col_26, 
-            hole=0.55,
+            hole=0.6,
             title=t["pie_title_26"], 
             category_orders={"표준사업구분": target_categories},
             color="표준사업구분", 
             color_discrete_map=biz_colors
         )
+        tot_v26 = summary_chart[col_26].sum()
         fig_pie_26.update_traces(
             textposition='inside', 
             textinfo='label+percent', 
-            textfont=dict(size=15, color="#FFFFFF", weight="bold"), 
+            textfont=dict(size=14, color="#FFFFFF", weight="bold"), 
             marker=dict(line=dict(color='#FFFFFF', width=2.5))
         )
         fig_pie_26.update_layout(
             height=460, 
             title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
             margin=dict(t=60, b=20, l=10, r=10), 
-            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+            legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+            annotations=[dict(text=f"Total<br>{tot_v26/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
         )
         st.plotly_chart(fig_pie_26, use_container_width=True)
 
@@ -1299,7 +1309,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
         x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타 (Etc)"] + (["기타 (Etc)"] if "기타 (Etc)" in top_buyers["바이어명"].values else [])
 
-        # 💡 [개선] 바이어 실적 현황 페이지도 원형 그래프(도넛 차트)를 상단에 배치
+        # 💡 [하이엔드 디자인] 바이어별 도넛 차트를 상단에 배치하고 내부 총합 표시
         st.subheader(f"🥧 {selected_biz} - Buyer Share")
         
         pie_col1, pie_col2 = st.columns(2)
@@ -1308,9 +1318,10 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 top_buyers, 
                 names="바이어명", 
                 values="2025년 실적", 
-                hole=0.55,
+                hole=0.6,
                 title=t["buyer_pie_25"]
             )
+            tot_b25 = top_buyers["2025년 실적"].sum()
             fig_buyer_pie_25.update_traces(
                 textposition='inside', 
                 textinfo='label+percent', 
@@ -1321,7 +1332,8 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 height=460, 
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
-                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억" if tot_b25 >= 1e8 else f"Total<br>{tot_b25/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_25, use_container_width=True)
             
@@ -1330,9 +1342,10 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 top_buyers, 
                 names="바이어명", 
                 values="2026년 실적", 
-                hole=0.55,
+                hole=0.6,
                 title=t["buyer_pie_26"]
             )
+            tot_b26 = top_buyers["2026년 실적"].sum()
             fig_buyer_pie_26.update_traces(
                 textposition='inside', 
                 textinfo='label+percent', 
@@ -1343,7 +1356,8 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 height=460, 
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
-                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
+                legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
+                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억" if tot_b26 >= 1e8 else f"Total<br>{tot_b26/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
 
