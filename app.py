@@ -25,7 +25,6 @@ BI_8_CATEGORIES = [
     "화학바이오(화학제품+생활안전)"
 ]
 
-# 💡 마곡 및 오창 거점 분류 맵핑
 MAGOK_CATEGORIES = ["일반검사", "섬유내수(패션잡화)", "섬유내수(중국GB)", "섬유수출"]
 OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "환경(환경+측정기기)", "화학바이오(화학제품+생활안전)"]
 
@@ -994,7 +993,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (마곡/오창 거점 분리 및 비교 기능 포함)
+# 10. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=14):
     text_str = str(text)
@@ -1406,7 +1405,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
         else:
             single_v_detail = raw_v_df[raw_v_df["협력사명"] == selected_vendor].copy()
-            b_breakdown = single_v_detail.groupby("바이어명", as_index=eslint_safe := False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
+            b_breakdown = single_v_detail.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
             render_fullwidth_vertical_dashboard(
                 title_top=f"🏢 {selected_vendor} Performance by Buyer",
                 title_bottom="📈 Breakdown Diff",
@@ -1417,10 +1416,9 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 11. [BI] 거점별 분기 및 비교 기능 구현 (마곡 vs 오창)
+# 11. [BI] 마곡 vs 오창 거점 분리 및 비교 기능 구현
 # =========================================================
 elif page_menu.startswith("[BI_"):
-    # 선택된 BI 지사별 차트 데이터 가져오기
     current_bi_chart_df = active_bi_charts["월계" if "월계" in bi_period_mode else "누계"].copy()
     
     if "상해" in page_menu:
@@ -1430,17 +1428,14 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    # 마곡 카테고리 데이터 필터링 및 합계
     magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     magok_25 = magok_df["2025년 실적"].sum()
     magok_26 = magok_df["2026년 실적"].sum()
 
-    # 오창 카테고리 데이터 필터링 및 합계
     ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
     ochang_25 = ochang_df["2025년 실적"].sum()
     ochang_26 = ochang_df["2026년 실적"].sum()
 
-    # 💡 1. 마곡 vs 오창 거점별 토탈 비교 도넛 차트 및 상단 시각화
     st.subheader(f"📍 {center_title_prefix} {t['center_compare']} ({display_period_name})")
     
     col_mg, col_oc = st.columns(2)
@@ -1501,7 +1496,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 2. 마곡 vs 오창 거점 비교 요약 테이블 및 바 차트
     center_compare_df = pd.DataFrame([
         {"거점구분": "마곡 센터 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
         {"거점구분": "오창 센터 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
@@ -1521,7 +1515,6 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
 
-    # 💡 3. 전체 8대 사업 상세 바 차트 및 테이블
     render_fullwidth_vertical_dashboard(
         title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황",
         title_bottom="📈 BI 8 Categories Performance Diff",
