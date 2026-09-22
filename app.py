@@ -317,7 +317,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (백그라운드 이미지 연동 및 스타일 적용)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (1/3 크기로 컴팩트화)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -325,7 +325,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.55), rgba(0, 10, 25, 0.7)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.6), rgba(0, 10, 25, 0.75)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -338,27 +338,25 @@ if not st.session_state["logged_in"]:
         header {{visibility: hidden;}}
     </style>
     
-    <div style="max-width: 580px; margin: 40px auto; background: rgba(0, 25, 55, 0.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 20px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 45px;">
-        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] FITI Shanghai: 크기 3포인트 크게, 더 진하고 예쁜 블루 (#3B82F6) -->
-            <div style="font-size: 58px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; color: #3B82F6; text-shadow: 0 0 25px rgba(59,130,246,0.6);">FITI Shanghai</div>
-            <div style="font-size: 24px; font-weight: 800; margin-bottom: 8px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
-            <!-- 💡 [요청 반영] 중국어 문구: 크기 2포인트 크게, 코랄 에메랄드 블루 (#38BDF8) -->
-            <div style="font-size: 18px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 15px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <!-- 💡 [요청 반영] 가로폭을 420px로 컴팩트하게 줄여 1/3 크기 느낌 구현 -->
+    <div style="max-width: 420px; margin: 50px auto; background: rgba(2, 12, 27, 0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 16px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); overflow: hidden; padding: 30px;">
+        <div style="text-align: center; margin-bottom: 20px; color: #FFFFFF;">
+            <div style="font-size: 40px; font-weight: 900; letter-spacing: -1px; margin-bottom: 6px; color: #3B82F6; text-shadow: 0 0 20px rgba(59,130,246,0.6);">FITI Shanghai</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 10px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.05, 1, 0.05])
+    col_l1, col_l2, col_l3 = st.columns([0.02, 1, 0.02])
     with col_l2:
         with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-bottom: 6px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
-            # 💡 [요청 반영] kshan 대신 인가된 메일 주소 플레이스홀더 적용
-            login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인증된 회사 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
+            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
-            st.markdown("<p style='color: #E2E8F0; font-size: 14px; font-weight: 600; margin-top: 14px; margin-bottom: 6px;'>비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 10px; margin-bottom: 4px;'>비밀번호</p>", unsafe_allow_html=True)
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             
-            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
