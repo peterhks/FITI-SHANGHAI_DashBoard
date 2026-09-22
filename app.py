@@ -316,32 +316,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 프리미엄 블루 스카이라인 로그인 화면 (전문가 스타일)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (진입 통제)
 # =========================================================
 if not st.session_state["logged_in"]:
-    st.markdown("""
+    st.markdown(f"""
     <style>
-        /* 스트림릿 기본 여백 및 헤더 간소화 */
-        .stApp {
-            background: linear-gradient(rgba(0, 20, 50, 0.75), rgba(0, 43, 92, 0.85)), 
-                        url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+        /* Streamlit 기본 여백을 줄여 배경 이미지가 화면 전체에 꽉 차도록 설정 */
+        .stMain {{
+            background: linear-gradient(rgba(0, 20, 50, 0.65), rgba(0, 10, 30, 0.8)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
             background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        /* 불필요한 상단 여백 제거 */
+        header {{visibility: hidden;}}
     </style>
-    <div style="max-width: 460px; margin: 40px auto 20px auto; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); overflow: hidden; border: 1px solid rgba(255,255,255,0.3);">
-        <div style="background: linear-gradient(135deg, #002B5C 0%, #003876 100%); padding: 30px 25px; text-align: center; color: #FFFFFF;">
-            <div style="font-size: 32px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px;">FITI Shanghai</div>
-            <div style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 11px; color: #D0E1FD; font-weight: 400;">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(rgba(0, 30, 70, 0.6), rgba(0, 15, 35, 0.75)), url('https://images.unsplash.com/photo-1543834899-a3598e3b3334?auto=format&fit=crop&w=1920&q=80') no-repeat center center; background-size: cover; z-index: -1;"></div>
+    
+    <div style="max-width: 480px; margin: 80px auto; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); overflow: hidden; padding: 40px;">
+        <div style="text-align: center; margin-bottom: 30px; color: #FFFFFF;">
+            <div style="font-size: 36px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; color: #60A5FA;">FITI Shanghai</div>
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #FFFFFF;">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 12px; color: #93C5FD; font-weight: 400;">飞迪商品检验（上海）有限公司</div>
         </div>
-    </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([1, 1.3, 1])
+    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
     with col_l2:
         with st.form("login_form"):
-            # 💡 [요청 반영] 특정 개인 이메일 대신 인가된 메일 주소 안내로 변경
-            login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)")
+            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;'>계정 인증 (Authorized Login)</p>", unsafe_allow_html=True)
+            # 💡 [요청 반영] kshan@fiti.re.kr 대신 인가된 회사 이메일 주소 안내 텍스트 적용
+            login_email = st.text_input("이메일 주소 (ID)", placeholder="예: 인가된 회사 이메일 주소 (@fiti.re.kr)")
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
@@ -369,6 +376,8 @@ if not st.session_state["logged_in"]:
                         "status": "실패"
                     })
                     st.error("이메일 또는 비밀번호가 일치하지 않습니다.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 # =========================================================
