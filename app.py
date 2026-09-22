@@ -52,10 +52,10 @@ LANG_DICT = {
         "kpi_rate": "📊 증감 퍼센트",
         "kpi_diff_sub": "전년 대비 실적차",
         "kpi_rate_sub": "전년 대비 성장률",
-        "pie_title_25": "2025년 사업별 실적 점유율",
-        "pie_title_26": "2026년 사업별 실적 점유율",
-        "buyer_pie_25": "2025년 주요 바이어 실적 점유율",
-        "buyer_pie_26": "2026년 주요 바이어 실적 점유율",
+        "pie_title_25": "2025년 사업별 실적 비중",
+        "pie_title_26": "2026년 사업별 실적 비중",
+        "buyer_pie_25": "2025년 주요 바이어 실적 비중",
+        "buyer_pie_26": "2026년 주요 바이어 실적 비중",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -1163,17 +1163,8 @@ def render_fullwidth_vertical_dashboard(
 current_page_display = t["pages"].get(page_menu, page_menu)
 
 if page_menu == "[접수기준] 종합 실적 현황":
-    render_fullwidth_vertical_dashboard(
-        title_top=f"📌 {current_page_display}",
-        title_bottom="📈 Business Performance Diff & Growth Rate",
-        table_title="Summary Table",
-        data_df=summary_chart,
-        x_col_name="표준사업구분",
-        cat_order=target_categories
-    )
-    
-    st.write("")
-    st.subheader(f"🥧 {t['pie_title_25'].replace('2025년', '')} Share")
+    # 💡 [개선] 원형 그래프(도넛 차트)를 실적현황 위로 올려서 상단 배치
+    st.subheader(f"🥧 {current_page_display} - Share")
     
     biz_colors = {
         "글로벌 바이어": "#2563EB",
@@ -1232,6 +1223,18 @@ if page_menu == "[접수기준] 종합 실적 현황":
             legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
         )
         st.plotly_chart(fig_pie_26, use_container_width=True)
+
+    st.write("")
+    st.markdown("---")
+    
+    render_fullwidth_vertical_dashboard(
+        title_top=f"📌 {current_page_display}",
+        title_bottom="📈 Business Performance Diff & Growth Rate",
+        table_title="Summary Table",
+        data_df=summary_chart,
+        x_col_name="표준사업구분",
+        cat_order=target_categories
+    )
 
 elif page_menu == "[접수기준] 사업별 실적 현황":
     biz_filter_options = ["전체 사업 보기"] + target_categories
@@ -1296,17 +1299,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
         top_buyers["증감률"] = ((top_buyers["증감액"] / top_buyers["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
         x_buyer_names = [b for b in top_buyers["바이어명"] if b != "기타 (Etc)"] + (["기타 (Etc)"] if "기타 (Etc)" in top_buyers["바이어명"].values else [])
 
-        render_fullwidth_vertical_dashboard(
-            title_top=f"🤝 {current_page_display} ({selected_biz})",
-            title_bottom="📈 Buyer Performance Diff",
-            table_title="Buyer Summary Table",
-            data_df=top_buyers,
-            x_col_name="바이어명",
-            cat_order=x_buyer_names
-        )
-        
-        # 💡 [접수기준] 바이어 실적 현황 페이지 하단에도 원형 그래프(도넛 차트) 추가
-        st.write("")
+        # 💡 [개선] 바이어 실적 현황 페이지도 원형 그래프(도넛 차트)를 상단에 배치
         st.subheader(f"🥧 {selected_biz} - Buyer Share")
         
         pie_col1, pie_col2 = st.columns(2)
@@ -1353,6 +1346,18 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5)
             )
             st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
+
+        st.write("")
+        st.markdown("---")
+
+        render_fullwidth_vertical_dashboard(
+            title_top=f"🤝 {current_page_display} ({selected_biz})",
+            title_bottom="📈 Buyer Performance Diff",
+            table_title="Buyer Summary Table",
+            data_df=top_buyers,
+            x_col_name="바이어명",
+            cat_order=x_buyer_names
+        )
 
 elif page_menu == "[접수기준] 협력사 실적 현황":
     c_biz, c_vendor = st.columns([4, 6])
