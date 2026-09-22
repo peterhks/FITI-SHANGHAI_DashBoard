@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 세션 초기화 (세션 튕김 방어 장치 포함)
+# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -56,7 +56,7 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
 
-# 💡 [세션 유지 보완] 쿼리 파라미터나 세션 상태 동기화 처리
+# 💡 [세션 유지 보완] 쿼리 파라미터 세션 동기화 처리
 query_params = st.query_params
 if "auth_ok" in query_params and query_params["auth_ok"] == "true":
     st.session_state["logged_in"] = True
@@ -326,7 +326,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (테두리 박스 제거 및 1/3 컴팩트화)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (15cm 컴팩트 가로폭 및 고급 타이틀 룩)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -334,7 +334,7 @@ if not st.session_state["logged_in"]:
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.55), rgba(0, 10, 25, 0.7)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
+        bg_css = f"background: linear-gradient(rgba(0, 15, 35, 0.6), rgba(0, 10, 25, 0.75)), url('data:image/png;base64,{encoded_string}') no-repeat center center fixed; background-size: cover;"
     else:
         bg_css = "background: linear-gradient(135deg, #001E3D 0%, #000B1A 100%);"
 
@@ -347,27 +347,26 @@ if not st.session_state["logged_in"]:
         header {{visibility: hidden;}}
     </style>
     
-    <!-- 💡 [요청 반영] 불필요한 흰색/회색 사각형 박스 배경을 완전 제거하고 배경 야경과 일체화 -->
-    <div style="max-width: 400px; margin: 40px auto; background: transparent; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
-            <!-- FITI Shanghai: 3포인트 크게, 짙고 예쁜 블루 -->
-            <div style="font-size: 55px; font-weight: 900; letter-spacing: -1px; margin-bottom: 10px; color: #3B82F6; text-shadow: 0 0 25px rgba(59,130,246,0.7);">FITI Shanghai</div>
-            <div style="font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 8px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
-            <!-- 중국어 문구: 코랄 에메랄드 블루 -->
-            <div style="font-size: 16px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 15px rgba(56,189,248,0.5);">飞迪商品检验（上海）有限公司 | 사업팀</div>
+    <!-- 💡 [요청 반영] 가로폭을 딱 380px로 고정하여 약 15cm 비율의 컴팩트한 감성 구현 -->
+    <div style="max-width: 380px; margin: 40px auto; background: transparent; padding: 10px;">
+        <div style="text-align: center; margin-bottom: 22px; color: #FFFFFF;">
+            <!-- 💡 [요청 반영] FITI Shanghai: 품격 있는 화이트-실버 그라데이션 및 네온 블루 포인트 룩 -->
+            <div style="font-size: 42px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; background: linear-gradient(135deg, #FFFFFF 30%, #60A5FA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.5);">FITI Shanghai</div>
+            <div style="font-size: 17px; font-weight: 800; margin-bottom: 6px; color: #F1F5F9; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 12px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
+    col_l1, col_l2, col_l3 = st.columns([0.01, 1, 0.01])
     with col_l2:
         with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-bottom: 3px;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
             login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
-            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 10px; margin-bottom: 4px;'>비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 8px; margin-bottom: 3px;'>비밀번호</p>", unsafe_allow_html=True)
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             
-            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
