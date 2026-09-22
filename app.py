@@ -14,25 +14,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-MAGOK_CATEGORIES = [
-    "법정검사", 
-    "일반검사", 
-    "섬유내수(패션잡화)", 
-    "섬유내수(중국GB)", 
-    "섬유내수(단체/정부)", 
-    "섬유수출", 
-    "연구용역", 
-    "제품인증(Q.SF)"
-]
-
-OCHANG_CATEGORIES = [
-    "산업(토목+부품)", 
-    "모빌리티(전장+의장)", 
-    "환경(환경+측정기기)", 
+BI_8_CATEGORIES = [
+    "일반검사",
+    "섬유내수(패션잡화)",
+    "섬유내수(중국GB)",
+    "섬유수출",
+    "산업(토목+부품)",
+    "모빌리티(전장+의장)",
+    "환경(환경+측정기기)",
     "화학바이오(화학제품+생활안전)"
 ]
 
-FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
+# 💡 [안정화 핵심] 전역적으로 참조되는 표준 사업 카테고리 정의
+target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
 
 # =========================================================
 # 2. 다국어 텍스트 사전 (한국어, 중국어, 영어)
@@ -63,7 +57,6 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
-        "center_compare": "마곡 vs 오창 거점별 실적 비교",
         "unit": "원",
         "font_family": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif",
         "pages": {
@@ -484,7 +477,6 @@ def parse_summary_data(file_bytes_val):
     else:
         calc_summary["세부항목"] = calc_summary["표준사업구분"]
 
-    target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
     summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
     summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
     summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
@@ -497,8 +489,144 @@ def parse_summary_data(file_bytes_val):
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(raw_bytes)
 
 # =========================================================
-# 7. 세부 파트 및 지사별 파서 (마곡 확장 8개 항목 및 오창 4개 항목 완벽 지원)
+# 7. 세부 파트 및 지사별 파서
 # =========================================================
+PART_SHEET_MAPPINGS = {
+    "패션잡화": [["kc"]],
+    "GB": [["gb"]],
+    "글로벌 바이어": [["global", "1"], ["global", "2"]],
+    "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
+}
+
+@st.cache_data
+def extract_pivot_block(file_bytes_val, sheet_name):
+    stream = io.BytesIO(file_bytes_val)
+    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
+    pivot_r, pivot_c = None, None
+    for r_i in range(min(20, len(raw))):
+        for c_i in range(len(raw.columns)):
+            val = str(raw.iat[r_i, c_i]).strip().replace(" ", "")
+            if "행레이블" in val:
+                pivot_r, pivot_c = r_i, c_i
+                break
+        if pivot_r is not None:
+            break
+            
+    if pivot_r is None:
+        return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+
+    sub_raw = raw.iloc[pivot_r:, pivot_c:pivot_c+6].copy().reset_index(drop=True)
+    sub_raw.columns = [str(c).strip() for c in sub_raw.iloc[0]]
+    sub_data = sub_raw.iloc[1:].copy().reset_index(drop=True)
+    
+    buyer_col_name = sub_data.columns[0]
+    c25, c26 = None, None
+    for col in sub_data.columns[1:]:
+        c_str = str(col).replace(" ", "")
+        if "25" in c_str and ("합계" in c_str or "실적" in c_str):
+            c25 = col
+        elif "26" in c_str and ("합계" in c_str or "실적" in c_str):
+            c26 = col
+            
+    if not c25 or not c26:
+        return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+
+    parsed_rows = []
+    for _, row in sub_data.iterrows():
+        b_name = str(row[buyer_col_name]).strip()
+        if not b_name or b_name.lower() in ['nan', 'none']:
+            continue
+        if any(k in b_name.replace(" ", "") for k in ["총합계", "합계", "전체합계"]):
+            break
+            
+        v25 = clean_series(pd.Series([row[c25]])).iloc[0]
+        v26 = clean_series(pd.Series([row[c26]])).iloc[0]
+        parsed_rows.append({"바이어명": b_name, "2025년 실적": v25, "2026년 실적": v26})
+        
+    return pd.DataFrame(parsed_rows)
+
+@st.cache_data
+def extract_vendor_data_from_sheet(file_bytes_val, sheet_name):
+    stream = io.BytesIO(file_bytes_val)
+    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
+    h_idx, buyer_col_idx, vendor_col_idx = None, None, None
+    
+    for r_i in range(min(15, len(raw))):
+        row_vals = [str(x).strip().replace(" ", "") for x in raw.iloc[r_i].tolist()]
+        for c_i, val in enumerate(row_vals):
+            if "업체명" in val or "협력사" in val:
+                vendor_col_idx = c_i
+            elif "바이어" in val:
+                buyer_col_idx = c_i
+        if vendor_col_idx is not None:
+            h_idx = r_i
+            break
+            
+    if h_idx is None or vendor_col_idx is None:
+        return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+        
+    stream.seek(0)
+    df_raw = pd.read_excel(stream, sheet_name=sheet_name, skiprows=h_idx)
+    v_col = df_raw.columns[vendor_col_idx]
+    b_col = df_raw.columns[buyer_col_idx] if buyer_col_idx is not None and buyer_col_idx < len(df_raw.columns) else None
+    
+    c25, c26 = None, None
+    for c in df_raw.columns:
+        c_str = str(c).replace(" ", "")
+        if "25" in c_str and ("합계" in c_str or "실적" in c_str or "총" in c_str):
+            c25 = c
+        elif "26" in c_str and ("합계" in c_str or "실적" in c_str or "총" in c_str):
+            c26 = c
+            
+    if not c25 or not c26:
+        for c in df_raw.columns:
+            c_str = str(c).replace(" ", "")
+            if "25" in c_str and c25 is None:
+                c25 = c
+            elif "26" in c_str and c26 is None:
+                c26 = c
+                
+    if not c25 or not c26:
+        return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+        
+    df_clean = df_raw.dropna(subset=[v_col]).copy()
+    df_clean = df_clean[~df_clean[v_col].astype(str).str.contains(r"소계|합계|TOTAL|총계", regex=True, na=False)].copy()
+    
+    res = pd.DataFrame()
+    res["협력사명"] = df_clean[v_col].astype(str).str.strip()
+    res["바이어명"] = df_clean[b_col].astype(str).str.strip() if b_col else "기본"
+    res["2025년 실적"] = clean_series(df_clean[c25])
+    res["2026년 실적"] = clean_series(df_clean[c26])
+    
+    return res[res["협력사명"] != ""]
+
+part_data_cache = {}
+vendor_data_cache = {}
+
+for cat in target_categories:
+    keywords_list = PART_SHEET_MAPPINGS.get(cat, [])
+    b_dfs, v_dfs = [], []
+    for k_words in keywords_list:
+        sheet_n = get_sheet_by_keyword(k_words)
+        if sheet_n:
+            b_df = extract_pivot_block(raw_bytes, sheet_n)
+            if not b_df.empty:
+                b_dfs.append(b_df)
+            v_df = extract_vendor_data_from_sheet(raw_bytes, sheet_n)
+            if not v_df.empty:
+                v_dfs.append(v_df)
+    
+    if b_dfs:
+        comb_b = pd.concat(b_dfs, ignore_index=True)
+        part_data_cache[cat] = comb_b.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
+    else:
+        part_data_cache[cat] = pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+        
+    if v_dfs:
+        vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True)
+    else:
+        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+
 @st.cache_data
 def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     stream = io.BytesIO(file_bytes_val)
@@ -541,10 +669,10 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
     }
     
     empty_df = pd.DataFrame({
-        "표준사업구분": FULL_BI_CATEGORIES,
-        "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-        "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-        "증감률": [0.0]*len(FULL_BI_CATEGORIES)
+        "표준사업구분": BI_8_CATEGORIES,
+        "2025년 실적": [0]*8,
+        "2026년 실적": [0]*8,
+        "증감률": [0.0]*8
     })
     def_chart = {"누계": empty_df, "월계": empty_df}
 
@@ -596,36 +724,28 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         "사업 소계 월계": extract_row_vals(subtotal_r_idx, m_c25, m_c26, m_rate if m_rate else c_rate, m_rate if m_rate else c_rate)
     }
 
-    # 💡 [정밀 매핑] 요청하신 마곡 8개 항목 및 오창 4개 항목 규칙 적용
     target_mappings = [
-        ("법정검사", ["법정검사", "법정"], "합계"),
-        ("일반검사", ["일반검사", "일반"], "합계"),
-        ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
-        ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
-        ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"),
+        ("일반검사", ["검사", "일반검사"], "합계"),
+        ("섬유내수(패션잡화)", ["섬유내수", "패션", "잡화"], "소계"),
+        ("섬유내수(중국GB)", ["중국", "gb", "중국gb"], "소계"),
         ("섬유수출", ["섬유수출", "수출"], "합계"),
-        ("연구용역", ["연구용역", "연구"], "합계"),
-        ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"),
         ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
         ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
         ("환경(환경+측정기기)", ["환경", "측정"], "합계"),
         ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
     ]
 
-    def build_full_category_chart(col_25_i, col_26_i, col_rate_i):
+    def build_8_category_chart(col_25_i, col_26_i, col_rate_i):
         results = []
-        for cat_name, keywords, match_type in target_mappings:
+        for cat_name, keywords, target_type in target_mappings:
             matched_row_idx = None
             if col_25_i is not None:
-                for idx in range(len(raw)):
-                    row_text = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
-                    if any(kw.lower().replace(" ", "") in row_text for kw in keywords):
-                        if match_type in row_text:
-                            matched_row_idx = idx
-                            break
-                        elif matched_row_idx is None:
-                            matched_row_idx = idx
-
+                for idx in range(min(160, len(raw))):
+                    row_str = " ".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "").lower()
+                    if any(k.lower() in row_str for k in keywords) and (target_type in row_str):
+                        matched_row_idx = idx
+                        break
+            
             if matched_row_idx is not None:
                 r = raw.iloc[matched_row_idx]
                 v25 = clean_series(pd.Series([r.iat[col_25_i]])).iloc[0] * 1000
@@ -650,8 +770,8 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
         return pd.DataFrame(results)
 
     chart_res = {
-        "누계": build_full_category_chart(c_c25, c_c26, c_rate),
-        "월계": build_full_category_chart(m_c25, m_c26, m_rate)
+        "누계": build_8_category_chart(c_c25, c_c26, c_rate),
+        "월계": build_8_category_chart(m_c25, m_c26, m_rate)
     }
 
     return kpi_res, chart_res
@@ -659,40 +779,6 @@ def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
 bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
 bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
 bi_guangzhou_kpi, bi_guangzhou_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
-
-PART_SHEET_MAPPINGS = {
-    "패션잡화": [["kc"]],
-    "GB": [["gb"]],
-    "글로벌 바이어": [["global", "1"], ["global", "2"]],
-    "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
-}
-
-part_data_cache = {}
-vendor_data_cache = {}
-
-for cat in ["글로벌 바이어", "패션잡화", "GB", "제품평가"]:
-    keywords_list = PART_SHEET_MAPPINGS.get(cat, [])
-    b_dfs, v_dfs = [], []
-    for k_words in keywords_list:
-        sheet_n = get_sheet_by_keyword(k_words)
-        if sheet_n:
-            b_df = extract_pivot_block(raw_bytes, sheet_n)
-            if not b_df.empty:
-                b_dfs.append(b_df)
-            v_df = extract_vendor_data_from_sheet(raw_bytes, sheet_n)
-            if not v_df.empty:
-                v_dfs.append(v_df)
-    
-    if b_dfs:
-        comb_b = pd.concat(b_dfs, ignore_index=True)
-        part_data_cache[cat] = comb_b.groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
-    else:
-        part_data_cache[cat] = pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
-        
-    if v_dfs:
-        vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True)
-    else:
-        vendor_data_cache[cat] = pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
 # =========================================================
 # 8. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
@@ -784,8 +870,6 @@ else:
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
-
-target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
 
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
@@ -1328,7 +1412,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 사업별 실적 현황 렌더링 (NameError 방어 완료)
+# 12. [BI] 사업별 실적 현황 렌더링 (NameError 완벽 차단)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
