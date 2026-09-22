@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import io
+from datetime import datetime
 
 # =========================================================
 # 1. 화면 기본 설정 및 디자인 스타일
@@ -35,7 +36,28 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 다국어 텍스트 사전 (buyer_pie 키값 에러 방어 추가)
+# 2. 사용자 권한 및 로그인 로그 초기화 (세션 기반)
+# =========================================================
+if "user_db" not in st.session_state:
+    # 기본 관리자 및 테스트 계정 설정 (이메일, 비밀번호, 권한 등급)
+    # 권한 등급: 'admin' (전체 관리자), 'bi_user' (접수+BI), 'general_user' (접수 전용)
+    st.session_state["user_db"] = {
+        "admin@fiti.re.kr": {"pw": "fiti1965", "role": "admin", "name": "시스템 관리자"},
+        "leader@fiti.re.kr": {"pw": "fiti1234", "role": "bi_user", "name": "상해지사 팀장"},
+        "staff@fiti.re.kr": {"pw": "fiti5678", "role": "general_user", "name": "일반 담당자"}
+    }
+
+if "login_history" not in st.session_state:
+    st.session_state["login_history"] = []
+
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["current_user_email"] = ""
+    st.session_state["current_user_role"] = ""
+    st.session_state["current_user_name"] = ""
+
+# =========================================================
+# 3. 다국어 텍스트 사전 (한국어, 중국어, 영어)
 # =========================================================
 LANG_DICT = {
     "한국어": {
@@ -43,18 +65,13 @@ LANG_DICT = {
         "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
         "admin_upload": "공용 엑셀 파일 업로드 (관리자 전용)",
-        "admin_caption": "💡 엑셀 파일을 교체하려면 하단 'BI 관리자 모드'로 로그인하세요.",
+        "admin_caption": "💡 엑셀 파일을 교체하려면 관리자 권한으로 로그인하세요.",
         "sync_success": "✅ 서버 공용 파일 및 세션 동기화 완료!",
         "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
-        "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 모드로 로그인하여 파일을 업로드해 주세요.",
+        "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 계정으로 로그인하여 파일을 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
         "period_select": "⏱️ [BI] 실적 기간 선택",
-        "auth_title": "🔒 BI 실적 보안 인증",
-        "auth_input": "열람 비밀번호 입력:",
-        "auth_fail": "비밀번호가 일치하지 않습니다.",
-        "auth_success": "🔓 BI 관리자 모드 활성화됨",
-        "logout_btn": "BI 잠금 (로그아웃)",
         "kpi_25": "📅 25년 총 실적",
         "kpi_26": "🚀 26년 총 실적",
         "kpi_diff": "📈 실적 증감액",
@@ -94,18 +111,13 @@ LANG_DICT = {
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
         "data_mgmt": "📁 数据管理",
         "admin_upload": "上传公共Excel文件 (仅限管理员)",
-        "admin_caption": "💡 如需更换Excel文件，请登录底部的“BI管理员模式”。",
+        "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
         "shared_file_info": "📂 服务器公共最新文件同步中",
-        "file_not_found": "未找到要分析的Excel文件。请登录管理员模式上传。",
+        "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
         "period_select": "⏱️ [BI] 业绩期间选择",
-        "auth_title": "🔒 BI 业绩安全验证",
-        "auth_input": "请输入查看密码:",
-        "auth_fail": "密码不正确。",
-        "auth_success": "🔓 BI 管理员模式已激活",
-        "logout_btn": "锁定 BI (登出)",
         "kpi_25": "📅 25年总业绩",
         "kpi_26": "🚀 26年总业绩",
         "kpi_diff": "📈 业绩增减额",
@@ -144,18 +156,13 @@ LANG_DICT = {
         "sys_sub": "Shanghai Branch Business Performance & Analysis System | Business Team",
         "data_mgmt": "📁 Data Management",
         "admin_upload": "Upload Public Excel (Admin Only)",
-        "admin_caption": "💡 To replace Excel, login to 'BI Admin Mode' below.",
+        "admin_caption": "💡 To replace Excel, login with administrator account.",
         "sync_success": "✅ Server public file & session synced!",
         "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
         "file_not_found": "Excel file not found. Please login as admin to upload.",
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
-        "auth_title": "🔒 BI Security Auth",
-        "auth_input": "Enter password:",
-        "auth_fail": "Incorrect password.",
-        "auth_success": "🔓 BI Admin Mode Active",
-        "logout_btn": "Lock BI (Logout)",
         "kpi_25": "📅 '25 Total Performance",
         "kpi_26": "🚀 '26 Total Performance",
         "kpi_diff": "📈 Performance Diff",
@@ -192,41 +199,16 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 3. 사이드바 언어 선택 및 쿼리 연동
+# 4. 스타일 및 디자인 공통 적용
 # =========================================================
-query_params = st.query_params
-
-if "lang" in query_params and query_params["lang"] in LANG_DICT:
-    st.session_state["selected_lang"] = query_params["lang"]
-
-if "selected_lang" not in st.session_state:
-    st.session_state["selected_lang"] = "한국어"
-
-def on_lang_change():
-    st.query_params["lang"] = st.session_state["lang_selectbox"]
-
-st.sidebar.markdown(f"### 🌐 언어 설정 / 语言设置 / Language")
-selected_lang = st.sidebar.selectbox(
-    "표시 언어 선택", 
-    ["한국어", "中文 (중국어)", "English (영어)"],
-    index=["한국어", "中文 (중국어)", "English (영어)"].index(st.session_state["selected_lang"]),
-    key="lang_selectbox",
-    on_change=on_lang_change,
-    label_visibility="collapsed"
-)
-
-st.session_state["selected_lang"] = selected_lang
-t = LANG_DICT[selected_lang]
-current_font = t["font_family"]
-
-st.markdown(f"""
+st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    html, body, [class*="css"] {{
-        font-family: {current_font} !important;
-    }}
+    html, body, [class*="css"] {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    }
     
-    .fiti-header {{
+    .fiti-header {
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
         padding: 22px 28px;
         border-radius: 10px;
@@ -236,27 +218,27 @@ st.markdown(f"""
         color: #FFFFFF;
         margin-bottom: 22px;
         box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
-    }}
-    .fiti-logo-text {{
+    }
+    .fiti-logo-text {
         font-size: 28px;
         font-weight: 900;
         letter-spacing: -0.5px;
         border-right: 1.5px solid rgba(255, 255, 255, 0.25);
         padding-right: 22px;
-    }}
-    .fiti-title-main {{
+    }
+    .fiti-title-main {
         font-size: 21px;
         font-weight: 800;
         margin-bottom: 4px;
         letter-spacing: -0.3px;
-    }}
-    .fiti-title-sub {{
+    }
+    .fiti-title-sub {
         font-size: 13px;
         color: #D0E1FD;
         font-weight: 400;
-    }}
+    }
 
-    .kpi-card {{
+    .kpi-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-radius: 12px;
@@ -264,38 +246,38 @@ st.markdown(f"""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         border-top: 4px solid #CBD5E1;
-    }}
-    .kpi-card:hover {{
+    }
+    .kpi-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-    }}
-    .kpi-title {{
+    }
+    .kpi-title {
         font-size: 13px;
         font-weight: 600;
         color: #64748B;
         margin-bottom: 8px;
-    }}
-    .kpi-num {{
+    }
+    .kpi-num {
         font-size: 26px;
         font-weight: 800;
         color: #0F172A;
         letter-spacing: -0.5px;
-    }}
-    .kpi-sub {{
+    }
+    .kpi-sub {
         font-size: 12px;
         color: #94A3B8;
         margin-top: 6px;
-    }}
-    .kpi-badge {{
+    }
+    .kpi-badge {
         display: inline-block;
         padding: 3px 8px;
         border-radius: 6px;
         font-size: 12px;
         font-weight: 700;
         margin-top: 6px;
-    }}
+    }
 
-    .sidebar-card-btn {{
+    .sidebar-card-btn {
         display: block;
         width: 100%;
         border-radius: 8px;
@@ -310,13 +292,13 @@ st.markdown(f"""
         text-decoration: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         transition: all 0.15s ease;
-    }}
-    .sidebar-card-btn:hover {{
+    }
+    .sidebar-card-btn:hover {
         border-color: #003876;
         background-color: #E2E8F0;
         color: #002B5C;
-    }}
-    .sidebar-card-btn-active {{
+    }
+    .sidebar-card-btn-active {
         display: block;
         width: 100%;
         border-radius: 8px;
@@ -330,25 +312,82 @@ st.markdown(f"""
         color: #FFFFFF !important;
         text-decoration: none;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }}
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 4. 상단 공식 배너
+# 5. 초기 로그인 화면 (인증 안 된 경우 웹사이트 진입 통제)
 # =========================================================
+if not st.session_state["logged_in"]:
+    st.markdown("""
+    <div style="max-width: 480px; margin: 80px auto; padding: 40px; background: #FFFFFF; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid #002B5C;">
+        <div style="text-align: center; margin-bottom: 25px;">
+            <h1 style="color: #002B5C; font-size: 24px; font-weight: 900; margin-bottom: 5px;">FITI 상해지사</h1>
+            <p style="color: #64748B; font-size: 14px; font-weight: 600;">실적 종합 분석 시스템 로그인</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    with col_l2:
+        with st.form("login_form"):
+            login_email = st.text_input("이메일 주소 (ID)", placeholder="예: leader@fiti.re.kr")
+            login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
+            submit_login = st.form_submit_button("로그인", use_container_width=True)
+            
+            if submit_login:
+                user_record = st.session_state["user_db"].get(login_email.strip())
+                if user_record and user_record["pw"] == login_pw.strip():
+                    st.session_state["logged_in"] = True
+                    st.session_state["current_user_email"] = login_email.strip()
+                    st.session_state["current_user_role"] = user_record["role"]
+                    st.session_state["current_user_name"] = user_record["name"]
+                    
+                    # 로그인 로그 기록 추가
+                    st.session_state["login_history"].append({
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "email": login_email.strip(),
+                        "name": user_record["name"],
+                        "status": "성공"
+                    })
+                    st.success("로그인 성공! 시스템에 접속합니다...")
+                    st.rerun()
+                else:
+                    st.session_state["login_history"].append({
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "email": login_email.strip() if login_email else "입력없음",
+                        "name": "미인증",
+                        "status": "실패"
+                    })
+                    st.error("이메일 또는 비밀번호가 일치하지 않습니다.")
+    st.stop()
+
+# =========================================================
+# 6. 상단 공식 배너 (로그인 후 표시)
+# =========================================================
+selected_lang = "한국어"
+t = LANG_DICT[selected_lang]
+current_font = t["font_family"]
+
 st.markdown(f"""
 <div class="fiti-header">
     <div class="fiti-logo-text">FITI</div>
-    <div>
+    <div style="flex-grow: 1;">
         <div class="fiti-title-main">{t["sys_title"]}</div>
         <div class="fiti-title-sub">{t["sys_sub"]}</div>
+    </div>
+    <div style="text-align: right; font-size: 13px; color: #D0E1FD;">
+        <b>{st.session_state['current_user_name']}</b>님 환영합니다.<br>
+        <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+            권한: {'전체 관리자' if st.session_state['current_user_role']=='admin' else ('BI+접수 관리자' if st.session_state['current_user_role']=='bi_user' else '접수 전용 담당자')}
+        </span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 보안 인증 및 관리자 모드 전용 업로드 엔진
+# 7. 사이드바: 파일 관리, 권한 관리, 네비게이션
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -356,19 +395,8 @@ LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
 
 st.sidebar.markdown(f"### {t['data_mgmt']}")
 
-if "bi_authorized" not in st.session_state:
-    st.session_state["bi_authorized"] = False
-
-def check_bi_password():
-    pw_val = st.session_state.get("bi_pw_input", "")
-    if pw_val == "fiti1965":
-        st.session_state["bi_authorized"] = True
-        st.query_params["auth"] = "true"
-    else:
-        st.session_state["bi_authorized"] = False
-        st.sidebar.error(t["auth_fail"])
-
-if st.session_state["bi_authorized"]:
+# 파일 업로드 (관리자 권한인 경우에만 노출)
+if st.session_state["current_user_role"] in ["admin", "bi_user"]:
     uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
     if uploaded_file is not None:
         file_bytes = uploaded_file.getvalue()
@@ -380,8 +408,9 @@ if st.session_state["bi_authorized"]:
         st.sidebar.success(t["sync_success"])
         st.rerun()
 else:
-    st.sidebar.caption(t["admin_caption"])
+    st.sidebar.caption("💡 엑셀 업로드 권한은 관리자 및 BI 담당자에게만 부여됩니다.")
 
+# 데이터 바이트 로드
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
 elif os.path.exists(LOCAL_EXCEL_PATH):
@@ -429,7 +458,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 6. '종합' 시트 파서
+# 8. 파서 함수 정의
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
@@ -507,9 +536,6 @@ def parse_summary_data(file_bytes_val):
 
 summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(raw_bytes)
 
-# =========================================================
-# 7. 세부 파트 및 지사별 파서
-# =========================================================
 PART_SHEET_MAPPINGS = {
     "패션잡화": [["kc"]],
     "GB": [["gb"]],
@@ -808,58 +834,37 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 8. 사이드바 네비게이션 및 다국어 상태 유지 링크 연동
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어
 # =========================================================
-st.sidebar.markdown(f"### {t['page_select']}")
+user_role = st.session_state["current_user_role"]
 
-base_pages_keys = [
-    "[접수기준] 종합 실적 현황",
-    "[접수기준] 사업별 실적 현황",
-    "[접수기준] 바이어 실적 현황",
-    "[접수기준] 협력사 실적 현황"
-]
-
-if "auth" in query_params and query_params["auth"] == "true":
-    st.session_state["bi_authorized"] = True
-
-if "bi_authorized" not in st.session_state:
-    st.session_state["bi_authorized"] = False
-
-def check_bi_password():
-    pw_val = st.session_state.get("bi_pw_input", "")
-    if pw_val == "fiti1965":
-        st.session_state["bi_authorized"] = True
-        st.query_params["auth"] = "true"
-    else:
-        st.session_state["bi_authorized"] = False
-        st.sidebar.error(t["auth_fail"])
-
-if st.session_state["bi_authorized"]:
-    bi_pages_keys = [
+# 권한별 접근 가능한 페이지 정의 (1번 카테고리: 접수기준만 / 2번 카테고리: 접수 + BI 모두)
+if user_role == "general_user":
+    all_pages_keys = [
+        "[접수기준] 종합 실적 현황",
+        "[접수기준] 사업별 실적 현황",
+        "[접수기준] 바이어 실적 현황",
+        "[접수기준] 협력사 실적 현황"
+    ]
+else:
+    all_pages_keys = [
+        "[접수기준] 종합 실적 현황",
+        "[접수기준] 사업별 실적 현황",
+        "[접수기준] 바이어 실적 현황",
+        "[접수기준] 협력사 실적 현황",
         "[BI_종합] 사업별 실적 현황",
         "[BI_상해] 사업별 실적 현황",
         "[BI_광주] 사업별 실적 현황"
     ]
-else:
-    bi_pages_keys = []
 
-all_pages_keys = base_pages_keys + bi_pages_keys
+st.sidebar.markdown(f"### {t['page_select']}")
 
-if "current_page" not in st.session_state:
+if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys:
     st.session_state["current_page"] = all_pages_keys[0]
 
-if "current_page" not in all_pages_keys:
-    st.session_state["current_page"] = all_pages_keys[0]
-
-if "page" in query_params:
-    p_param = query_params["page"]
-    if p_param in all_pages_keys:
-        st.session_state["current_page"] = p_param
-
-st.sidebar.markdown(f"##### {t['cat_select']}")
-
-auth_param_str = "&auth=true" if st.session_state["bi_authorized"] else ""
-lang_param_str = f"&lang={selected_lang}"
+query_params = st.query_params
+if "page" in query_params and query_params["page"] in all_pages_keys:
+    st.session_state["current_page"] = query_params["page"]
 
 for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
@@ -867,7 +872,7 @@ for p_key in all_pages_keys:
     display_name = t["pages"].get(p_key, p_key)
     
     card_link_html = f"""
-    <a href="?page={p_key}{auth_param_str}{lang_param_str}" class="{btn_class}" target="_self">
+    <a href="?page={p_key}" class="{btn_class}" target="_self">
         {display_name}
     </a>
     """
@@ -876,24 +881,31 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 st.sidebar.markdown("---")
+st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
+if st.sidebar.button("로그아웃", use_container_width=True):
+    st.session_state["logged_in"] = False
+    st.session_state["current_user_email"] = ""
+    st.session_state["current_user_role"] = ""
+    st.session_state["current_user_name"] = ""
+    st.rerun()
 
-if not st.session_state["bi_authorized"]:
-    st.sidebar.markdown(f"##### {t['auth_title']}")
-    st.sidebar.text_input(
-        t["auth_input"], 
-        type="password", 
-        key="bi_pw_input", 
-        on_change=check_bi_password
-    )
-else:
-    st.sidebar.markdown(f"##### {t['auth_success']}")
-    if st.sidebar.button(t["logout_btn"], key="logout_btn_unique_99"):
-        st.session_state["bi_authorized"] = False
-        st.query_params.clear()
-        st.rerun()
+# 💡 [요청 반영] 관리자 전용 사용자 관리 및 로그인 로그 조회 아코디언 메뉴
+if user_role in ["admin", "bi_user"]:
+    with st.sidebar.expander("🛠️ 사용자 및 로그인 관리"):
+        st.markdown("#### 등록된 담당자 목록")
+        for em, info in st.session_state["user_db"].items():
+            st.text(f"• {info['name']} ({em})\n  권한: {info['role']}")
+        
+        st.markdown("---")
+        st.markdown("#### 📋 최근 로그인 감사 로그")
+        if st.session_state["login_history"]:
+            df_log = pd.DataFrame(st.session_state["login_history"])
+            st.dataframe(df_log.tail(10), hide_index=True, use_container_width=True)
+        else:
+            st.caption("기록된 로그인 이력이 없습니다.")
 
 # =========================================================
-# 9. 상단 종합 KPI 카드 및 다국어 렌더링
+# 10. 상단 종합 KPI 카드 렌더링
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -915,7 +927,7 @@ if page_menu.startswith("[BI_"):
         p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
         
         period_link_html = f"""
-        <a href="?page={page_menu}&period={bp_key}{auth_param_str}{lang_param_str}" class="{p_class}" target="_self">
+        <a href="?page={page_menu}&period={bp_key}" class="{p_class}" target="_self">
             {bp_key}
         </a>
         """
@@ -1016,7 +1028,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 10. 공통 렌더러 및 본문 실행 (성장=레드 / 역성장=블루 적용 완료)
+# 11. 공통 렌더러 및 본문 실행 (성장=레드, 역성장=블루 반영)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -1097,7 +1109,7 @@ def render_fullwidth_vertical_dashboard(
 
         label_25.append(f"<span style='font-size:13px; font-weight:700;'>{s25}</span>")
         
-        # 💡 [요청 반영] 성장(+%)은 레드 계열(#E11D48), 역성장(-%)은 블루 계열(#1D4ED8)
+        # 💡 [요청 반영] 성장(+%)은 레드(#E11D48), 역성장(-%)은 블루(#1D4ED8)
         rate_color = "#E11D48" if rt >= 0 else "#1D4ED8"
         label_26.append(f"<span style='font-size:14px; font-weight:800;'>{s26}</span><br><span style='font-size:12px; font-weight:700; color:{rate_color};'>({sign_r}{rt:0.1f}%)</span>")
         
@@ -1448,7 +1460,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 적용)
+# 12. [BI] 사업별 실적 현황 렌더링
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
@@ -1456,10 +1468,10 @@ elif page_menu.startswith("[BI_"):
         current_bi_chart_df = active_chart_dict.copy()
     else:
         current_bi_chart_df = pd.DataFrame({
-            "표준사업구분": FULL_BI_CATEGORIES,
-            "2025년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "2026년 실적": [0]*len(FULL_BI_CATEGORIES),
-            "증감률": [0.0]*len(FULL_BI_CATEGORIES)
+            "표준사업구분": BI_8_CATEGORIES,
+            "2025년 실적": [0]*len(BI_8_CATEGORIES),
+            "2026년 실적": [0]*len(BI_8_CATEGORIES),
+            "증감률": [0.0]*len(BI_8_CATEGORIES)
         })
     
     if "상해" in page_menu:
@@ -1469,124 +1481,11 @@ elif page_menu.startswith("[BI_"):
     else:
         center_title_prefix = "📊 [BI_종합]"
 
-    magok_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
-    magok_25 = magok_df["2025년 실적"].sum()
-    magok_26 = magok_df["2026년 실적"].sum()
-
-    ochang_df = current_bi_chart_df[current_bi_chart_df["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
-    ochang_25 = ochang_df["2025년 실적"].sum()
-    ochang_26 = ochang_df["2026년 실적"].sum()
-
-    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
-    
-    center_pie_df = pd.DataFrame([
-        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": magok_25, "2026년 실적": magok_26},
-        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25, "2026년 실적": ochang_26}
-    ])
-    
-    col_pie1, col_pie2 = st.columns(2)
-    center_colors = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
-
-    with col_pie1:
-        fig_center_25 = px.pie(
-            center_pie_df, 
-            names="거점구분", 
-            values="2025년 실적", 
-            hole=0.6,
-            title="2025년 거점별 실적 비중",
-            color="거점구분",
-            color_discrete_map=center_colors
-        )
-        tot_c25 = center_pie_df["2025년 실적"].sum()
-        fig_center_25.update_traces(
-            textposition='inside', 
-            textinfo='label+percent', 
-            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=3))
-        )
-        fig_center_25.update_layout(
-            height=460,
-            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
-            margin=dict(t=60, b=30, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
-            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e8:.1f}억</span>" if tot_c25 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c25/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
-        )
-        st.plotly_chart(fig_center_25, use_container_width=True)
-
-    with col_pie2:
-        fig_center_26 = px.pie(
-            center_pie_df, 
-            names="거점구분", 
-            values="2026년 실적", 
-            hole=0.6,
-            title="2026년 거점별 실적 비중",
-            color="거점구분",
-            color_discrete_map=center_colors
-        )
-        tot_c26 = center_pie_df["2026년 실적"].sum()
-        fig_center_26.update_traces(
-            textposition='inside', 
-            textinfo='label+percent', 
-            textfont=dict(size=16, color="#FFFFFF", family="Pretendard", weight="bold"),
-            marker=dict(line=dict(color='#FFFFFF', width=3))
-        )
-        fig_center_26.update_layout(
-            height=460,
-            title=dict(font=dict(size=19, color="#0F172A", family="Pretendard", weight="bold")),
-            margin=dict(t=60, b=30, l=10, r=10),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5, font=dict(size=14, weight="bold")),
-            annotations=[dict(text=f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e8:.1f}억</span>" if tot_c26 >= 1e8 else f"<b style='font-size:16px;'>Total</b><br><span style='font-size:20px; font-weight:800; color:#0F172A;'>{tot_c26/1e4:.0f}만</span>", x=0.5, y=0.5, showarrow=False)]
-        )
-        st.plotly_chart(fig_center_26, use_container_width=True)
-
-    st.write("")
-    st.markdown("---")
-
-    center_compare_df = center_pie_df.copy()
-    center_compare_df["증감액"] = center_compare_df["2026년 실적"] - center_compare_df["2025년 실적"]
-    center_compare_df["증감률"] = ((center_compare_df["증감액"] / center_compare_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
-
     render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교",
-        title_bottom="📈 Center Growth Comparison",
-        table_title="Magok & Ochang Summary Table",
-        data_df=center_compare_df,
-        x_col_name="거점구분",
-        cat_order=["마곡 본원 (Magok)", "오창 분원 (Ochang)"]
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏛️ 마곡 본원 세부 사업별 실적 현황 (법정검사, 일반검사, 패션잡화, 중국GB, 단체/정부, 수출, 연구용역, Q.SF)",
-        title_bottom="📈 Magok Sub-categories Diff",
-        table_title="Magok Detailed Summary Table",
-        data_df=magok_df,
-        x_col_name="표준사업구분",
-        cat_order=MAGOK_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"🏭 오창 분원 세부 사업별 실적 현황 (산업, 모빌리티, 환경, 화학바이오)",
-        title_bottom="📈 Ochang Sub-categories Diff",
-        table_title="Ochang Detailed Summary Table",
-        data_df=ochang_df,
-        x_col_name="표준사업구분",
-        cat_order=OCHANG_CATEGORIES
-    )
-
-    st.write("")
-    st.markdown("---")
-
-    render_fullwidth_vertical_dashboard(
-        title_top=f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황",
-        title_bottom="📈 All Categories Performance Diff",
-        table_title="All Categories Detailed Summary Table",
+        title_top=f"{center_title_prefix} 8대 사업별 상세 실적 현황 ({display_period_name})",
+        title_bottom="📈 BI 8 Categories Performance Diff",
+        table_title="BI Detailed Summary Table",
         data_df=current_bi_chart_df,
         x_col_name="표준사업구분",
-        cat_order=FULL_BI_CATEGORIES
+        cat_order=BI_8_CATEGORIES
     )
