@@ -122,7 +122,7 @@ LANG_DICT = {
         "admin_upload": "上传公共Excel文件 (仅限管理员)",
         "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
-        "shared_file_info": "📂 서버 공용最新文件同步中",
+        "shared_file_info": "📂 服务器公共最新文件同步中",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
@@ -327,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (흰색 박스 완전 제거 및 투명 글래스 연동)
+# 5. 상해 야경 테마 프리미엄 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -347,10 +347,9 @@ if not st.session_state["logged_in"]:
         }}
         header {{visibility: hidden;}}
         
-        /* 💡 [핵심] 로그인 폼 주변의 불필요한 테두리 상자를 완전 투명하게 제거 */
         [data-testid="stForm"] {{
             max-width: 420px !important; 
-            margin: 4vh auto !important; 
+            margin: 6vh auto !important; 
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -381,7 +380,6 @@ if not st.session_state["logged_in"]:
     with st.form("login_form"):
         st.markdown("""
         <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] 흰색 박스가 완전히 사라지고 야경 배경 위에 로고가 일자로 선명하게 표시됨 -->
             <div style="font-size: 48px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #E2E8F0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 20px rgba(0,0,0,0.8);">FITI Shanghai</div>
             <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.8);">상해지사 실적 종합 분석 시스템</div>
             <div style="font-size: 13px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.5);">飞迪商品检验（上海）有限公司 | 사업팀</div>
@@ -449,7 +447,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 파일 관리, 권한 관리, 네비게이션
+# 7. 사이드바: 파일 관리, 담당자 권한 관리(카테고리 분리/추가/삭제), 네비게이션
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -518,7 +516,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 8. 파서 함수 정의 (접수/BI 데이터 완벽 유지)
+# 8. 파서 함수 정의
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
@@ -894,10 +892,11 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
+# 9. 사이드바 네비게이션 및 담당자 권한 관리 (카테고리 분리/추가/삭제)
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
+# 권한별 접근 페이지 제어 (일반 담당자: '접수' 권한만 / 관리자 및 BI 담당자: '접수+BI' 권한)
 if user_role == "general_user":
     all_pages_keys = [
         "[접수기준] 종합 실적 현황",
@@ -950,12 +949,69 @@ if st.sidebar.button("로그아웃", use_container_width=True):
         del st.query_params["auth_ok"]
     st.rerun()
 
+# 💡 [요청 반영] 1번 카테고리(접수)와 2번 카테고리(접수+BI)로 분리하고 추가/삭제 기능이 포함된 관리자 메뉴
 if user_role in ["admin", "bi_user"]:
-    with st.sidebar.expander("🛠️ 사용자 및 로그인 관리"):
-        st.markdown("#### 등록된 담당자 목록")
-        for em, info in st.session_state["user_db"].items():
-            st.text(f"• {info['name']} ({em})\n  권한: {info['role']}")
+    with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
+        st.markdown("#### 👥 등록된 담당자 목록")
         
+        # 카테고리 분류용 컨테이너
+        cat1_users = {}
+        cat2_users = {}
+        for em, info in st.session_state["user_db"].items():
+            if info["role"] == "general_user":
+                cat1_users[em] = info
+            else:
+                cat2_users[em] = info
+        
+        st.markdown("**[ 1번 카테고리: 접수 전용 ]**")
+        if cat1_users:
+            for em, info in cat1_users.items():
+                st.text(f"• {info['name']} ({em})")
+        else:
+            st.caption("등록된 인원이 없습니다.")
+            
+        st.markdown("**[ 2번 카테고리: 접수 + BI ]**")
+        if cat2_users:
+            for em, info in cat2_users.items():
+                role_label = "최고관리자/관리자" if info['role']=='admin' else "BI 담당자"
+                st.text(f"• {info['name']} ({em})\n  ({role_label})")
+        else:
+            st.caption("등록된 인원이 없습니다.")
+            
+        st.markdown("---")
+        st.markdown("#### ➕ 담당자 추가 / 🗑️ 삭제")
+        with st.form("add_user_form"):
+            new_email = st.text_input("이메일 (ID)", placeholder="name@fiti.re.kr")
+            new_name = st.text_input("담당자 성명", placeholder="홍길동")
+            new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
+            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수+BI"])
+            
+            submit_add = st.form_submit_button("담당자 등록", use_container_width=True)
+            if submit_add:
+                clean_email = new_email.strip()
+                if clean_email and new_pw.strip():
+                    assigned_role = "general_user" if "1번" in new_category else "bi_user"
+                    st.session_state["user_db"][clean_email] = {
+                        "pw": new_pw.strip(),
+                        "role": assigned_role,
+                        "name": new_name.strip() if new_name.strip() else clean_email
+                    }
+                    st.success(f"✅ {clean_email} 담당자가 등록되었습니다!")
+                    st.rerun()
+                else:
+                    st.error("이메일과 비밀번호는 필수 입력 항목입니다.")
+                    
+        # 삭제 기능
+        target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()))
+        if st.button("선택한 담당자 삭제", use_container_width=True):
+            if target_delete_email != "선택하세요.":
+                if target_delete_email == st.session_state["current_user_email"]:
+                    st.error("현재 로그인 중인 계정은 삭제할 수 없습니다.")
+                else:
+                    del st.session_state["user_db"][target_delete_email]
+                    st.success(f"🗑️ {target_delete_email} 계정이 삭제되었습니다.")
+                    st.rerun()
+
         st.markdown("---")
         st.markdown("#### 📋 최근 로그인 감사 로그")
         if st.session_state["login_history"]:
