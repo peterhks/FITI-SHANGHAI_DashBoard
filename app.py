@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (로그인 입력창 폭 슬림화 적용)
+# 4. 스타일 및 디자인 공통 적용 (입력창 폭 380px 고정 및 왼쪽 정렬)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,10 +218,13 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 로그인 입력 박스의 가로 길이를 컴팩트하게 슬림화 */
+    /* 💡 [요청 반영] 로그인 입력창 및 버튼 가로폭을 380px로 통일하고 왼쪽 정렬 */
     .stTextInput input, .stFormSubmitButton button {
-        max-width: 380px !important;
-        margin: 0 auto !important;
+        width: 380px !important;
+        max-width: 100% !important;
+        display: block !important;
+        margin-left: 0 !important;
+        margin-right: auto !important;
     }
     
     .fiti-header {
@@ -333,7 +336,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (FITI Shanghai 한줄 고정)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (FITI Shanghai 화이트-실버 그라데이션 적용)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -354,25 +357,25 @@ if not st.session_state["logged_in"]:
         header {{visibility: hidden;}}
     </style>
     
-    <div style="max-width: 440px; margin: 40px auto; background: transparent; padding: 15px;">
-        <div style="text-align: center; margin-bottom: 22px; color: #FFFFFF;">
-            <!-- 💡 [요청 반영] white-space: nowrap을 적용하여 FITI Shanghai가 절대 줄바꿈되지 않고 한줄로 표시됨 -->
-            <div style="font-size: 52px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; white-space: nowrap; color: #3B82F6; text-shadow: 0 4px 25px rgba(59,130,246,0.7);">FITI Shanghai</div>
-            <div style="font-size: 20px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
+    <div style="max-width: 650px; margin: 40px auto; background: transparent; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
+            <!-- 💡 [요청 반영] 화이트-실버 그라데이션 전문가 컬러, 크기 확대, white-space: nowrap으로 무조건 일자 정렬 -->
+            <div style="font-size: 58px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px; white-space: nowrap; background: linear-gradient(135deg, #FFFFFF 20%, #CBD5E1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 4px 25px rgba(0,0,0,0.6);">FITI Shanghai</div>
+            <div style="font-size: 21px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF; text-shadow: 0 2px 6px rgba(0,0,0,0.6);">상해지사 실적 종합 분석 시스템</div>
             <div style="font-size: 14px; color: #38BDF8; font-weight: 600; text-shadow: 0 0 12px rgba(56,189,248,0.4);">飞迪商品检验（上海）有限公司 | 사업팀</div>
         </div>
     """, unsafe_allow_html=True)
     
-    col_l1, col_l2, col_l3 = st.columns([0.15, 1, 0.15])
+    col_l1, col_l2, col_l3 = st.columns([0.1, 1, 0.1])
     with col_l2:
         with st.form("login_form"):
-            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-bottom: 3px; text-align: center;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-bottom: 4px; text-align: left;'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
             login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
             
-            st.markdown("<p style='color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 10px; margin-bottom: 3px; text-align: center;'>비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #E2E8F0; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 4px; text-align: left;'>비밀번호</p>", unsafe_allow_html=True)
             login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             
-            st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
             
             if submit_login:
@@ -497,7 +500,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 8. 파서 함수 정의 (접수 및 BI 데이터 정밀 복구 완료)
+# 8. 파서 함수 정의 (완벽 복구 완료)
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
