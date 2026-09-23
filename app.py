@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
+# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (리셋 방지)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -938,7 +938,7 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 # =========================================================
-# 10. 사이드바 구성 요소 순서 재배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
+# 10. 사이드바 구성 요소 최종 순서 반영 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
