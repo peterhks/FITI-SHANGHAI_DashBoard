@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (리셋 방지)
+# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -122,7 +122,7 @@ LANG_DICT = {
         "admin_upload": "上传公共Excel文件 (仅限管理员)",
         "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
-        "shared_file_info": "📂 服务器公共最新文件同步中",
+        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
@@ -327,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (박스 프레임 완전 제거)
+# 5. 상해 야경 테마 프리미엄 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -447,7 +447,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 파일 관리, 담당자 권한 관리, 네비게이션
+# 7. 사이드바: 파일 관리, 네비게이션, 접속 계정/관리자 메뉴, 실적 기간 선택 (상하 순서 재배치)
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -892,7 +892,7 @@ bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
 bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 
 # =========================================================
-# 9. 사이드바 네비게이션 및 담당자 권한 관리 (카테고리 분리/추가/삭제)
+# 9. 사이드바 네비게이션 및 권한별 페이지 제어 (세션 튕김 방어)
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
@@ -937,6 +937,9 @@ for p_key in all_pages_keys:
 
 page_menu = st.session_state["current_page"]
 
+# =========================================================
+# 10. 사이드바 구성 요소 순서 재배치 (접속 계정/관리자 메뉴 ➔ [BI] 실적 기간 선택)
+# =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -948,7 +951,6 @@ if st.sidebar.button("로그아웃", use_container_width=True):
         del st.query_params["auth_ok"]
     st.rerun()
 
-# 💡 [요청 반영] 명칭 변경 및 1번(접수), 2번(접수+BI) 카테고리 분리, 추가/삭제 기능
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
         st.markdown("#### 👥 등록된 담당자 목록")
@@ -961,7 +963,7 @@ if user_role in ["admin", "bi_user"]:
             else:
                 cat2_users[em] = info
         
-        st.markdown("[ 1번 카테고리: 접수 ]")
+        st.markdown("[ 1번 카테고리: 접수 전용 ]")
         if cat1_users:
             for em, info in cat1_users.items():
                 st.text(f"• {info['name']} ({em})\n  (접수)")
@@ -982,7 +984,7 @@ if user_role in ["admin", "bi_user"]:
             new_email = st.text_input("이메일 (ID)", placeholder="name@fiti.re.kr")
             new_name = st.text_input("담당자 성명", placeholder="홍길동")
             new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
-            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수+BI"])
+            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수 전용", "2번 카테고리: 접수+BI"])
             
             submit_add = st.form_submit_button("담당자 등록", use_container_width=True)
             if submit_add:
@@ -1018,7 +1020,7 @@ if user_role in ["admin", "bi_user"]:
             st.caption("기록된 로그인 이력이 없습니다.")
 
 # =========================================================
-# 10. 상단 종합 KPI 카드 렌더링
+# 11. 상단 종합 KPI 카드 및 [BI] 실적 기간 선택 렌더링
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -1141,7 +1143,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 11. 공통 렌더러 및 본문 실행 (성장=레드, 역성장=블루)
+# 12. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -1572,7 +1574,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 12. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
+# 13. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
