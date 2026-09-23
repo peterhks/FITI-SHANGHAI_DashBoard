@@ -6,7 +6,7 @@ import os
 import io
 import json
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # =========================================================
 # 1. 화면 기본 설정 및 디자인 스타일
@@ -22,10 +22,9 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 & 로그인 이력 DB 영구 파일(JSON) 관리 시스템
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
-LOGIN_HISTORY_FILE = "fiti_login_history.json"
 
 def load_user_db():
     default_db = {
@@ -54,23 +53,10 @@ def save_user_db(db_data):
     with open(USER_DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db_data, f, ensure_ascii=False, indent=4)
 
-def load_login_history():
-    if os.path.exists(LOGIN_HISTORY_FILE):
-        try:
-            with open(LOGIN_HISTORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
-def save_login_history(history_data):
-    with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history_data, f, ensure_ascii=False, indent=4)
-
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = load_user_db()
 if "login_history" not in st.session_state:
-    st.session_state["login_history"] = load_login_history()
+    st.session_state["login_history"] = []
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
@@ -86,6 +72,26 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_email"] = "kshan@fiti.re.kr"
         st.session_state["current_user_role"] = "admin"
         st.session_state["current_user_name"] = "관리자"
+
+# =========================================================
+# ⏱️ 10분 자동 로그아웃 로직 (활동 시간 체크)
+# =========================================================
+if st.session_state["logged_in"]:
+    now = datetime.now()
+    if "last_active_time" in st.session_state:
+        # 마지막 활동 시간과 현재 시간을 비교 (600초 = 10분)
+        if (now - st.session_state["last_active_time"]).total_seconds() > 600:
+            st.session_state["logged_in"] = False
+            st.session_state["current_user_email"] = ""
+            st.session_state["current_user_role"] = ""
+            st.session_state["current_user_name"] = ""
+            if "auth_ok" in st.query_params:
+                del st.query_params["auth_ok"]
+            del st.session_state["last_active_time"]
+            st.session_state["auto_logout_alert"] = True
+            st.rerun()
+    # 앱이 실행(조작)될 때마다 현재 시간으로 갱신
+    st.session_state["last_active_time"] = now
 
 # =========================================================
 # 3. 다국어 텍스트 사전
@@ -137,7 +143,7 @@ LANG_DICT = {
 t = LANG_DICT["한국어"]
 
 # =========================================================
-# 4. 스타일 및 디자인 (간격 극단적 압축 및 버튼 스타일)
+# 4. 스타일 및 디자인 공통 적용
 # =========================================================
 st.markdown("""
 <style>
@@ -196,9 +202,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 로그인 화면
+# 5. 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
+    # ⏱️ 자동 로그아웃 시 경고 메시지 표시
+    if st.session_state.get("auto_logout_alert"):
+        st.warning("⏱️ 10분 동안 활동이 없어 보안을 위해 자동으로 로그아웃되었습니다.")
+        st.session_state["auto_logout_alert"] = False
+
     bg_image_path = "fiti_shanghai_bg.png"
     if os.path.exists(bg_image_path):
         with open(bg_image_path, "rb") as image_file:
@@ -247,12 +258,9 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
                 st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
-                save_login_history(st.session_state["login_history"])
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
-                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
-                save_login_history(st.session_state["login_history"])
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
 
@@ -410,7 +418,7 @@ def load_and_parse_all_data(file_bytes_val):
         part_cache[cat] = pd.concat(b_dfs, ignore_index=True).groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum() if b_dfs else pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
         vendor_cache[cat] = pd.concat(v_dfs, ignore_index=True) if v_dfs else pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
-    # --- 3) BI 분석 파싱 (완벽 복구 로직) ---
+    # --- 3) BI 분석 파싱 ---
     def parse_bi(branch_name):
         s_k = branch_name.strip().lower().replace(" ", "").replace("_", "")
         t_sn = None
@@ -506,7 +514,7 @@ all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업�
     "[BI_종합] 사업별 실적 현황", "[BI_상해] 사업별 실적 현황", "[BI_광주] 사업별 실적 현황"
 ]
 
-st.sidebar.markdown(f"#### {t['page_select']}")
+st.sidebar.markdown(f"### {t['page_select']}")
 if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
 if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
 
@@ -524,7 +532,7 @@ page_menu = st.session_state["current_page"]
 card_unit, display_period_name = t["unit"], "전체 총계 누계"
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"#### {t['period_select']}")
+    st.sidebar.markdown(f"### {t['period_select']}")
     bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
     curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
     for bp_key in bi_periods_keys:
@@ -576,7 +584,7 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-4px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-5px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
             
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
