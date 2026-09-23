@@ -73,11 +73,11 @@ LANG_DICT = {
         "sys_title": "상해지사 실적 종합 분석 시스템",
         "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
-        "admin_upload": "공용 엑셀 파일 업로드 (관리자 전용)",
-        "admin_caption": "💡 엑셀 파일을 교체하려면 관리자 권한으로 로그인하세요.",
-        "sync_success": "✅ 서버 공용 파일 및 세션 동기화 완료!",
-        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
-        "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 계정으로 로그인하여 파일을 업로드해 주세요.",
+        "admin_upload": "공용 엑셀 업로드 (관리자 전용)",
+        "admin_caption": "💡 엑셀 교체는 관리자 권한이 필요합니다.",
+        "sync_success": "✅ 서버 파일 및 세션 동기화 완료!",
+        "shared_file_info": "📂 최신 공용 파일 연동 중",
+        "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 계정으로 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
         "period_select": "⏱️ [BI] 실적 기간 선택",
@@ -119,8 +119,8 @@ LANG_DICT = {
         "sys_title": "上海分公司业绩综合分析系统",
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
         "data_mgmt": "📁 数据管理",
-        "admin_upload": "上传公共Excel文件 (仅限管理员)",
-        "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
+        "admin_upload": "上传公共Excel (仅限管理员)",
+        "admin_caption": "💡 更换Excel需要管理员权限。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
         "shared_file_info": "📂 服务器公共最新文件同步中",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
@@ -163,9 +163,9 @@ LANG_DICT = {
         "sys_sub": "Shanghai Branch Business Performance & Analysis System | Business Team",
         "data_mgmt": "📁 Data Management",
         "admin_upload": "Upload Public Excel (Admin Only)",
-        "admin_caption": "💡 To replace Excel, login with administrator account.",
+        "admin_caption": "💡 Admin permission required for Excel replacement.",
         "sync_success": "✅ Server public file & session synced!",
-        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
+        "shared_file_info": "📂 Syncing latest public file",
         "file_not_found": "Excel file not found. Please login as admin to upload.",
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (간격 압축 스타일 포함)
+# 4. 스타일 및 디자인 공통 적용 (사이드바 공백 밀착 스타일 추가)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,13 +218,16 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 사이드바 관리 메뉴 간격을 촘촘하게 압축하여 한눈에 보이도록 조정 */
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.5rem !important;
+    /* 💡 [요청 반영] 사이드바 상단 여백을 완전히 밀착시켜 공백 제거 */
+    section[data-testid="stSidebar"] {
+        padding-top: 0rem !important;
+    }
+    section[data-testid="stSidebar"] div.block-container {
+        padding-top: 0.8rem !important;
         padding-bottom: 1rem !important;
     }
     section[data-testid="stSidebar"] div.stExpander {
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.4rem !important;
     }
     
     .fiti-header {
@@ -303,7 +306,7 @@ st.markdown("""
         text-align: center;
         font-weight: 700;
         font-size: 14px;
-        padding: 10px 12px;
+        padding: 9px 12px;
         margin-bottom: 4px;
         border: 1.5px solid #CBD5E1;
         background-color: #F8FAFC;
@@ -324,7 +327,7 @@ st.markdown("""
         text-align: center;
         font-weight: 800;
         font-size: 14px;
-        padding: 10px 12px;
+        padding: 9px 12px;
         margin-bottom: 4px;
         border: 1.5px solid #001E3D;
         background-color: #003876;
@@ -336,7 +339,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인 보정 기능 포함)
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인 보정)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -395,8 +398,8 @@ if not st.session_state["logged_in"]:
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>회사 이메일 주소 또는 아이디 (ID)</p>", unsafe_allow_html=True)
-        login_input_raw = st.text_input("회사 이메일 주소 또는 아이디 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr", label_visibility="collapsed")
+        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>아이디 또는 이메일 주소 (ID)</p>", unsafe_allow_html=True)
+        login_input_raw = st.text_input("아이디 또는 이메일 주소 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr", label_visibility="collapsed")
         
         st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>비밀번호</p>", unsafe_allow_html=True)
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
@@ -406,7 +409,7 @@ if not st.session_state["logged_in"]:
         
         if submit_login:
             raw_val = login_input_raw.strip()
-            # 💡 [요청 반영] 아이디만 입력해도 @fiti.re.kr 및 @fitiglobal.com을 스마트하게 매칭하여 처리
+            # 💡 [요청 반영] kshan 만 입력해도 @fiti.re.kr 또는 @fitiglobal.com 자동 매칭 보정
             candidate_emails = [raw_val]
             if raw_val and "@" not in raw_val:
                 candidate_emails.extend([f"{raw_val}@fiti.re.kr", f"{raw_val}@fitiglobal.com"])
@@ -469,7 +472,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 파일 관리 및 네비게이션
+# 7. 사이드바: 데이터 관리 (위쪽 공백 제거 및 컴팩트화, 관리자 전용 업로드 통제)
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -477,8 +480,9 @@ LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
 
 st.sidebar.markdown(f"### {t['data_mgmt']}")
 
-if st.session_state["current_user_role"] in ["admin", "bi_user"]:
-    uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"])
+# 💡 [요청 반영] 엑셀 업로드 권한은 관리자(admin)에게만 부여
+if st.session_state["current_user_role"] == "admin":
+    uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed")
     if uploaded_file is not None:
         file_bytes = uploaded_file.getvalue()
         with open(LOCAL_EXCEL_PATH, "wb") as f:
@@ -489,7 +493,7 @@ if st.session_state["current_user_role"] in ["admin", "bi_user"]:
         st.sidebar.success(t["sync_success"])
         st.rerun()
 else:
-    st.sidebar.caption("💡 엑셀 업로드 권한은 관리자 및 BI 담당자에게만 부여됩니다.")
+    st.sidebar.caption(t["admin_caption"])
 
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
@@ -512,9 +516,10 @@ try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
     total_sheets_count = len(temp_excel.sheet_names)
-    st.sidebar.info(f"{t['shared_file_info']}\n(총 시트 수: {total_sheets_count}개)")
+    # 💡 [요청 반영] 문구를 캡션으로 작게 만들어 자리차지 최소화
+    st.sidebar.caption(f"{t['shared_file_info']} (시트수: {total_sheets_count}개)")
 except Exception:
-    st.sidebar.info(t["shared_file_info"])
+    st.sidebar.caption(t["shared_file_info"])
 
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -1036,7 +1041,7 @@ else:
     diff_val = total_26 - total_25
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
-# 💡 [요청 반영] 전문가형 3분리 권한 관리 및 로그 다운로드/날짜별 필터 기능
+# 💡 [요청 반영] 3대 권한 분리 및 간격 압축이 적용된 전문가형 관리 메뉴 (최근 로그인 감사 로그 포함)
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -1050,7 +1055,7 @@ if st.sidebar.button("로그아웃", use_container_width=True):
 
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
-        st.markdown("#### 👥 등록된 담당자 목록 (3대 권한 분리)")
+        st.markdown("#### 👥 등록된 담당자 목록")
         
         cat_reception = {}
         cat_reception_bi = {}
@@ -1065,6 +1070,7 @@ if user_role in ["admin", "bi_user"]:
             elif r == "admin":
                 cat_admin[em] = info
         
+        # 💡 [요청 반영] 1번(접수), 2번(접수 + BI), 3번(관리자) 명칭 정리
         st.markdown("**[ 1번 카테고리: 접수 ]**")
         if cat_reception:
             for em, info in cat_reception.items():
@@ -1089,7 +1095,7 @@ if user_role in ["admin", "bi_user"]:
         st.markdown("---")
         st.markdown("#### ➕ 담당자 추가 / 🗑️ 삭제")
         with st.form("add_user_form"):
-            new_email = st.text_input("이메일 또는 아이디 (ID)", placeholder="예: name 또는 name@fiti.re.kr")
+            new_email = st.text_input("아이디 또는 이메일 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr")
             new_name = st.text_input("담당자 성명", placeholder="홍길동")
             new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
             new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수 + BI", "3번 카테고리: 관리자"])
@@ -1113,10 +1119,10 @@ if user_role in ["admin", "bi_user"]:
                         "role": assigned_role,
                         "name": new_name.strip() if new_name.strip() else clean_email
                     }
-                    st.success(f"✅ {clean_email} 담당자가 영구 등록되었습니다!")
+                    st.success(f"✅ {clean_email} 영구 등록 완료!")
                     st.rerun()
                 else:
-                    st.error("이메일(아이디)과 비밀번호는 필수 입력 항목입니다.")
+                    st.error("아이디(이메일)와 비밀번호는 필수입니다.")
                     
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()))
         if st.button("선택한 담당자 삭제", use_container_width=True):
@@ -1125,7 +1131,7 @@ if user_role in ["admin", "bi_user"]:
                     st.error("현재 로그인 중인 계정은 삭제할 수 없습니다.")
                 else:
                     del st.session_state["user_db"][target_delete_email]
-                    st.success(f"🗑️ {target_delete_email} 계정이 영구 삭제되었습니다.")
+                    st.success(f"🗑️ {target_delete_email} 영구 삭제 완료!")
                     st.rerun()
 
         st.markdown("---")
@@ -1711,7 +1717,6 @@ elif page_menu.startswith("[BI_"):
             color="거점구분",
             color_discrete_map=center_colors
         )
-        tot_c26 = center_pie_df["2026년 실실적"].sum() if "2026년 실적" in center_pie_df.columns else center_pie_df["2026년 실적"].sum()
         tot_c26 = center_pie_df["2026년 실적"].sum()
         fig_center_26.update_traces(
             textposition='inside', 
