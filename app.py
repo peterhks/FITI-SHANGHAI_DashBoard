@@ -22,9 +22,10 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
+# 2. 사용자 권한 & 로그인 이력 DB 영구 파일(JSON) 관리 시스템
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
+LOGIN_HISTORY_FILE = "fiti_login_history.json"
 
 def load_user_db():
     default_db = {
@@ -53,10 +54,23 @@ def save_user_db(db_data):
     with open(USER_DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db_data, f, ensure_ascii=False, indent=4)
 
+def load_login_history():
+    if os.path.exists(LOGIN_HISTORY_FILE):
+        try:
+            with open(LOGIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_login_history(history_data):
+    with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history_data, f, ensure_ascii=False, indent=4)
+
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = load_user_db()
 if "login_history" not in st.session_state:
-    st.session_state["login_history"] = []
+    st.session_state["login_history"] = load_login_history()
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
@@ -233,9 +247,12 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
                 st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
+                save_login_history(st.session_state["login_history"])
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
+                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
+                save_login_history(st.session_state["login_history"])
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
 
@@ -278,7 +295,7 @@ if not raw_bytes:
     st.stop()
 
 # =========================================================
-# 8. 초고속 데이터 파싱 (시트 복구 완벽 해결)
+# 8. 초고속 데이터 파싱
 # =========================================================
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -397,8 +414,6 @@ def load_and_parse_all_data(file_bytes_val):
     def parse_bi(branch_name):
         s_k = branch_name.strip().lower().replace(" ", "").replace("_", "")
         t_sn = None
-        
-        # 💡 [핵심 복구 1] BI 시트 명칭 정확히 매칭되도록 로직 강화
         for s_orig in all_sheets:
             s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
             if s_k == "광주" and s_clean == "bi광주": t_sn = s_orig; break
@@ -561,7 +576,7 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-5px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-4px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
             
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
@@ -781,7 +796,6 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         render_fullwidth_vertical_dashboard(f"🏢 {s_v} 실적 현황", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == "전체 협력사 보기" else "바이어명", disp_v["협력사명" if s_v == "전체 협력사 보기" else "바이어명"].tolist())
 
 elif page_menu.startswith("[BI_"):
-    # 💡 [핵심 복구] BI 종합, 상해, 광주 차트 렌더링 로직 (완전 정상 작동 보장)
     if "광주" in page_menu:
         chart_d = parsed_data["bi_gw_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
         center_title_prefix = "🏭 [BI_광주]"
