@@ -938,7 +938,7 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 # =========================================================
-# 10. 사이드바 구성 요소 최종 순서 반영 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
+# 10. 사이드바 구성 요소 배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/전문가형 관리자 메뉴 하단)
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -1014,7 +1014,7 @@ else:
     diff_val = total_26 - total_25
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
-# 하단에 배치된 접속 계정 및 관리자 메뉴
+# 💡 [전문가형 관리 시스템 메인 블록] (접속 계정, 3분리 카테고리 담당자 관리, 날짜별 필터링 및 다운로드 가능한 감사 로그)
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -1028,28 +1028,39 @@ if st.sidebar.button("로그아웃", use_container_width=True):
 
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
-        st.markdown("#### 👥 등록된 담당자 목록")
+        st.markdown("#### 👥 등록된 담당자 목록 (3대 권한 분리)")
         
-        cat1_users = {}
-        cat2_users = {}
+        cat_reception = {}
+        cat_reception_bi = {}
+        cat_admin = {}
+        
         for em, info in st.session_state["user_db"].items():
-            if info["role"] == "general_user":
-                cat1_users[em] = info
-            else:
-                cat2_users[em] = info
+            r = info["role"]
+            if r == "general_user":
+                cat_reception[em] = info
+            elif r == "bi_user":
+                cat_reception_bi[em] = info
+            elif r == "admin":
+                cat_admin[em] = info
         
-        st.markdown("[ 1번 카테고리: 접수 전용 ]")
-        if cat1_users:
-            for em, info in cat1_users.items():
-                st.text(f"• {info['name']} ({em})\n  (접수)")
+        st.markdown("**[ 1번 카테고리: 접수 ]**")
+        if cat_reception:
+            for em, info in cat_reception.items():
+                st.text(f"• {info['name']} ({em})")
         else:
             st.caption("등록된 인원이 없습니다.")
             
-        st.markdown("[ 2번 카테고리: 접수 + BI ]")
-        if cat2_users:
-            for em, info in cat2_users.items():
-                role_label = "최고관리자/관리자" if info['role']=='admin' else "BI 담당자"
-                st.text(f"• {info['name']} ({em})\n  ({role_label})")
+        st.markdown("**[ 2번 카테고리: 접수 + BI ]**")
+        if cat_reception_bi:
+            for em, info in cat_reception_bi.items():
+                st.text(f"• {info['name']} ({em})")
+        else:
+            st.caption("등록된 인원이 없습니다.")
+            
+        st.markdown("**[ 3번 카테고리: 관리자 ]**")
+        if cat_admin:
+            for em, info in cat_admin.items():
+                st.text(f"• {info['name']} ({em})")
         else:
             st.caption("등록된 인원이 없습니다.")
             
@@ -1059,19 +1070,25 @@ if user_role in ["admin", "bi_user"]:
             new_email = st.text_input("이메일 (ID)", placeholder="name@fiti.re.kr")
             new_name = st.text_input("담당자 성명", placeholder="홍길동")
             new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
-            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수 전용", "2번 카테고리: 접수+BI"])
+            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수 + BI", "3번 카테고리: 관리자"])
             
             submit_add = st.form_submit_button("담당자 등록", use_container_width=True)
             if submit_add:
                 clean_email = new_email.strip()
                 if clean_email and new_pw.strip():
-                    assigned_role = "general_user" if "1번" in new_category else "bi_user"
+                    if "1번" in new_category:
+                        assigned_role = "general_user"
+                    elif "2번" in new_category:
+                        assigned_role = "bi_user"
+                    else:
+                        assigned_role = "admin"
+                        
                     st.session_state["user_db"][clean_email] = {
                         "pw": new_pw.strip(),
                         "role": assigned_role,
                         "name": new_name.strip() if new_name.strip() else clean_email
                     }
-                    st.success(f"✅ {clean_email} 담당자가 등록되었습니다!")
+                    st.success(f"✅ {clean_email} 담당자가 영구 등록되었습니다!")
                     st.rerun()
                 else:
                     st.error("이메일과 비밀번호는 필수 입력 항목입니다.")
@@ -1083,14 +1100,35 @@ if user_role in ["admin", "bi_user"]:
                     st.error("현재 로그인 중인 계정은 삭제할 수 없습니다.")
                 else:
                     del st.session_state["user_db"][target_delete_email]
-                    st.success(f"🗑️ {target_delete_email} 계정이 삭제되었습니다.")
+                    st.success(f"🗑️ {target_delete_email} 계정이 영구 삭제되었습니다.")
                     st.rerun()
 
         st.markdown("---")
         st.markdown("#### 📋 최근 로그인 감사 로그")
         if st.session_state["login_history"]:
             df_log = pd.DataFrame(st.session_state["login_history"])
-            st.dataframe(df_log.tail(10), hide_index=True, use_container_width=True)
+            df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
+            
+            # 날짜별 필터링 기능
+            unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
+            selected_date_filter = st.selectbox("날짜별 로그 분리 보기", unique_dates)
+            
+            if selected_date_filter != "전체 날짜 보기":
+                filtered_log_df = df_log[df_log["날짜"].astype(str) == selected_date_filter]
+            else:
+                filtered_log_df = df_log
+                
+            st.dataframe(filtered_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
+            
+            # 파일 다운로드 기능
+            csv_data = filtered_log_df.to_csv(index=False).encode('utf-8-sig')
+            st.download_button(
+                label="📥 감사 로그 다운로드 (CSV)",
+                data=csv_data,
+                file_name=f"fiti_login_audit_log_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
         else:
             st.caption("기록된 로그인 이력이 없습니다.")
 
@@ -1500,7 +1538,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
                 legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억" if tot_b25 >= 1e8 else f"Total<br>{tot_b25/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_25, use_container_width=True)
             
@@ -1524,7 +1562,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
                 legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억" if tot_b26 >= 1e8 else f"Total<br>{tot_b26/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
+                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
 
