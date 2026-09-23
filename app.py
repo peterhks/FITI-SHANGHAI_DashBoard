@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (리셋 방지)
+# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (삭제 계정 부활 원천 차단)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -76,7 +76,7 @@ LANG_DICT = {
         "admin_upload": "공용 엑셀 업로드 (관리자 전용)",
         "admin_caption": "💡 엑셀 교체는 관리자 권한이 필요합니다.",
         "sync_success": "✅ 서버 파일 및 세션 동기화 완료!",
-        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
+        "shared_file_info": "📂 파일 연동 중",
         "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 계정으로 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (상단 공백 완전 제거 및 컴팩트 압축)
+# 4. 스타일 및 디자인 공통 적용 (간격 최소화 및 압축 스타일)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,6 +218,7 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
+    /* 💡 [요청 반영] 사이드바 상단 공백 완전 제거 및 메뉴/간격 최소화 압축 */
     section[data-testid="stSidebar"] {
         padding-top: 0rem !important;
     }
@@ -226,10 +227,10 @@ st.markdown("""
         padding-bottom: 0.5rem !important;
     }
     section[data-testid="stSidebar"] div.stExpander {
-        margin-bottom: 0.2rem !important;
+        margin-bottom: 0.15rem !important;
     }
     section[data-testid="stSidebar"] hr {
-        margin: 0.4rem 0 !important;
+        margin: 0.3rem 0 !important;
     }
     
     .fiti-header {
@@ -308,7 +309,7 @@ st.markdown("""
         text-align: center;
         font-weight: 700;
         font-size: 14px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         margin-bottom: 3px;
         border: 1.5px solid #CBD5E1;
         background-color: #F8FAFC;
@@ -329,7 +330,7 @@ st.markdown("""
         text-align: center;
         font-weight: 800;
         font-size: 14px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         margin-bottom: 3px;
         border: 1.5px solid #001E3D;
         background-color: #003876;
@@ -450,7 +451,7 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # =========================================================
-# 6. 상단 공식 배너 (로그인 후 표시) - '관리자' 명칭 반영
+# 6. 상단 공식 배너 (로그인 후 표시)
 # =========================================================
 selected_lang = "한국어"
 t = LANG_DICT[selected_lang]
@@ -1024,7 +1025,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (간격 최소화 압축)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (초압축 및 1줄 연동 문구)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1056,8 +1057,8 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        # 💡 [요청 반영] 서버 공용 파일 연동 중 시트수 문구 압축
-        st.caption(f"{t['shared_file_info']} (시트수: {total_sheets_count}개)")
+        # 💡 [요청 반영] 서버 공용 파일 연동 중 시트수 문구를 작은 폰트로 1줄 고정 출력
+        st.markdown(f"<p style='font-size:11px; color:#64748B; margin-top:-2px; margin-bottom:4px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
             
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
