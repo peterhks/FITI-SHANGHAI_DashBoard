@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (재생성 버그 방지)
+# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (리셋 방지)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -118,11 +118,11 @@ LANG_DICT = {
     "中文 (중국어)": {
         "sys_title": "上海分公司业绩综合分析系统",
         "sys_sub": "上海分公司业务业绩及分析系统 | 上海分公司业务团队",
-        "data_mgmt": "📁 데이터 관리",
+        "data_mgmt": "📁 数据管理",
         "admin_upload": "上传公共Excel (仅限管理员)",
         "admin_caption": "💡 更换Excel需要管理员权限。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
-        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
+        "shared_file_info": "📂 服务器公共最新文件同步中",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (상단 공백 완전 제거)
+# 4. 스타일 및 디자인 공통 적용 (사이드바 간격 최소화 압축)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,16 +218,19 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 사이드바 최상단 공백을 완전 제거하고 위로 딱 붙임 */
+    /* 💡 [요청 반영] 사이드바 상단 공백 완전 제거 및 내부 간격 최소로 압축 */
     section[data-testid="stSidebar"] {
         padding-top: 0rem !important;
     }
     section[data-testid="stSidebar"] div.block-container {
-        padding-top: 0.4rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.5rem !important;
     }
     section[data-testid="stSidebar"] div.stExpander {
-        margin-bottom: 0.4rem !important;
+        margin-bottom: 0.2rem !important;
+    }
+    section[data-testid="stSidebar"] hr {
+        margin: 0.5rem 0 !important;
     }
     
     .fiti-header {
@@ -306,8 +309,8 @@ st.markdown("""
         text-align: center;
         font-weight: 700;
         font-size: 14px;
-        padding: 9px 12px;
-        margin-bottom: 4px;
+        padding: 8px 10px;
+        margin-bottom: 3px;
         border: 1.5px solid #CBD5E1;
         background-color: #F8FAFC;
         color: #0F172A;
@@ -327,8 +330,8 @@ st.markdown("""
         text-align: center;
         font-weight: 800;
         font-size: 14px;
-        padding: 9px 12px;
-        margin-bottom: 4px;
+        padding: 8px 10px;
+        margin-bottom: 3px;
         border: 1.5px solid #001E3D;
         background-color: #003876;
         color: #FFFFFF !important;
@@ -339,7 +342,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인 보정)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -448,7 +451,7 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # =========================================================
-# 6. 상단 공식 배너 (로그인 후 표시) - '관리자' 명칭 적용
+# 6. 상단 공식 배너 (로그인 후 표시) - '관리자' 명칭 반영
 # =========================================================
 selected_lang = "한국어"
 t = LANG_DICT[selected_lang]
@@ -1022,7 +1025,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [담당자 권한 및 접속 관리] (데이터 관리 통합 포함)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (데이터 관리, 간격 압축)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1036,9 +1039,9 @@ if st.sidebar.button("로그아웃", use_container_width=True):
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
+    # 💡 [요청 반영] 명칭 변경: '관리자 권한'
+    with st.sidebar.expander("🛡️ 관리자 권한"):
         
-        # 💡 [요청 반영] 데이터 관리(엑셀 업로드) 메뉴 및 인식 시트 수 안내 문구 복구
         st.markdown(f"##### {t['data_mgmt']}")
         if st.session_state["current_user_role"] == "admin":
             uploaded_file = st.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed", key="sidebar_excel_uploader")
@@ -1054,6 +1057,7 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
+        # 💡 [요청 반영] 인식한 시트 수 안내 문구 복구 및 한 줄 표시
         st.caption(f"{t['shared_file_info']} (시트수: {total_sheets_count}개)")
             
         st.markdown("---")
