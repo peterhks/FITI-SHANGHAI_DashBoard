@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (사이드바 공백 밀착 스타일 추가)
+# 4. 스타일 및 디자인 공통 적용 (사이드바 공백 밀착 스타일)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,7 +218,6 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 사이드바 상단 여백을 완전히 밀착시켜 공백 제거 */
     section[data-testid="stSidebar"] {
         padding-top: 0rem !important;
     }
@@ -409,7 +408,6 @@ if not st.session_state["logged_in"]:
         
         if submit_login:
             raw_val = login_input_raw.strip()
-            # 💡 [요청 반영] kshan 만 입력해도 @fiti.re.kr 또는 @fitiglobal.com 자동 매칭 보정
             candidate_emails = [raw_val]
             if raw_val and "@" not in raw_val:
                 candidate_emails.extend([f"{raw_val}@fiti.re.kr", f"{raw_val}@fitiglobal.com"])
@@ -472,28 +470,11 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 데이터 관리 (위쪽 공백 제거 및 컴팩트화, 관리자 전용 업로드 통제)
+# 7. 사이드바 파일 로드 설정
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
 LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
-
-st.sidebar.markdown(f"### {t['data_mgmt']}")
-
-# 💡 [요청 반영] 엑셀 업로드 권한은 관리자(admin)에게만 부여
-if st.session_state["current_user_role"] == "admin":
-    uploaded_file = st.sidebar.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed")
-    if uploaded_file is not None:
-        file_bytes = uploaded_file.getvalue()
-        with open(LOCAL_EXCEL_PATH, "wb") as f:
-            f.write(file_bytes)
-        st.session_state["persistent_file_bytes"] = file_bytes
-        st.session_state["persistent_file_name"] = uploaded_file.name
-        st.cache_data.clear()
-        st.sidebar.success(t["sync_success"])
-        st.rerun()
-else:
-    st.sidebar.caption(t["admin_caption"])
 
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
@@ -516,10 +497,8 @@ try:
     temp_stream = io.BytesIO(raw_bytes)
     temp_excel = pd.ExcelFile(temp_stream)
     total_sheets_count = len(temp_excel.sheet_names)
-    # 💡 [요청 반영] 문구를 캡션으로 작게 만들어 자리차지 최소화
-    st.sidebar.caption(f"{t['shared_file_info']} (시트수: {total_sheets_count}개)")
 except Exception:
-    st.sidebar.caption(t["shared_file_info"])
+    total_sheets_count = 0
 
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -965,7 +944,7 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 # =========================================================
-# 10. 사이드바 구성 요소 배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
+# 10. 상단 종합 KPI 카드용 기간 선택 렌더링
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -1041,7 +1020,9 @@ else:
     diff_val = total_26 - total_25
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
-# 💡 [요청 반영] 3대 권한 분리 및 간격 압축이 적용된 전문가형 관리 메뉴 (최근 로그인 감사 로그 포함)
+# =========================================================
+# 11. 사이드바 하단: [접속 계정] 및 [담당자 권한 및 접속 관리] (데이터 관리 기능 통합 포함)
+# =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -1055,6 +1036,24 @@ if st.sidebar.button("로그아웃", use_container_width=True):
 
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
+        
+        # 💡 [요청 반영] 데이터 관리(엑셀 업로드) 기능을 관리자 메뉴 내부로 이동
+        st.markdown(f"##### {t['data_mgmt']}")
+        if st.session_state["current_user_role"] == "admin":
+            uploaded_file = st.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed", key="sidebar_excel_uploader")
+            if uploaded_file is not None:
+                file_bytes = uploaded_file.getvalue()
+                with open(LOCAL_EXCEL_PATH, "wb") as f:
+                    f.write(file_bytes)
+                st.session_state["persistent_file_bytes"] = file_bytes
+                st.session_state["persistent_file_name"] = uploaded_file.name
+                st.cache_data.clear()
+                st.success(t["sync_success"])
+                st.rerun()
+        else:
+            st.caption(t["admin_caption"])
+            
+        st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
         
         cat_reception = {}
@@ -1070,7 +1069,6 @@ if user_role in ["admin", "bi_user"]:
             elif r == "admin":
                 cat_admin[em] = info
         
-        # 💡 [요청 반영] 1번(접수), 2번(접수 + BI), 3번(관리자) 명칭 정리
         st.markdown("**[ 1번 카테고리: 접수 ]**")
         if cat_reception:
             for em, info in cat_reception.items():
@@ -1134,6 +1132,7 @@ if user_role in ["admin", "bi_user"]:
                     st.success(f"🗑️ {target_delete_email} 영구 삭제 완료!")
                     st.rerun()
 
+        # 💡 [요청 반영] '데이터 관리' 하단, '최근 로그인 감사 로그' 위쪽으로 위치 이동 완료
         st.markdown("---")
         st.markdown("#### 📋 최근 로그인 감사 로그")
         if st.session_state["login_history"]:
@@ -1162,7 +1161,7 @@ if user_role in ["admin", "bi_user"]:
             st.caption("기록된 로그인 이력이 없습니다.")
 
 # =========================================================
-# 11. 상단 종합 KPI 카드 렌더링
+# 12. 상단 종합 KPI 카드 렌더링
 # =========================================================
 is_positive = diff_val >= 0
 diff_color = "#E11D48" if is_positive else "#2563EB"
@@ -1211,7 +1210,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 12. 공통 렌더러 및 본문 실행
+# 13. 공통 렌더러 및 본문 실행
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -1642,7 +1641,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
             )
 
 # =========================================================
-# 13. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
+# 14. [BI] 마곡 본원 vs 오창 분원 거점별 실적 비교 (고급 도넛 차트 포함)
 # =========================================================
 elif page_menu.startswith("[BI_"):
     active_chart_dict = active_bi_charts.get("누계")
