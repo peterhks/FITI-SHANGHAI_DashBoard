@@ -38,7 +38,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (부활/휘발 원천 차단)
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (안전 장치 강화)
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
 
@@ -52,7 +52,13 @@ def load_user_db():
     if os.path.exists(USER_DB_FILE):
         try:
             with open(USER_DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                loaded_db = json.load(f)
+                if not isinstance(loaded_db, dict) or len(loaded_db) == 0:
+                    return default_db
+                # 필수 관리자 계정이 누락된 경우 자동 복구 보완
+                if "kshan@fiti.re.kr" not in loaded_db:
+                    loaded_db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
+                return loaded_db
         except Exception:
             return default_db
     else:
@@ -76,7 +82,6 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
 
-# 수정 모드 상태 관리 키 초기화
 if "edit_target_email" not in st.session_state:
     st.session_state["edit_target_email"] = None
 
@@ -1048,7 +1053,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 클릭 수정 기능 추가)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 클릭 수정 기능 포함)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1097,7 +1102,6 @@ if user_role in ["admin", "bi_user"]:
             elif r == "admin":
                 cat_admin[em] = info
         
-        # 💡 [요청 반영] 등록된 담당자 이름을 클릭하면 수정 모드로 전환되도록 버튼으로 구현
         st.markdown("<div style='margin-top: -10px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
         if cat_reception:
             for em, info in cat_reception.items():
@@ -1127,7 +1131,6 @@ if user_role in ["admin", "bi_user"]:
             
         st.markdown("---")
         
-        # 수정 모드인지 신규 등록 모드인지 판단
         edit_email = st.session_state.get("edit_target_email", None)
         is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
         
@@ -1172,7 +1175,7 @@ if user_role in ["admin", "bi_user"]:
                         "name": new_name.strip() if new_name.strip() else target_key
                     }
                     save_user_db(st.session_state["user_db"])
-                    st.session_state["edit_target_email"] = None  # 수정 모드 해제
+                    st.session_state["edit_target_email"] = None
                     st.success(f"✅ {'정보가 수정되었습니다!' if is_editing else '영구 등록 완료!'}")
                     st.rerun()
                 else:
