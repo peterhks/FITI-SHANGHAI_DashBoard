@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 초기화 (최고 관리자 계정 반영)
+# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (리셋 방지)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -327,7 +327,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (박스 프레임 완전 제거)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -447,7 +447,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 파일 관리, 담당자 권한 관리(카테고리 분리/추가/삭제), 네비게이션
+# 7. 사이드바: 파일 관리, 담당자 권한 관리, 네비게이션
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -896,7 +896,6 @@ bi_guangzhou_kpi, bi_guangzhou_charts = bi_광주_kpi, bi_광주_charts
 # =========================================================
 user_role = st.session_state["current_user_role"]
 
-# 권한별 접근 페이지 제어 (일반 담당자: '접수' 권한만 / 관리자 및 BI 담당자: '접수+BI' 권한)
 if user_role == "general_user":
     all_pages_keys = [
         "[접수기준] 종합 실적 현황",
@@ -949,12 +948,11 @@ if st.sidebar.button("로그아웃", use_container_width=True):
         del st.query_params["auth_ok"]
     st.rerun()
 
-# 💡 [요청 반영] 1번 카테고리(접수)와 2번 카테고리(접수+BI)로 분리하고 추가/삭제 기능이 포함된 관리자 메뉴
+# 💡 [요청 반영] 명칭 변경 및 1번(접수), 2번(접수+BI) 카테고리 분리, 추가/삭제 기능
 if user_role in ["admin", "bi_user"]:
     with st.sidebar.expander("🛡️ 담당자 권한 및 접속 관리"):
         st.markdown("#### 👥 등록된 담당자 목록")
         
-        # 카테고리 분류용 컨테이너
         cat1_users = {}
         cat2_users = {}
         for em, info in st.session_state["user_db"].items():
@@ -963,14 +961,14 @@ if user_role in ["admin", "bi_user"]:
             else:
                 cat2_users[em] = info
         
-        st.markdown("**[ 1번 카테고리: 접수 전용 ]**")
+        st.markdown("[ 1번 카테고리: 접수 ]")
         if cat1_users:
             for em, info in cat1_users.items():
-                st.text(f"• {info['name']} ({em})")
+                st.text(f"• {info['name']} ({em})\n  (접수)")
         else:
             st.caption("등록된 인원이 없습니다.")
             
-        st.markdown("**[ 2번 카테고리: 접수 + BI ]**")
+        st.markdown("[ 2번 카테고리: 접수 + BI ]")
         if cat2_users:
             for em, info in cat2_users.items():
                 role_label = "최고관리자/관리자" if info['role']=='admin' else "BI 담당자"
@@ -1001,7 +999,6 @@ if user_role in ["admin", "bi_user"]:
                 else:
                     st.error("이메일과 비밀번호는 필수 입력 항목입니다.")
                     
-        # 삭제 기능
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()))
         if st.button("선택한 담당자 삭제", use_container_width=True):
             if target_delete_email != "선택하세요.":
