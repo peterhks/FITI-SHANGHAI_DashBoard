@@ -38,7 +38,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (누락/부활 원천 차단)
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
 
@@ -78,6 +78,9 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
+
+if "edit_target_email" not in st.session_state:
+    st.session_state["edit_target_email"] = None
 
 query_params = st.query_params
 if "auth_ok" in query_params and query_params["auth_ok"] == "true":
@@ -320,7 +323,7 @@ def get_sheet_by_keyword(keywords):
     return None
 
 # =========================================================
-# 8. 파서 함수 정의 (데이터 분석 및 차트용)
+# 8. 파서 함수 정의
 # =========================================================
 @st.cache_data
 def parse_summary_data(file_bytes_val):
