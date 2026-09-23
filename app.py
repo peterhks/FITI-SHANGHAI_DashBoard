@@ -22,9 +22,10 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
+# 2. 사용자 권한 & 로그인 이력 DB 영구 파일(JSON) 관리 시스템
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
+LOGIN_HISTORY_FILE = "fiti_login_history.json"
 
 def load_user_db():
     default_db = {
@@ -53,10 +54,23 @@ def save_user_db(db_data):
     with open(USER_DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db_data, f, ensure_ascii=False, indent=4)
 
+def load_login_history():
+    if os.path.exists(LOGIN_HISTORY_FILE):
+        try:
+            with open(LOGIN_HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_login_history(history_data):
+    with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history_data, f, ensure_ascii=False, indent=4)
+
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = load_user_db()
 if "login_history" not in st.session_state:
-    st.session_state["login_history"] = []
+    st.session_state["login_history"] = load_login_history()
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
@@ -79,7 +93,6 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
 if st.session_state["logged_in"]:
     now = datetime.now()
     if "last_active_time" in st.session_state:
-        # 마지막 활동 시간과 현재 시간을 비교 (600초 = 10분)
         if (now - st.session_state["last_active_time"]).total_seconds() > 600:
             st.session_state["logged_in"] = False
             st.session_state["current_user_email"] = ""
@@ -90,7 +103,6 @@ if st.session_state["logged_in"]:
             del st.session_state["last_active_time"]
             st.session_state["auto_logout_alert"] = True
             st.rerun()
-    # 앱이 실행(조작)될 때마다 현재 시간으로 갱신
     st.session_state["last_active_time"] = now
 
 # =========================================================
@@ -202,10 +214,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 로그인 화면
+# 5. 상해 야경 테마 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
-    # ⏱️ 자동 로그아웃 시 경고 메시지 표시
     if st.session_state.get("auto_logout_alert"):
         st.warning("⏱️ 10분 동안 활동이 없어 보안을 위해 자동으로 로그아웃되었습니다.")
         st.session_state["auto_logout_alert"] = False
@@ -237,7 +248,8 @@ if not st.session_state["logged_in"]:
         </div>
         """, unsafe_allow_html=True)
         
-        login_input_raw = st.text_input("아이디 또는 이메일", placeholder="예: kshan", label_visibility="collapsed")
+        # 💡 [요청 반영] 로그인 화면 예시 문구 gdhong으로 변경
+        login_input_raw = st.text_input("아이디 또는 이메일", placeholder="예: gdhong", label_visibility="collapsed")
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
         if st.form_submit_button("시스템 로그인", use_container_width=True):
             raw_val = login_input_raw.strip()
@@ -258,9 +270,12 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
                 st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
+                save_login_history(st.session_state["login_history"])
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
+                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
+                save_login_history(st.session_state["login_history"])
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
 
@@ -514,7 +529,7 @@ all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업�
     "[BI_종합] 사업별 실적 현황", "[BI_상해] 사업별 실적 현황", "[BI_광주] 사업별 실적 현황"
 ]
 
-st.sidebar.markdown(f"### {t['page_select']}")
+st.sidebar.markdown(f"#### {t['page_select']}")
 if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
 if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
 
@@ -532,7 +547,7 @@ page_menu = st.session_state["current_page"]
 card_unit, display_period_name = t["unit"], "전체 총계 누계"
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### {t['period_select']}")
+    st.sidebar.markdown(f"#### {t['period_select']}")
     bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
     curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
     for bp_key in bi_periods_keys:
@@ -570,7 +585,8 @@ if st.sidebar.button("시스템 잠금 (로그아웃)", use_container_width=True
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    with st.sidebar.expander("🛡️ 관리자 권한", expanded=True):
+    # 💡 [요청 반영] 관리자 권한 메뉴 기본적으로 접혀있게 설정
+    with st.sidebar.expander("🛡️ 관리자 권한", expanded=False):
         st.markdown(f"##### {t['data_mgmt']}")
         if st.session_state["current_user_role"] == "admin":
             uploaded_file = st.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed")
@@ -635,7 +651,8 @@ if user_role in ["admin", "bi_user"]:
             default_name, default_pw, default_cat_idx = "", "", 0
 
         with st.form("add_user_form"):
-            new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: kshan", disabled=is_editing, label_visibility="collapsed")
+            # 💡 [요청 반영] 담당자 추가 이메일 입력창 예시 문구를 gdhong으로 변경
+            new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: gdhong", disabled=is_editing, label_visibility="collapsed")
             new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동", label_visibility="collapsed")
             new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
             new_category = st.selectbox("권한", ["접수", "접수 + BI", "관리자"], index=default_cat_idx, label_visibility="collapsed")
@@ -670,8 +687,8 @@ if user_role in ["admin", "bi_user"]:
                     st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
-        st.markdown("---")
-        st.markdown("#### 📋 최근 로그인 감사 로그")
+    # 💡 [요청 반영] 최근 로그인 감사 로그를 별도의 접기/펴기 메뉴로 분리
+    with st.sidebar.expander("📋 최근 로그인 감사 로그", expanded=False):
         if st.session_state["login_history"]:
             df_log = pd.DataFrame(st.session_state["login_history"])
             df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
@@ -699,7 +716,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 100% 정상 작동)
+# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 포함)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
