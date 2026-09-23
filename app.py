@@ -55,6 +55,8 @@ def load_user_db():
                 loaded_db = json.load(f)
                 if not isinstance(loaded_db, dict) or len(loaded_db) == 0:
                     return default_db
+                if "kshan@fiti.re.kr" not in loaded_db:
+                    loaded_db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
                 return loaded_db
         except Exception:
             return default_db
@@ -599,7 +601,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 표시 완벽 복구 버전)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 클릭 수정 기능 포함)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -629,7 +631,6 @@ if user_role in ["admin", "bi_user"]:
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
         
-        # 💡 [핵심 복구] 이름과 이메일이 정확하게 매핑되어 표시되도록 렌더링 검증 완료
         cat_reception = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "general_user"}
         cat_reception_bi = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "bi_user"}
         cat_admin = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "admin"}
@@ -637,43 +638,75 @@ if user_role in ["admin", "bi_user"]:
         st.markdown("<div style='margin-top: -10px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
         if cat_reception:
             for em, info in cat_reception.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -6px; padding-left: 8px;'>• {info['name']} ({em})</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("<div style='margin-top: 2px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
         if cat_reception_bi:
             for em, info in cat_reception_bi.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -6px; padding-left: 8px;'>• {info['name']} ({em})</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("<div style='margin-top: 2px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
         if cat_admin:
             for em, info in cat_admin.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -6px; padding-left: 8px;'>• {info['name']} ({em})</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("---")
-        st.markdown("#### ➕ 담당자 추가 / 🗑️ 삭제")
+        
+        edit_email = st.session_state.get("edit_target_email", None)
+        is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
+        
+        if is_editing:
+            st.markdown(f"#### ✏️ 담당자 정보 수정 ({edit_email})")
+            current_info = st.session_state["user_db"][edit_email]
+            default_name = current_info["name"]
+            default_pw = current_info["pw"]
+            curr_role = current_info["role"]
+            default_cat_idx = 0 if curr_role == "general_user" else (1 if curr_role == "bi_user" else 2)
+        else:
+            st.markdown("#### ➕ 담당자 추가")
+            default_name = ""
+            default_pw = ""
+            default_cat_idx = 0
+
         with st.form("add_user_form"):
-            new_email = st.text_input("아이디 또는 이메일 (ID)", placeholder="예: kshan", label_visibility="collapsed")
-            new_name = st.text_input("담당자 성명", placeholder="홍길동", label_visibility="collapsed")
-            new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"], label_visibility="collapsed")
+            new_email = st.text_input("아이디 또는 이메일 (ID)", value=edit_email if is_editing else "", placeholder="예: kshan", disabled=is_editing)
+            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동")
+            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력")
+            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"], index=default_cat_idx)
             
-            if st.form_submit_button("담당자 등록", use_container_width=True):
-                clean_email = new_email.strip()
-                if clean_email and new_pw.strip():
-                    if "@" not in clean_email: clean_email = f"{clean_email}@fiti.re.kr"
+            btn_label = "담당자 정보 수정" if is_editing else "담당자 등록"
+            submit_add = st.form_submit_button(btn_label, use_container_width=True)
+            
+            if submit_add:
+                target_key = edit_email if is_editing else new_email.strip()
+                if target_key and new_pw.strip():
+                    if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
                     assigned_role = "general_user" if new_category == "접수" else ("bi_user" if new_category == "접수 + BI" else "admin")
-                    st.session_state["user_db"][clean_email] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else clean_email}
+                    st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
                     save_user_db(st.session_state["user_db"])
-                    st.success(f"✅ {clean_email} 영구 등록 완료!")
+                    st.session_state["edit_target_email"] = None
+                    st.success(f"✅ {'정보가 수정되었습니다!' if is_editing else '영구 등록 완료!'}")
                     st.rerun()
                 else: st.error("아이디와 비밀번호는 필수입니다.")
-                    
+        
+        if is_editing:
+            if st.button("❌ 수정 취소 (신규 등록 모드로)", use_container_width=True):
+                st.session_state["edit_target_email"] = None
+                st.rerun()
+
+        st.markdown("---")
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()), label_visibility="collapsed")
         if st.button("선택한 담당자 삭제", use_container_width=True):
             if target_delete_email != "선택하세요.":
@@ -682,6 +715,7 @@ if user_role in ["admin", "bi_user"]:
                 else:
                     del st.session_state["user_db"][target_delete_email]
                     save_user_db(st.session_state["user_db"])
+                    if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
                     st.success(f"🗑️ 영구 삭제 완료!")
                     st.rerun()
 
@@ -714,7 +748,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅
+# 13. 본문 렌더러 및 라우팅 (도넛 차트 및 거점 비교 포함)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -777,18 +811,37 @@ def render_fullwidth_vertical_dashboard(title_top, title_bottom, table_title, da
     st.dataframe(pd.DataFrame({x_col_name: df[x_col_name], "2025년": df["2025년 실적"], "2026년": df["2026년 실적"], "증감액": df["증감액"], "증감률(%)": df["증감률"]}), hide_index=True, use_container_width=True)
 
 cur_page_disp = t["pages"].get(page_menu, page_menu)
+
 if page_menu == "[접수기준] 종합 실적 현황":
+    st.subheader(f"🥧 {cur_page_disp} - Share")
+    biz_colors = {"글로벌 바이어": "#2563EB", "패션잡화": "#F59E0B", "GB": "#10B981", "제품평가": "#8B5CF6"}
+    p_c1, p_c2 = st.columns(2)
+    with p_c1:
+        f_p25 = px.pie(summary_chart, names="표준사업구분", values=col_25, hole=0.6, title=t["pie_title_25"], category_orders={"표준사업구분": target_categories}, color="표준사업구분", color_discrete_map=biz_colors)
+        f_p25.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        f_p25.update_layout(height=460, margin=dict(t=60, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5))
+        st.plotly_chart(f_p25, use_container_width=True)
+    with p_c2:
+        f_p26 = px.pie(summary_chart, names="표준사업구분", values=col_26, hole=0.6, title=t["pie_title_26"], category_orders={"표준사업구분": target_categories}, color="표준사업구분", color_discrete_map=biz_colors)
+        f_p26.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        f_p26.update_layout(height=460, margin=dict(t=60, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5))
+        st.plotly_chart(f_p26, use_container_width=True)
+    st.write("")
+    st.markdown("---")
     render_fullwidth_vertical_dashboard(f"📌 {cur_page_disp}", "📈 Business Performance Diff & Growth Rate", "Summary Table", summary_chart, "표준사업구분", target_categories)
+
 elif page_menu == "[접수기준] 사업별 실적 현황":
     sel_v = st.selectbox("Select Business:", ["전체 사업 보기"] + target_categories, key="sel_biz_v")
     df_v = summary_chart.copy() if sel_v == "전체 사업 보기" else calc_summary[calc_summary["표준사업구분"] == sel_v].copy()
     render_fullwidth_vertical_dashboard(f"🏢 {cur_page_disp} ({sel_v})", "📈 Detailed Performance Diff", "Detailed Summary Table", df_v.rename(columns={col_25: "2025년 실적", col_26: "2026년 실적"}), "표준사업구분" if sel_v == "전체 사업 보기" else "세부항목", target_categories if sel_v == "전체 사업 보기" else df_v["세부항목"].unique().tolist())
+
 elif page_menu == "[접수기준] 바이어 실적 현황":
     sel_b = st.selectbox("Select Business:", target_categories, key="sel_t3_b")
     b_df = part_data_cache.get(sel_b, pd.DataFrame())
     if not b_df.empty:
         valid_b = b_df[~b_df["바이어명"].isin(["-", "", "NAN"])].sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
         render_fullwidth_vertical_dashboard(f"🤝 {cur_page_disp} ({sel_b})", "📈 Buyer Performance Diff", "Buyer Summary Table", valid_b.head(7), "바이어명", valid_b["바이어명"].head(7).tolist())
+
 elif page_menu == "[접수기준] 협력사 실적 현황":
     c_b, c_v = st.columns([4, 6])
     with c_b: s_b = st.selectbox("Select Business:", target_categories, key="t4_b")
@@ -798,9 +851,29 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         with c_v: s_v = st.selectbox("Select Vendor:", ["전체 협력사 보기"] + v_sum["협력사명"].tolist(), key="t4_v")
         disp_v = v_sum.head(6) if s_v == "전체 협력사 보기" else v_df[v_df["협력사명"] == s_v].groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
         render_fullwidth_vertical_dashboard(f"🏢 {s_v} 실적 현황", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == "전체 협력사 보기" else "바이어명", disp_v["협력사명" if s_v == "전체 협력사 보기" else "바이어명"].tolist())
+
 elif page_menu.startswith("[BI_"):
     chart_d = bi_광주_charts["누계"] if "광주" in page_menu else (bi_shanghai_charts["누계"] if "상해" in page_menu else bi_total_charts["누계"])
     mag_df = chart_d[chart_d["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     och_df = chart_d[chart_d["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
-    render_fullwidth_vertical_dashboard(f"🏛️ 마곡 본원 세부 사업별 실적 현황", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
-    render_fullwidth_vertical_dashboard(f"🏭 오창 분원 세부 사업별 실적 현황", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
+
+    st.subheader(f"📍 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    c_pie_df = pd.DataFrame([
+        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": mag_df["2025년 실적"].sum(), "2026년 실적": mag_df["2026년 실적"].sum()},
+        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25 := och_df["2025년 실적"].sum(), "2026년 실적": ochang_26 := och_df["2026년 실적"].sum()}
+    ])
+    cp1, cp2 = st.columns(2)
+    ccol = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
+    with cp1:
+        fp1 = px.pie(c_pie_df, names="거점구분", values="2025년 실적", hole=0.6, title="2025년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
+        fp1.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        st.plotly_chart(fp1, use_container_width=True)
+    with cp2:
+        fp2 = px.pie(c_pie_df, names="거점구분", values="2026년 실적", hole=0.6, title="2026년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
+        fp2.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        st.plotly_chart(fp2, use_container_width=True)
+
+    st.write("")
+    st.markdown("---")
+    render_fullwidth_vertical_dashboard("🏛️ 마곡 본원 세부 사업별 실적 현황", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
+    render_fullwidth_vertical_dashboard("🏭 오창 분원 세부 사업별 실적 현황", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
