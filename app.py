@@ -209,13 +209,22 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용
+# 4. 스타일 및 디자인 공통 적용 (간격 압축 스타일 포함)
 # =========================================================
 st.markdown("""
 <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     html, body, [class*="css"] {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    }
+    
+    /* 💡 [요청 반영] 사이드바 관리 메뉴 간격을 촘촘하게 압축하여 한눈에 보이도록 조정 */
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
+    }
+    section[data-testid="stSidebar"] div.stExpander {
+        margin-bottom: 0.5rem !important;
     }
     
     .fiti-header {
@@ -294,8 +303,8 @@ st.markdown("""
         text-align: center;
         font-weight: 700;
         font-size: 14px;
-        padding: 11px 14px;
-        margin-bottom: 5px;
+        padding: 10px 12px;
+        margin-bottom: 4px;
         border: 1.5px solid #CBD5E1;
         background-color: #F8FAFC;
         color: #0F172A;
@@ -315,8 +324,8 @@ st.markdown("""
         text-align: center;
         font-weight: 800;
         font-size: 14px;
-        padding: 11px 14px;
-        margin-bottom: 5px;
+        padding: 10px 12px;
+        margin-bottom: 4px;
         border: 1.5px solid #001E3D;
         background-color: #003876;
         color: #FFFFFF !important;
@@ -327,7 +336,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인 보정 기능 포함)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -386,8 +395,8 @@ if not st.session_state["logged_in"]:
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>회사 이메일 주소 (ID)</p>", unsafe_allow_html=True)
-        login_email = st.text_input("회사 이메일 주소 (ID)", placeholder="인가된 메일 주소 입력 (예: name@fiti.re.kr)", label_visibility="collapsed")
+        st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>회사 이메일 주소 또는 아이디 (ID)</p>", unsafe_allow_html=True)
+        login_input_raw = st.text_input("회사 이메일 주소 또는 아이디 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr", label_visibility="collapsed")
         
         st.markdown("<p style='color: #F8FAFC; font-size: 13px; font-weight: 600; margin-top: 12px; margin-bottom: 2px; text-align: left; text-shadow: 0 1px 3px rgba(0,0,0,0.9);'>비밀번호</p>", unsafe_allow_html=True)
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
@@ -396,16 +405,29 @@ if not st.session_state["logged_in"]:
         submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
         
         if submit_login:
-            user_record = st.session_state["user_db"].get(login_email.strip())
+            raw_val = login_input_raw.strip()
+            # 💡 [요청 반영] 아이디만 입력해도 @fiti.re.kr 및 @fitiglobal.com을 스마트하게 매칭하여 처리
+            candidate_emails = [raw_val]
+            if raw_val and "@" not in raw_val:
+                candidate_emails.extend([f"{raw_val}@fiti.re.kr", f"{raw_val}@fitiglobal.com"])
+            
+            matched_email = None
+            user_record = None
+            for ce in candidate_emails:
+                if ce in st.session_state["user_db"]:
+                    matched_email = ce
+                    user_record = st.session_state["user_db"][ce]
+                    break
+            
             if user_record and user_record["pw"] == login_pw.strip():
                 st.session_state["logged_in"] = True
-                st.session_state["current_user_email"] = login_email.strip()
+                st.session_state["current_user_email"] = matched_email
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
                 
                 st.session_state["login_history"].append({
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "email": login_email.strip(),
+                    "email": matched_email,
                     "name": user_record["name"],
                     "status": "성공"
                 })
@@ -415,11 +437,11 @@ if not st.session_state["logged_in"]:
             else:
                 st.session_state["login_history"].append({
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "email": login_email.strip() if login_email else "입력없음",
+                    "email": raw_val if raw_val else "입력없음",
                     "name": "미인증",
                     "status": "실패"
                 })
-                st.error("이메일 또는 비밀번호가 일치하지 않습니다.")
+                st.error("이메일(아이디) 또는 비밀번호가 일치하지 않습니다.")
     
     st.stop()
 
@@ -440,7 +462,7 @@ st.markdown(f"""
     <div style="text-align: right; font-size: 13px; color: #D0E1FD;">
         <b>{st.session_state['current_user_name']}</b>님 환영합니다.<br>
         <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px;">
-            권한: {'최고 관리자' if st.session_state['current_user_role']=='admin' else ('BI+접수 관리자' if st.session_state['current_user_role']=='bi_user' else '접수 전용 담당자')}
+            권한: {'관리자' if st.session_state['current_user_role']=='admin' else ('접수 + BI' if st.session_state['current_user_role']=='bi_user' else '접수')}
         </span>
     </div>
 </div>
@@ -938,7 +960,7 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 # =========================================================
-# 10. 사이드바 구성 요소 배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/전문가형 관리자 메뉴 하단)
+# 10. 사이드바 구성 요소 배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
 # =========================================================
 card_unit = t["unit"]
 display_period_name = "전체 총계 누계"
@@ -1014,7 +1036,7 @@ else:
     diff_val = total_26 - total_25
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
-# 💡 [전문가형 관리 시스템 메인 블록] (접속 계정, 3분리 카테고리 담당자 관리, 날짜별 필터링 및 다운로드 가능한 감사 로그)
+# 💡 [요청 반영] 전문가형 3분리 권한 관리 및 로그 다운로드/날짜별 필터 기능
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -1067,7 +1089,7 @@ if user_role in ["admin", "bi_user"]:
         st.markdown("---")
         st.markdown("#### ➕ 담당자 추가 / 🗑️ 삭제")
         with st.form("add_user_form"):
-            new_email = st.text_input("이메일 (ID)", placeholder="name@fiti.re.kr")
+            new_email = st.text_input("이메일 또는 아이디 (ID)", placeholder="예: name 또는 name@fiti.re.kr")
             new_name = st.text_input("담당자 성명", placeholder="홍길동")
             new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
             new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수 + BI", "3번 카테고리: 관리자"])
@@ -1076,6 +1098,9 @@ if user_role in ["admin", "bi_user"]:
             if submit_add:
                 clean_email = new_email.strip()
                 if clean_email and new_pw.strip():
+                    if "@" not in clean_email:
+                        clean_email = f"{clean_email}@fiti.re.kr"
+                        
                     if "1번" in new_category:
                         assigned_role = "general_user"
                     elif "2번" in new_category:
@@ -1091,7 +1116,7 @@ if user_role in ["admin", "bi_user"]:
                     st.success(f"✅ {clean_email} 담당자가 영구 등록되었습니다!")
                     st.rerun()
                 else:
-                    st.error("이메일과 비밀번호는 필수 입력 항목입니다.")
+                    st.error("이메일(아이디)과 비밀번호는 필수 입력 항목입니다.")
                     
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()))
         if st.button("선택한 담당자 삭제", use_container_width=True):
@@ -1109,7 +1134,6 @@ if user_role in ["admin", "bi_user"]:
             df_log = pd.DataFrame(st.session_state["login_history"])
             df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
             
-            # 날짜별 필터링 기능
             unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
             selected_date_filter = st.selectbox("날짜별 로그 분리 보기", unique_dates)
             
@@ -1120,7 +1144,6 @@ if user_role in ["admin", "bi_user"]:
                 
             st.dataframe(filtered_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
             
-            # 파일 다운로드 기능
             csv_data = filtered_log_df.to_csv(index=False).encode('utf-8-sig')
             st.download_button(
                 label="📥 감사 로그 다운로드 (CSV)",
@@ -1538,7 +1561,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
                 legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+                annotations=[dict(text=f"Total<br>{tot_b25/1e8:.1f}억" if tot_b25 >= 1e8 else f"Total<br>{tot_b25/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_25, use_container_width=True)
             
@@ -1562,7 +1585,7 @@ elif page_menu == "[접수기준] 바이어 실적 현황":
                 title=dict(font=dict(size=17, color="#0F172A", weight="bold")),
                 margin=dict(t=60, b=20, l=10, r=10), 
                 legend=dict(orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5),
-                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억", x=0.5, y=0.5, font_size=15, font_weight="bold", showarrow=False)]
+                annotations=[dict(text=f"Total<br>{tot_b26/1e8:.1f}억" if tot_b26 >= 1e8 else f"Total<br>{tot_b26/1e4:.0f}만", x=0.5, y=0.5, font_size=14, font_weight="bold", showarrow=False)]
             )
             st.plotly_chart(fig_buyer_pie_26, use_container_width=True)
 
@@ -1688,6 +1711,7 @@ elif page_menu.startswith("[BI_"):
             color="거점구분",
             color_discrete_map=center_colors
         )
+        tot_c26 = center_pie_df["2026년 실실적"].sum() if "2026년 실적" in center_pie_df.columns else center_pie_df["2026년 실적"].sum()
         tot_c26 = center_pie_df["2026년 실적"].sum()
         fig_center_26.update_traces(
             textposition='inside', 
