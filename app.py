@@ -22,7 +22,7 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 & 로그인 이력 DB 영구 파일(JSON) 관리 시스템
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
 LOGIN_HISTORY_FILE = "fiti_login_history.json"
@@ -88,12 +88,15 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_name"] = "관리자"
 
 # =========================================================
-# ⏱️ 10분 자동 로그아웃 로직 (활동 시간 체크)
+# ⏱️ 10분 자동 로그아웃 로직 & 중국 시간(CST) 설정
 # =========================================================
+# 💡 [요청 반영] 서버 시간에 의존하지 않고 무조건 UTC+8 (중국 시간)으로 고정
+china_time = datetime.utcnow() + timedelta(hours=8)
+
 if st.session_state["logged_in"]:
-    now = datetime.now()
     if "last_active_time" in st.session_state:
-        if (now - st.session_state["last_active_time"]).total_seconds() > 600:
+        # 활동 시간 체크도 중국 시간을 기준으로 동일하게 연산 (600초 = 10분)
+        if (china_time - st.session_state["last_active_time"]).total_seconds() > 600:
             st.session_state["logged_in"] = False
             st.session_state["current_user_email"] = ""
             st.session_state["current_user_role"] = ""
@@ -103,15 +106,16 @@ if st.session_state["logged_in"]:
             del st.session_state["last_active_time"]
             st.session_state["auto_logout_alert"] = True
             st.rerun()
-    st.session_state["last_active_time"] = now
+    st.session_state["last_active_time"] = china_time
 
 # =========================================================
-# 3. 다국어 텍스트 사전
+# 3. 다국어 텍스트 사전 및 언어 설정
 # =========================================================
 LANG_DICT = {
     "한국어": {
         "sys_title": "상해지사 실적 종합 분석 시스템",
-        "sys_sub": "상해지사 사업 실적 및 분석 시스템 | 상해지사 사업팀",
+        # 💡 [요청 반영] 텍스트 수정 (FITI시험연구원 상해지사)
+        "sys_sub": "FITI시험연구원 상해지사 실적 종합 분석 시스템 | 사업팀",
         "data_mgmt": "📁 데이터 관리",
         "admin_upload": "공용 엑셀 업로드 (관리자 전용)",
         "admin_caption": "💡 엑셀 교체는 관리자 권한이 필요합니다.",
@@ -150,18 +154,69 @@ LANG_DICT = {
             "GB": "GB",
             "제품평가": "제품평가"
         }
+    },
+    "English (영어)": {
+        "sys_title": "Shanghai Branch Performance Analysis System",
+        "sys_sub": "FITI Testing & Research Institute Shanghai | Business Team",
+        "data_mgmt": "📁 Data Management",
+        "admin_upload": "Upload Public Excel (Admin Only)",
+        "admin_caption": "💡 Admin permission required for Excel replacement.",
+        "sync_success": "✅ Server public file & session synced!",
+        "shared_file_info": "📂 Syncing latest public file",
+        "file_not_found": "Excel file not found. Please login as admin to upload.",
+        "page_select": "📑 Select Page",
+        "cat_select": "📌 Select Category",
+        "period_select": "⏱️ [BI] Period Select",
+        "auth_title": "🔒 BI Security Auth",
+        "auth_input": "Enter password:",
+        "auth_fail": "Incorrect password.",
+        "auth_success": "🔓 BI Admin Mode Active",
+        "logout_btn": "Lock BI (Logout)",
+        "kpi_25": "📅 '25 Total Performance",
+        "kpi_26": "🚀 '26 Total Performance",
+        "kpi_diff": "📈 Performance Diff",
+        "kpi_rate": "📊 Growth Rate",
+        "kpi_diff_sub": "YoY Performance Gap",
+        "kpi_rate_sub": "YoY Growth Rate",
+        "pie_title_25": "2025 Performance Share by Business",
+        "pie_title_26": "2026 Performance Share by Business",
+        "unit": "KRW",
+        "pages": {
+            "[접수기준] 종합 실적 현황": "[Receipt Basis] Overall Performance",
+            "[접수기준] 사업별 실적 현황": "[Receipt Basis] Performance by Business",
+            "[접수기준] 바이어 실적 현황": "[Receipt Basis] Performance by Buyer",
+            "[접수기준] 협력사 실적 현황": "[Receipt Basis] Performance by Vendor",
+            "[BI_종합] 사업별 실적 현황": "[BI_Total] Performance by Business",
+            "[BI_상해] 사업별 실적 현황": "[BI_Shanghai] Performance by Business",
+            "[BI_광주] 사업별 실적 현황": "[BI_Gwangju] Performance by Business",
+        },
+        "periods": {
+            "전체 총계 누계": "Total Cumulative",
+            "사업 소계 누계": "Business Subtotal Cumulative",
+            "사업 소계 월계": "Business Subtotal Monthly"
+        },
+        "categories_map": {
+            "글로벌 바이어": "Global Buyer",
+            "패션잡화": "Fashion & Misc",
+            "GB": "China GB",
+            "제품평가": "Product Inspection"
+        }
     }
 }
-t = LANG_DICT["한국어"]
+
+if "lang_select" not in st.session_state:
+    st.session_state["lang_select"] = "한국어"
+t = LANG_DICT.get(st.session_state["lang_select"], LANG_DICT["한국어"])
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용
+# 4. 스타일 및 디자인 (애플/토스 스타일 프리미엄 폰트 적용)
 # =========================================================
 st.markdown("""
 <style>
-    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    /* 💡 [요청 반영] Apple 및 Toss 스타일의 최고급 폰트 조합 적용 */
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
     html, body, [class*="css"] {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, Roboto, sans-serif !important;
     }
     
     section[data-testid="stSidebar"] { padding-top: 0rem !important; }
@@ -240,15 +295,15 @@ if not st.session_state["logged_in"]:
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
+        # 💡 [요청 반영] 로그인 화면 문구 수정
         st.markdown("""
         <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
             <div style="font-size: 48px; font-weight: 900; margin-bottom: 6px;">FITI Shanghai</div>
-            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 13px; color: #38BDF8; font-weight: 600;">飞迪商品检验（上海）有限公司 | 사업팀</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">FITI시험연구원 상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600;">FITI시험연구원 상해지사 | 사업팀</div>
         </div>
         """, unsafe_allow_html=True)
         
-        # 💡 [요청 반영] 로그인 화면 예시 문구 gdhong으로 변경
         login_input_raw = st.text_input("아이디 또는 이메일", placeholder="예: gdhong", label_visibility="collapsed")
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
         if st.form_submit_button("시스템 로그인", use_container_width=True):
@@ -269,12 +324,16 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_email"] = matched_email
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
-                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
+                
+                # 💡 [요청 반영] 로그인 감사 로그에 중국 시간 저장
+                st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
                 save_login_history(st.session_state["login_history"])
+                
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
-                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
+                # 💡 [요청 반영] 로그인 실패 로그도 중국 시간 저장
+                st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
                 save_login_history(st.session_state["login_history"])
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
@@ -523,6 +582,9 @@ part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data
 # =========================================================
 # 9. 사이드바 네비게이션
 # =========================================================
+# 💡 [요청 반영] 언어 선택 2개 카테고리만 적용
+st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
+
 user_role = st.session_state["current_user_role"]
 all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"] if user_role == "general_user" else [
     "[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황",
@@ -585,7 +647,6 @@ if st.sidebar.button("시스템 잠금 (로그아웃)", use_container_width=True
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    # 💡 [요청 반영] 관리자 권한 메뉴 기본적으로 접혀있게 설정
     with st.sidebar.expander("🛡️ 관리자 권한", expanded=False):
         st.markdown(f"##### {t['data_mgmt']}")
         if st.session_state["current_user_role"] == "admin":
@@ -651,7 +712,6 @@ if user_role in ["admin", "bi_user"]:
             default_name, default_pw, default_cat_idx = "", "", 0
 
         with st.form("add_user_form"):
-            # 💡 [요청 반영] 담당자 추가 이메일 입력창 예시 문구를 gdhong으로 변경
             new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: gdhong", disabled=is_editing, label_visibility="collapsed")
             new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동", label_visibility="collapsed")
             new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
@@ -687,7 +747,6 @@ if user_role in ["admin", "bi_user"]:
                     st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
-    # 💡 [요청 반영] 최근 로그인 감사 로그를 별도의 접기/펴기 메뉴로 분리
     with st.sidebar.expander("📋 최근 로그인 감사 로그", expanded=False):
         if st.session_state["login_history"]:
             df_log = pd.DataFrame(st.session_state["login_history"])
@@ -696,7 +755,7 @@ if user_role in ["admin", "bi_user"]:
             sel_date = st.selectbox("날짜별 로그", unique_dates, label_visibility="collapsed")
             f_log_df = df_log[df_log["날짜"].astype(str) == sel_date] if sel_date != "전체 날짜 보기" else df_log
             st.dataframe(f_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
-            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
+            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
         else:
             st.caption("기록 없음")
 
@@ -716,7 +775,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 포함)
+# 13. 본문 렌더러 및 라우팅
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
