@@ -17,24 +17,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-MAGOK_CATEGORIES = [
-    "법정검사", 
-    "일반검사", 
-    "섬유내수(패션잡화)", 
-    "섬유내수(중국GB)", 
-    "섬유내수(단체/정부)", 
-    "섬유수출", 
-    "연구용역", 
-    "제품인증(Q.SF)"
-]
-
-OCHANG_CATEGORIES = [
-    "산업(토목+부품)", 
-    "모빌리티(전장+의장)", 
-    "환경(환경+측정기기)", 
-    "화학바이오(화학제품+생활안전)"
-]
-
+MAGOK_CATEGORIES = ["법정검사", "일반검사", "섬유내수(패션잡화)", "섬유내수(중국GB)", "섬유내수(단체/정부)", "섬유수출", "연구용역", "제품인증(Q.SF)"]
+OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "환경(환경+측정기기)", "화학바이오(화학제품+생활안전)"]
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
@@ -71,16 +55,13 @@ def save_user_db(db_data):
 
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = load_user_db()
-
 if "login_history" not in st.session_state:
     st.session_state["login_history"] = []
-
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
-
 if "edit_target_email" not in st.session_state:
     st.session_state["edit_target_email"] = None
 
@@ -116,8 +97,6 @@ LANG_DICT = {
         "kpi_rate_sub": "전년 대비 성장률",
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
-        "buyer_pie_25": "2025년 주요 바이어 실적 비중",
-        "buyer_pie_26": "2026년 주요 바이어 실적 비중",
         "unit": "원",
         "pages": {
             "[접수기준] 종합 실적 현황": "[접수기준] 종합 실적 현황",
@@ -141,9 +120,10 @@ LANG_DICT = {
         }
     }
 }
+t = LANG_DICT["한국어"]
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용
+# 4. 스타일 및 디자인 (간격 극단적 압축 및 버튼 스타일)
 # =========================================================
 st.markdown("""
 <style>
@@ -151,11 +131,23 @@ st.markdown("""
     html, body, [class*="css"] {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
+    
+    /* 사이드바 여백 초압축 */
     section[data-testid="stSidebar"] { padding-top: 0rem !important; }
     section[data-testid="stSidebar"] div.block-container { padding-top: 0.1rem !important; padding-bottom: 0.4rem !important; }
     section[data-testid="stSidebar"] div.stExpander { margin-bottom: 0.1rem !important; }
     section[data-testid="stSidebar"] hr { margin: 0.2rem 0 !important; }
     
+    /* 사이드바 내 버튼(담당자 이름 등) 컴팩트 디자인 */
+    div[data-testid="stSidebar"] div.stButton > button {
+        padding: 2px 6px !important;
+        min-height: 22px !important;
+        font-size: 12px !important;
+        margin-top: -4px !important;
+        margin-bottom: -4px !important;
+        text-align: left !important;
+    }
+
     .fiti-header {
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
         padding: 22px 28px;
@@ -192,7 +184,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 로그인 화면
+# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인)
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -207,7 +199,9 @@ if not st.session_state["logged_in"]:
     <style>
         .stMain {{ {bg_css} min-height: 100vh; }}
         header {{visibility: hidden;}}
-        [data-testid="stForm"] {{ max-width: 420px !important; margin: 6vh auto !important; background: transparent !important; border: none !important; box-shadow: none !important; }}
+        [data-testid="stForm"] {{ max-width: 420px !important; margin: 6vh auto !important; background: transparent !important; border: none !important; box-shadow: none !important; padding: 10px !important; }}
+        [data-testid="stForm"] [data-testid="stTextInput"] div[data-baseweb="input"] {{ width: 100% !important; background: rgba(255, 255, 255, 0.9) !important; border-radius: 8px !important; }}
+        [data-testid="stForm"] .stFormSubmitButton button {{ width: 100% !important; font-weight: 800 !important; font-size: 15px !important; background-color: #3B82F6 !important; color: #FFFFFF !important; border: none !important; border-radius: 8px !important; padding: 10px !important; }}
     </style>
     """, unsafe_allow_html=True)
     
@@ -222,16 +216,13 @@ if not st.session_state["logged_in"]:
         
         login_input_raw = st.text_input("아이디 또는 이메일", placeholder="예: kshan", label_visibility="collapsed")
         login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-        submit_login = st.form_submit_button("시스템 로그인", use_container_width=True)
-        
-        if submit_login:
+        if st.form_submit_button("시스템 로그인", use_container_width=True):
             raw_val = login_input_raw.strip()
             candidate_emails = [raw_val]
             if raw_val and "@" not in raw_val:
                 candidate_emails.extend([f"{raw_val}@fiti.re.kr", f"{raw_val}@fitiglobal.com"])
             
-            matched_email = None
-            user_record = None
+            matched_email, user_record = None, None
             for ce in candidate_emails:
                 if ce in st.session_state["user_db"]:
                     matched_email = ce
@@ -243,12 +234,7 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_email"] = matched_email
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
-                st.session_state["login_history"].append({
-                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "email": matched_email,
-                    "name": user_record["name"],
-                    "status": "성공"
-                })
+                st.session_state["login_history"].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
@@ -258,9 +244,6 @@ if not st.session_state["logged_in"]:
 # =========================================================
 # 6. 상단 공식 배너
 # =========================================================
-selected_lang = "한국어"
-t = LANG_DICT[selected_lang]
-
 st.markdown(f"""
 <div class="fiti-header">
     <div class="fiti-logo-text">FITI</div>
@@ -287,8 +270,7 @@ LOCAL_EXCEL_PATH = os.path.join("downloads", EXCEL_FILE)
 if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
 elif os.path.exists(LOCAL_EXCEL_PATH):
-    with open(LOCAL_EXCEL_PATH, "rb") as f:
-        raw_bytes = f.read()
+    with open(LOCAL_EXCEL_PATH, "rb") as f: raw_bytes = f.read()
     st.session_state["persistent_file_bytes"] = raw_bytes
 else:
     raw_bytes = None
@@ -297,64 +279,46 @@ if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
-try:
-    temp_stream = io.BytesIO(raw_bytes)
-    total_sheets_count = len(pd.ExcelFile(temp_stream).sheet_names)
-except Exception:
-    total_sheets_count = 0
-
+# =========================================================
+# 8. 초고속 원패스(One-Pass) 데이터 파싱 (속도 저하 완벽 해결)
+# =========================================================
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
     cleaned = cleaned.replace(['-', '–', '—', 'nan', 'NaN', 'None', ''], '0')
     return pd.to_numeric(cleaned, errors='coerce').fillna(0)
 
 @st.cache_data
-def get_excel_sheets(file_bytes_val):
+def load_and_parse_all_data(file_bytes_val):
     stream = io.BytesIO(file_bytes_val)
     excel_obj = pd.ExcelFile(stream)
     all_sheets = excel_obj.sheet_names
+    total_sheets_count = len(all_sheets)
     sheet_dict = {s.strip().lower().replace(" ", "").replace("_", ""): s for s in all_sheets}
-    return all_sheets, sheet_dict
 
-sheet_names, sheet_dict = get_excel_sheets(raw_bytes)
+    def get_sheet(keywords):
+        for s_clean, orig_name in sheet_dict.items():
+            if all(k.lower().replace(" ", "").replace("_", "") in s_clean for k in keywords): return orig_name
+        return None
 
-def get_sheet_by_keyword(keywords):
-    for s_clean, orig_name in sheet_dict.items():
-        if all(k.lower().replace(" ", "").replace("_", "") in s_clean for k in keywords):
-            return orig_name
-    return None
-
-# =========================================================
-# 8. 파서 함수 정의
-# =========================================================
-@st.cache_data
-def parse_summary_data(file_bytes_val):
-    stream = io.BytesIO(file_bytes_val)
-    summary_sheet_name = get_sheet_by_keyword(["종합"]) or sheet_names[0]
+    # --- 1) 종합 요약 파싱 ---
+    summary_sheet_name = get_sheet(["종합"]) or all_sheets[0]
     raw_summary = pd.read_excel(stream, sheet_name=summary_sheet_name, header=None)
-
-    h_idx = 0
-    for idx, row in raw_summary.iterrows():
-        r_text = "".join(row.dropna().astype(str).tolist())
-        if "구분" in r_text and any(k in r_text for k in ["합계", "25", "26"]):
-            h_idx = idx
-            break
-
+    h_idx = next((idx for idx, row in raw_summary.iterrows() if "구분" in "".join(row.dropna().astype(str).tolist()) and any(k in "".join(row.dropna().astype(str).tolist()) for k in ["합계", "25", "26"])), 0)
+    
     stream.seek(0)
     df_summary = pd.read_excel(stream, sheet_name=summary_sheet_name, skiprows=h_idx)
+    for c in df_summary.columns:
+        if df_summary[c].dtype == object:
+            conv = pd.to_numeric(df_summary[c].astype(str).str.replace(',', '').str.strip(), errors='coerce')
+            if conv.notnull().mean() > 0.5: df_summary[c] = conv.fillna(0)
+
     num_cols = df_summary.select_dtypes(include=['number']).columns.tolist()
     col_25 = next((c for c in num_cols if "25" in str(c)), num_cols[0] if num_cols else None)
     col_26 = next((c for c in num_cols if "26" in str(c)), num_cols[1] if len(num_cols) > 1 else num_cols[0])
-
+    
     other_cols = [c for c in df_summary.columns if c not in num_cols]
-    cat_col = other_cols[0] if other_cols else df_summary.columns[0]
+    cat_col = next((c for c in other_cols if any(k in "".join(df_summary[c].dropna().astype(str).tolist()) for k in ["패션잡화", "GB", "글로벌", "제품평가"])), other_cols[0] if other_cols else df_summary.columns[0])
     sub_cat_col = other_cols[1] if len(other_cols) > 1 else None
-
-    for c in other_cols:
-        sample_str = "".join(df_summary[c].dropna().astype(str).tolist())
-        if any(k in sample_str for k in ["패션잡화", "GB", "글로벌", "제품평가"]):
-            cat_col = c
-            break
 
     df_summary[cat_col] = df_summary[cat_col].replace(r'^\s*$', pd.NA, regex=True)
     df_summary["사업구분_채움"] = df_summary[cat_col].ffill()
@@ -368,181 +332,144 @@ def parse_summary_data(file_bytes_val):
         return None
 
     df_summary["표준사업구분"] = df_summary["사업구분_채움"].apply(map_biz_category)
-    exclude_pattern = r"SUB\s*TOTAL|TOTAL|합계|소계"
-    calc_summary = df_summary[(~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(exclude_pattern, regex=True, na=False)) & (df_summary["표준사업구분"].notnull())].copy()
-
+    calc_summary = df_summary[(~df_summary[cat_col].astype(str).str.strip().str.upper().str.contains(r"SUB\s*TOTAL|TOTAL|합계|소계", regex=True, na=False)) & (df_summary["표준사업구분"].notnull())].copy()
     calc_summary["세부항목"] = calc_summary[sub_cat_col].fillna(calc_summary["표준사업구분"]).astype(str) if sub_cat_col else calc_summary["표준사업구분"]
-    target_categories = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
+    
+    target_cats = ["글로벌 바이어", "패션잡화", "GB", "제품평가"]
     summary_chart = calc_summary.groupby("표준사업구분", as_index=False)[[col_25, col_26]].sum()
-    summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_categories.index(x) if x in target_categories else 99)
+    summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_cats.index(x) if x in target_cats else 99)
     summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
-    summary_chart["증감액"] = summary_chart[col_26] - summary_chart[col_25]
-    summary_chart["증감률"] = ((summary_chart["증감액"] / summary_chart[col_25].replace(0, pd.NA)) * 100).fillna(0.0)
 
-    return summary_chart, calc_summary, col_25, col_26, target_categories
-
-summary_chart, calc_summary, col_25, col_26, target_categories = parse_summary_data(raw_bytes)
-
-PART_SHEET_MAPPINGS = {
-    "패션잡화": [["kc"]],
-    "GB": [["gb"]],
-    "글로벌 바이어": [["global", "1"], ["global", "2"]],
-    "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]
-}
-
-@st.cache_data
-def extract_pivot_block(file_bytes_val, sheet_name):
-    stream = io.BytesIO(file_bytes_val)
-    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
-    pivot_r, pivot_c = None, None
-    for r_i in range(min(20, len(raw))):
-        for c_i in range(len(raw.columns)):
-            if "행레이블" in str(raw.iat[r_i, c_i]).strip().replace(" ", ""):
-                pivot_r, pivot_c = r_i, c_i
-                break
-        if pivot_r is not None: break
-    if pivot_r is None: return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
-
-    sub_raw = raw.iloc[pivot_r:, pivot_c:pivot_c+6].copy().reset_index(drop=True)
-    sub_raw.columns = [str(c).strip() for c in sub_raw.iloc[0]]
-    sub_data = sub_raw.iloc[1:].copy().reset_index(drop=True)
-    buyer_col_name = sub_data.columns[0]
-    c25, c26 = None, None
-    for col in sub_data.columns[1:]:
-        c_str = str(col).replace(" ", "")
-        if "25" in c_str and ("합계" in c_str or "실적" in c_str): c25 = col
-        elif "26" in c_str and ("합계" in c_str or "실적" in c_str): c26 = col
-    if not c25 or not c26: return pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
-
-    parsed_rows = []
-    for _, row in sub_data.iterrows():
-        b_name = str(row[buyer_col_name]).strip()
-        if not b_name or b_name.lower() in ['nan', 'none']: continue
-        if any(k in b_name.replace(" ", "") for k in ["총합계", "합계", "전체합계"]): break
-        parsed_rows.append({"바이어명": b_name, "2025년 실적": clean_series(pd.Series([row[c25]])).iloc[0], "2026년 실적": clean_series(pd.Series([row[c26]])).iloc[0]})
-    return pd.DataFrame(parsed_rows)
-
-@st.cache_data
-def extract_vendor_data_from_sheet(file_bytes_val, sheet_name):
-    stream = io.BytesIO(file_bytes_val)
-    raw = pd.read_excel(stream, sheet_name=sheet_name, header=None)
-    h_idx, buyer_col_idx, vendor_col_idx = None, None, None
-    for r_i in range(min(15, len(raw))):
-        row_vals = [str(x).strip().replace(" ", "") for x in raw.iloc[r_i].tolist()]
-        for c_i, val in enumerate(row_vals):
-            if "업체명" in val or "협력사" in val: vendor_col_idx = c_i
-            elif "바이어" in val: buyer_col_idx = c_i
-        if vendor_col_idx is not None: h_idx = r_i; break
-    if h_idx is None or vendor_col_idx is None: return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+    # --- 2) 바이어 및 협력사(Vendor) 파싱 ---
+    PART_MAP = {"패션잡화": [["kc"]], "GB": [["gb"]], "글로벌 바이어": [["global", "1"], ["global", "2"]], "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]}
+    part_cache, vendor_cache = {}, {}
     
-    df_raw = pd.read_excel(stream, sheet_name=sheet_name, skiprows=h_idx)
-    v_col, b_col = df_raw.columns[vendor_col_idx], df_raw.columns[buyer_col_idx] if buyer_col_idx is not None and buyer_col_idx < len(df_raw.columns) else None
-    c25, c26 = None, None
-    for c in df_raw.columns:
-        c_str = str(c).replace(" ", "")
-        if "25" in c_str and ("합계" in c_str or "실적" in c_str): c25 = c
-        elif "26" in c_str and ("합계" in c_str or "실적" in c_str): c26 = c
-    if not c25 or not c26: return pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
-    
-    df_clean = df_raw.dropna(subset=[v_col]).copy()
-    df_clean = df_clean[~df_clean[v_col].astype(str).str.contains(r"소계|합계|TOTAL|총계", regex=True, na=False)].copy()
-    res = pd.DataFrame()
-    res["협력사명"] = df_clean[v_col].astype(str).str.strip()
-    res["바이어명"] = df_clean[b_col].astype(str).str.strip() if b_col else "기본"
-    res["2025년 실적"] = clean_series(df_clean[c25])
-    res["2026년 실적"] = clean_series(df_clean[c26])
-    return res[res["협력사명"] != ""]
+    for cat in target_cats:
+        b_dfs, v_dfs = [], []
+        for kw in PART_MAP.get(cat, []):
+            sh_name = get_sheet(kw)
+            if not sh_name: continue
+            
+            stream.seek(0)
+            raw = pd.read_excel(stream, sheet_name=sh_name, header=None)
+            
+            # Buyer Parsing
+            pr, pc = next(((r, c) for r in range(min(20, len(raw))) for c in range(len(raw.columns)) if "행레이블" in str(raw.iat[r, c]).replace(" ", "")), (None, None))
+            if pr is not None:
+                sub_r = raw.iloc[pr:, pc:pc+6].copy().reset_index(drop=True)
+                sub_r.columns = [str(c).strip() for c in sub_r.iloc[0]]
+                sub_d = sub_r.iloc[1:].copy().reset_index(drop=True)
+                bc = sub_d.columns[0]
+                c25_b = next((c for c in sub_d.columns[1:] if "25" in str(c).replace(" ", "") and ("합계" in str(c) or "실적" in str(c))), None)
+                c26_b = next((c for c in sub_d.columns[1:] if "26" in str(c).replace(" ", "") and ("합계" in str(c) or "실적" in str(c))), None)
+                if c25_b and c26_b:
+                    p_rows = []
+                    for _, row in sub_d.iterrows():
+                        b_name = str(row[bc]).strip()
+                        if not b_name or b_name.lower() in ['nan', 'none']: continue
+                        if any(k in b_name.replace(" ", "") for k in ["총합계", "합계", "전체합계"]): break
+                        p_rows.append({"바이어명": b_name, "2025년 실적": clean_series(pd.Series([row[c25_b]])).iloc[0], "2026년 실적": clean_series(pd.Series([row[c26_b]])).iloc[0]})
+                    if p_rows: b_dfs.append(pd.DataFrame(p_rows))
+            
+            # Vendor Parsing
+            hr, b_c_idx, v_c_idx = None, None, None
+            for r in range(min(15, len(raw))):
+                r_vals = [str(x).strip().replace(" ", "") for x in raw.iloc[r].tolist()]
+                for c, val in enumerate(r_vals):
+                    if "업체명" in val or "협력사" in val: v_c_idx = c
+                    elif "바이어" in val: b_c_idx = c
+                if v_c_idx is not None: hr = r; break
+            if hr is not None and v_c_idx is not None:
+                stream.seek(0)
+                df_r = pd.read_excel(stream, sheet_name=sh_name, skiprows=hr)
+                v_c, b_c = df_r.columns[v_c_idx], df_r.columns[b_c_idx] if b_c_idx is not None and b_c_idx < len(df_r.columns) else None
+                c25_v = next((c for c in df_r.columns if "25" in str(c).replace(" ", "") and ("합계" in str(c) or "실적" in str(c))), None)
+                c26_v = next((c for c in df_r.columns if "26" in str(c).replace(" ", "") and ("합계" in str(c) or "실적" in str(c))), None)
+                if c25_v and c26_v:
+                    df_c = df_r.dropna(subset=[v_c]).copy()
+                    df_c = df_c[~df_c[v_c].astype(str).str.contains(r"소계|합계|TOTAL|총계", regex=True, na=False)]
+                    res = pd.DataFrame()
+                    res["협력사명"] = df_c[v_c].astype(str).str.strip()
+                    res["바이어명"] = df_c[b_c].astype(str).str.strip() if b_c else "기본"
+                    res["2025년 실적"], res["2026년 실적"] = clean_series(df_c[c25_v]), clean_series(df_c[c26_v])
+                    v_dfs.append(res[res["협력사명"] != ""])
 
-part_data_cache, vendor_data_cache = {}, {}
-for cat in target_categories:
-    b_dfs, v_dfs = [], []
-    for k_words in PART_SHEET_MAPPINGS.get(cat, []):
-        sheet_n = get_sheet_by_keyword(k_words)
-        if sheet_n:
-            b_df = extract_pivot_block(raw_bytes, sheet_n)
-            if not b_df.empty: b_dfs.append(b_df)
-            v_df = extract_vendor_data_from_sheet(raw_bytes, sheet_n)
-            if not v_df.empty: v_dfs.append(v_df)
-    part_data_cache[cat] = pd.concat(b_dfs, ignore_index=True).groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum() if b_dfs else pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
-    vendor_data_cache[cat] = pd.concat(v_dfs, ignore_index=True) if v_dfs else pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
+        part_cache[cat] = pd.concat(b_dfs, ignore_index=True).groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum() if b_dfs else pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
+        vendor_cache[cat] = pd.concat(v_dfs, ignore_index=True) if v_dfs else pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
-@st.cache_data
-def parse_bi_sheet_by_type(file_bytes_val, branch_name="종합"):
-    stream = io.BytesIO(file_bytes_val)
-    all_sheets = pd.ExcelFile(stream).sheet_names
-    target_s_name = None
-    search_key = branch_name.strip().lower().replace(" ", "").replace("_", "")
-    for s_orig in all_sheets:
-        s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
-        if search_key in s_clean: target_s_name = s_orig; break
-    
-    empty_kpi = {"25": 0, "26": 0, "diff": 0, "rate": 0.0}
-    def_kpi = {"전체 총계 누계": empty_kpi, "사업 소계 누계": empty_kpi, "사업 소계 월계": empty_kpi}
-    empty_df = pd.DataFrame({"표준사업구분": FULL_BI_CATEGORIES, "2025년 실적": [0]*len(FULL_BI_CATEGORIES), "2026년 실적": [0]*len(FULL_BI_CATEGORIES), "증감률": [0.0]*len(FULL_BI_CATEGORIES)})
-    if not target_s_name: return def_kpi, {"누계": empty_df, "월계": empty_df}
+    # --- 3) BI 분석 파싱 ---
+    def parse_bi(branch_name):
+        s_k = branch_name.strip().lower().replace(" ", "").replace("_", "")
+        t_sn = next((s for s in all_sheets if s_k in s.strip().lower().replace(" ", "").replace("_", "")), None)
+        emp_kpi = {"25": 0, "26": 0, "diff": 0, "rate": 0.0}
+        emp_df = pd.DataFrame({"표준사업구분": FULL_BI_CATEGORIES, "2025년 실적": [0]*len(FULL_BI_CATEGORIES), "2026년 실적": [0]*len(FULL_BI_CATEGORIES), "증감률": [0.0]*len(FULL_BI_CATEGORIES)})
+        if not t_sn: return {"전체 총계 누계": emp_kpi, "사업 소계 누계": emp_kpi, "사업 소계 월계": emp_kpi}, {"누계": emp_df, "월계": emp_df}
+        
+        stream.seek(0)
+        raw = pd.read_excel(stream, sheet_name=t_sn, header=None)
+        m_25, m_26, m_r, c_25, c_26, c_r = None, None, None, None, None, None
+        for r in range(min(20, len(raw))):
+            for c in range(len(raw.columns)):
+                v = str(raw.iat[r, c]).strip().replace(" ", "")
+                if v == "월계" and m_25 is None: m_25, m_26, m_r = c, c+1, c+2
+                elif v == "누계" and c_25 is None: c_25, c_26, c_r = c, c+1, c+2
+        
+        tr_idx, sr_idx = None, None
+        for idx in range(len(raw)):
+            r_str = "".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
+            if "전체총계" in r_str: tr_idx = idx
+            elif "사업소계" in r_str and sr_idx is None: sr_idx = idx
 
-    raw = pd.read_excel(io.BytesIO(file_bytes_val), sheet_name=target_s_name, header=None)
-    m_c25, m_c26, m_rate, c_c25, c_c26, c_rate = None, None, None, None, None, None
-    for r_idx in range(min(20, len(raw))):
-        for c_idx in range(len(raw.columns)):
-            v = str(raw.iat[r_idx, c_idx]).strip().replace(" ", "")
-            if v == "월계" and m_c25 is None: m_c25, m_c26, m_rate = c_idx, c_idx + 1, c_idx + 2
-            elif v == "누계" and c_c25 is None: c_c25, c_c26, c_rate = c_idx, c_idx + 1, c_idx + 2
+        def ev(ri, c25i, c26i, ratei):
+            if ri is None or c25i is None or c25i >= len(raw.columns): return emp_kpi
+            try:
+                r = raw.iloc[ri]
+                v25, v26 = clean_series(pd.Series([r.iat[c25i]])).iloc[0]*1000, clean_series(pd.Series([r.iat[c26i]])).iloc[0]*1000
+                rt = clean_series(pd.Series([r.iat[ratei]])).iloc[0] if ratei < len(raw.columns) else 0.0
+                return {"25": v25, "26": v26, "diff": v26 - v25, "rate": rt if rt != 0 else (round((v26 - v25)/v25*100, 1) if v25 != 0 else 0.0)}
+            except: return emp_kpi
 
-    total_r_idx, subtotal_r_idx = None, None
-    for idx in range(len(raw)):
-        r_str = "".join(raw.iloc[idx].dropna().astype(str).tolist()).replace(" ", "")
-        if "전체총계" in r_str: total_r_idx = idx
-        elif "사업소계" in r_str and subtotal_r_idx is None: subtotal_r_idx = idx
+        t_map = [
+            ("법정검사", ["법정검사", "법정"], "합계"), ("일반검사", ["일반검사", "일반"], "합계"), ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"),
+            ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"), ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"), ("섬유수출", ["섬유수출", "수출"], "합계"),
+            ("연구용역", ["연구용역", "연구"], "합계"), ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"), ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"),
+            ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"), ("환경(환경+측정기기)", ["환경", "측정"], "합계"), ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
+        ]
 
-    def ext_val(r_idx, c25_i, c26_i, rate_i):
-        if r_idx is None or c25_i is None or c25_i >= len(raw.columns): return empty_kpi
-        try:
-            r = raw.iloc[r_idx]
-            v25, v26 = clean_series(pd.Series([r.iat[c25_i]])).iloc[0]*1000, clean_series(pd.Series([r.iat[c26_i]])).iloc[0]*1000
-            rt = clean_series(pd.Series([r.iat[rate_i]])).iloc[0] if rate_i < len(raw.columns) else 0.0
-            return {"25": v25, "26": v26, "diff": v26 - v25, "rate": rt if rt != 0 else (round((v26 - v25)/v25*100, 1) if v25 != 0 else 0.0)}
-        except: return empty_kpi
+        def bc(c25i, c26i, ratei):
+            res = []
+            for cat, kws, mt in t_map:
+                midx = None
+                if c25i is not None:
+                    for idx in range(len(raw)):
+                        txt = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
+                        if any(kw.lower().replace(" ", "") in txt for kw in kws) and mt in txt: midx = idx; break
+                if midx is not None:
+                    r = raw.iloc[midx]
+                    v25, v26 = clean_series(pd.Series([r.iat[c25i]])).iloc[0]*1000, clean_series(pd.Series([r.iat[c26i]])).iloc[0]*1000
+                    rt = clean_series(pd.Series([r.iat[ratei]])).iloc[0] if ratei < len(raw.columns) else 0.0
+                    if rt == 0.0 and v25 != 0: rt = round((v26 - v25)/v25*100, 1)
+                    res.append({"표준사업구분": cat, "2025년 실적": v25, "2026년 실적": v26, "증감률": rt})
+                else: res.append({"표준사업구분": cat, "2025년 실적": 0, "2026년 실적": 0, "증감률": 0.0})
+            return pd.DataFrame(res)
 
-    kpi_res = {
-        "전체 총계 누계": ext_val(total_r_idx, c_c25, c_c26, c_rate),
-        "사업 소계 누계": ext_val(subtotal_r_idx, c_c25, c_c26, c_rate),
-        "사업 소계 월계": ext_val(subtotal_r_idx, m_c25, m_c26, m_rate if m_rate else c_rate)
+        return {"전체 총계 누계": ev(tr_idx, c_25, c_26, c_r), "사업 소계 누계": ev(sr_idx, c_25, c_26, c_r), "사업 소계 월계": ev(sr_idx, m_25, m_26, m_r if m_r else c_r)}, {"누계": bc(c_25, c_26, c_r), "월계": bc(m_25, m_26, m_r)}
+
+    bi_tot_k, bi_tot_c = parse_bi("종합")
+    bi_sh_k, bi_sh_c = parse_bi("상해")
+    bi_gw_k, bi_gw_c = parse_bi("광주")
+
+    return {
+        "sheets": total_sheets_count, "summary_chart": summary_chart, "calc_summary": calc_summary, "col_25": col_25, "col_26": col_26,
+        "target_categories": target_cats, "part_data_cache": part_cache, "vendor_data_cache": vendor_cache,
+        "bi_tot_k": bi_tot_k, "bi_tot_c": bi_tot_c, "bi_sh_k": bi_sh_k, "bi_sh_c": bi_sh_c, "bi_gw_k": bi_gw_k, "bi_gw_c": bi_gw_c
     }
 
-    target_mappings = [
-        ("법정검사", ["법정검사", "법정"], "합계"), ("일반검사", ["일반검사", "일반"], "합계"),
-        ("섬유내수(패션잡화)", ["패션잡화", "패션"], "소계"), ("섬유내수(중국GB)", ["중국gb", "gb"], "소계"),
-        ("섬유내수(단체/정부)", ["단체/정부", "단체", "정부"], "소계"), ("섬유수출", ["섬유수출", "수출"], "합계"),
-        ("연구용역", ["연구용역", "연구"], "합계"), ("제품인증(Q.SF)", ["제품인증", "q.sf", "sf"], "합계"),
-        ("산업(토목+부품)", ["산업", "토목", "부품"], "합계"), ("모빌리티(전장+의장)", ["모빌리티", "전장", "의장"], "합계"),
-        ("환경(환경+측정기기)", ["환경", "측정"], "합계"), ("화학바이오(화학제품+생활안전)", ["화학", "바이오", "생활안전"], "합계")
-    ]
-
-    def build_chart(c25_i, c26_i, rate_i):
-        res = []
-        for cat_name, keywords, m_type in target_mappings:
-            matched_idx = None
-            if c25_i is not None:
-                for idx in range(len(raw)):
-                    r_text = " ".join([str(raw.iat[idx, c]) for c in range(len(raw.columns))]).replace(" ", "").lower()
-                    if any(kw.lower().replace(" ", "") in r_text for kw in keywords) and m_type in r_text:
-                        matched_idx = idx; break
-            if matched_idx is not None:
-                r = raw.iloc[matched_idx]
-                v25, v26 = clean_series(pd.Series([r.iat[c25_i]])).iloc[0]*1000, clean_series(pd.Series([r.iat[c26_i]])).iloc[0]*1000
-                rt = clean_series(pd.Series([r.iat[rate_i]])).iloc[0] if rate_i < len(raw.columns) else 0.0
-                if rt == 0.0 and v25 != 0: rt = round((v26 - v25)/v25*100, 1)
-                res.append({"표준사업구분": cat_name, "2025년 실적": v25, "2026년 실적": v26, "증감률": rt})
-            else:
-                res.append({"표준사업구분": cat_name, "2025년 실적": 0, "2026년 실적": 0, "증감률": 0.0})
-        return pd.DataFrame(res)
-
-    return kpi_res, {"누계": build_chart(c_c25, c_c26, c_rate), "월계": build_chart(m_c25, m_c26, m_rate)}
-
-bi_total_kpi, bi_total_charts = parse_bi_sheet_by_type(raw_bytes, "종합")
-bi_shanghai_kpi, bi_shanghai_charts = parse_bi_sheet_by_type(raw_bytes, "상해")
-bi_광주_kpi, bi_광주_charts = parse_bi_sheet_by_type(raw_bytes, "광주")
+parsed_data = load_and_parse_all_data(raw_bytes)
+total_sheets_count = parsed_data["sheets"]
+summary_chart, calc_summary = parsed_data["summary_chart"], parsed_data["calc_summary"]
+col_25, col_26, target_categories = parsed_data["col_25"], parsed_data["col_26"], parsed_data["target_categories"]
+part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data["vendor_data_cache"]
 
 # =========================================================
 # 9. 사이드바 네비게이션
@@ -553,12 +480,9 @@ all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업�
     "[BI_종합] 사업별 실적 현황", "[BI_상해] 사업별 실적 현황", "[BI_광주] 사업별 실적 현황"
 ]
 
-st.sidebar.markdown(f"### {t['page_select']}")
-if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys:
-    st.session_state["current_page"] = all_pages_keys[0]
-
-if "page" in query_params and query_params["page"] in all_pages_keys:
-    st.session_state["current_page"] = query_params["page"]
+st.sidebar.markdown(f"#### {t['page_select']}")
+if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
+if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
 
 for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
@@ -574,7 +498,7 @@ page_menu = st.session_state["current_page"]
 card_unit, display_period_name = t["unit"], "전체 총계 누계"
 if page_menu.startswith("[BI_"):
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### {t['period_select']}")
+    st.sidebar.markdown(f"#### {t['period_select']}")
     bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
     curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
     for bp_key in bi_periods_keys:
@@ -584,8 +508,8 @@ if page_menu.startswith("[BI_"):
     bi_period_mode = st.session_state.get("bi_period_mode", bi_periods_keys[0])
     display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
 
-    target_kpi_pack = bi_광주_kpi if "광주" in page_menu else (bi_shanghai_kpi if "상해" in page_menu else bi_total_kpi)
-    bi_pack = target_kpi_pack.get(bi_period_mode, target_kpi_pack["전체 총계 누계"])
+    t_kpi = parsed_data["bi_gw_k"] if "광주" in page_menu else (parsed_data["bi_sh_k"] if "상해" in page_menu else parsed_data["bi_tot_k"])
+    bi_pack = t_kpi.get(bi_period_mode, t_kpi["전체 총계 누계"])
     total_25, total_26, diff_val, diff_rate = float(bi_pack["25"]), float(bi_pack["26"]), float(bi_pack["diff"]), float(bi_pack["rate"])
     card_sub_desc = f"{'BI_광주' if '광주' in page_menu else ('BI_상해' if '상해' in page_menu else 'BI_종합')} [{display_period_name}]"
 else:
@@ -601,11 +525,11 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 클릭 수정 기능 포함)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] (이름 클릭 수정 완벽 통합)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
-if st.sidebar.button("로그아웃", use_container_width=True):
+if st.sidebar.button("시스템 잠금 (로그아웃)", use_container_width=True):
     for k in ["logged_in", "current_user_email", "current_user_role", "current_user_name"]: st.session_state[k] = ""
     st.session_state["logged_in"] = False
     if "auth_ok" in st.query_params: del st.query_params["auth_ok"]
@@ -626,70 +550,66 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-4px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-5px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
             
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
         
+        # 💡 [핵심 복구] st.button을 expander 내부에 정상적으로 호출하여 누락 방지 및 클릭 수정 모드 연결
         cat_reception = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "general_user"}
         cat_reception_bi = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "bi_user"}
         cat_admin = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "admin"}
         
-        st.markdown("<div style='margin-top: -10px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: -5px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
         if cat_reception:
             for em, info in cat_reception.items():
-                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
                     st.session_state["edit_target_email"] = em
                     st.rerun()
         else:
-            st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
             
-        st.markdown("<div style='margin-top: 2px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 5px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
         if cat_reception_bi:
             for em, info in cat_reception_bi.items():
-                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
                     st.session_state["edit_target_email"] = em
                     st.rerun()
         else:
-            st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
             
-        st.markdown("<div style='margin-top: 2px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 5px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
         if cat_admin:
             for em, info in cat_admin.items():
-                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
                     st.session_state["edit_target_email"] = em
                     st.rerun()
         else:
-            st.markdown("<div style='font-size:11px; margin-top: -6px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
             
         st.markdown("---")
         
+        # 💡 [핵심 구현] 클릭된 이메일이 있으면 수정 모드로 전환
         edit_email = st.session_state.get("edit_target_email", None)
         is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
         
         if is_editing:
-            st.markdown(f"#### ✏️ 담당자 정보 수정 ({edit_email})")
-            current_info = st.session_state["user_db"][edit_email]
-            default_name = current_info["name"]
-            default_pw = current_info["pw"]
-            curr_role = current_info["role"]
+            st.markdown(f"#### ✏️ 담당자 수정 ({edit_email})")
+            curr_info = st.session_state["user_db"][edit_email]
+            default_name, default_pw, curr_role = curr_info["name"], curr_info["pw"], curr_info["role"]
             default_cat_idx = 0 if curr_role == "general_user" else (1 if curr_role == "bi_user" else 2)
         else:
             st.markdown("#### ➕ 담당자 추가")
-            default_name = ""
-            default_pw = ""
-            default_cat_idx = 0
+            default_name, default_pw, default_cat_idx = "", "", 0
 
         with st.form("add_user_form"):
-            new_email = st.text_input("아이디 또는 이메일 (ID)", value=edit_email if is_editing else "", placeholder="예: kshan", disabled=is_editing)
-            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동")
-            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력")
-            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"], index=default_cat_idx)
+            new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: kshan", disabled=is_editing, label_visibility="collapsed")
+            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동", label_visibility="collapsed")
+            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
+            new_category = st.selectbox("권한", ["접수", "접수 + BI", "관리자"], index=default_cat_idx, label_visibility="collapsed")
             
             btn_label = "담당자 정보 수정" if is_editing else "담당자 등록"
-            submit_add = st.form_submit_button(btn_label, use_container_width=True)
-            
-            if submit_add:
+            if st.form_submit_button(btn_label, use_container_width=True):
                 target_key = edit_email if is_editing else new_email.strip()
                 if target_key and new_pw.strip():
                     if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
@@ -697,26 +617,25 @@ if user_role in ["admin", "bi_user"]:
                     st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
                     save_user_db(st.session_state["user_db"])
                     st.session_state["edit_target_email"] = None
-                    st.success(f"✅ {'정보가 수정되었습니다!' if is_editing else '영구 등록 완료!'}")
+                    st.success(f"✅ {'수정' if is_editing else '등록'} 완료!")
                     st.rerun()
                 else: st.error("아이디와 비밀번호는 필수입니다.")
         
         if is_editing:
-            if st.button("❌ 수정 취소 (신규 등록 모드로)", use_container_width=True):
+            if st.button("➕ 신규 등록 모드로 전환", use_container_width=True):
                 st.session_state["edit_target_email"] = None
                 st.rerun()
 
-        st.markdown("---")
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()), label_visibility="collapsed")
         if st.button("선택한 담당자 삭제", use_container_width=True):
             if target_delete_email != "선택하세요.":
                 if target_delete_email == st.session_state["current_user_email"]:
-                    st.error("현재 로그인 중인 계정은 삭제할 수 없습니다.")
+                    st.error("현재 로그인 중인 계정은 삭제 불가합니다.")
                 else:
                     del st.session_state["user_db"][target_delete_email]
                     save_user_db(st.session_state["user_db"])
                     if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
-                    st.success(f"🗑️ 영구 삭제 완료!")
+                    st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
         st.markdown("---")
@@ -725,12 +644,12 @@ if user_role in ["admin", "bi_user"]:
             df_log = pd.DataFrame(st.session_state["login_history"])
             df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
             unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
-            sel_date = st.selectbox("날짜별 로그 분리 보기", unique_dates, label_visibility="collapsed")
+            sel_date = st.selectbox("날짜별 로그", unique_dates, label_visibility="collapsed")
             f_log_df = df_log[df_log["날짜"].astype(str) == sel_date] if sel_date != "전체 날짜 보기" else df_log
             st.dataframe(f_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
-            st.download_button(label="📥 감사 로그 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
+            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
         else:
-            st.caption("기록된 로그인 이력이 없습니다.")
+            st.caption("기록 없음")
 
 # =========================================================
 # 12. 상단 종합 KPI 카드 렌더링
@@ -748,7 +667,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (도넛 차트 및 거점 비교 포함)
+# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 100% 복구)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -853,11 +772,22 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         render_fullwidth_vertical_dashboard(f"🏢 {s_v} 실적 현황", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == "전체 협력사 보기" else "바이어명", disp_v["협력사명" if s_v == "전체 협력사 보기" else "바이어명"].tolist())
 
 elif page_menu.startswith("[BI_"):
-    chart_d = bi_광주_charts["누계"] if "광주" in page_menu else (bi_shanghai_charts["누계"] if "상해" in page_menu else bi_total_charts["누계"])
+    # 💡 [핵심 복구] BI 종합 대시보드 및 마곡/오창 시각화 100% 정상 작동 로직
+    if "광주" in page_menu:
+        chart_d = parsed_data["bi_gw_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
+        center_title_prefix = "🏭 [BI_광주]"
+    elif "상해" in page_menu:
+        chart_d = parsed_data["bi_sh_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
+        center_title_prefix = "🏭 [BI_상해]"
+    else:
+        chart_d = parsed_data["bi_tot_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
+        center_title_prefix = "📊 [BI_종합]"
+
     mag_df = chart_d[chart_d["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     och_df = chart_d[chart_d["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
 
-    st.subheader(f"📍 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    
     mag_25 = mag_df["2025년 실적"].sum()
     mag_26 = mag_df["2026년 실적"].sum()
     och_25 = och_df["2025년 실적"].sum()
@@ -867,18 +797,36 @@ elif page_menu.startswith("[BI_"):
         {"거점구분": "마곡 본원 (Magok)", "2025년 실적": mag_25, "2026년 실적": mag_26},
         {"거점구분": "오창 분원 (Ochang)", "2025년 실적": och_25, "2026년 실적": och_26}
     ])
+    
     cp1, cp2 = st.columns(2)
     ccol = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
     with cp1:
         fp1 = px.pie(c_pie_df, names="거점구분", values="2025년 실적", hole=0.6, title="2025년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
         fp1.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        fp1.update_layout(height=460, margin=dict(t=60, b=30, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5))
         st.plotly_chart(fp1, use_container_width=True)
     with cp2:
         fp2 = px.pie(c_pie_df, names="거점구분", values="2026년 실적", hole=0.6, title="2026년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
         fp2.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
+        fp2.update_layout(height=460, margin=dict(t=60, b=30, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5))
         st.plotly_chart(fp2, use_container_width=True)
 
     st.write("")
     st.markdown("---")
-    render_fullwidth_vertical_dashboard("🏛️ 마곡 본원 세부 사업별 실적 현황", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
-    render_fullwidth_vertical_dashboard("🏭 오창 분원 세부 사업별 실적 현황", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
+    
+    center_comp_df = c_pie_df.copy()
+    center_comp_df["증감액"] = center_comp_df["2026년 실적"] - center_comp_df["2025년 실적"]
+    center_comp_df["증감률"] = ((center_comp_df["증감액"] / center_comp_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
+    render_fullwidth_vertical_dashboard(f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교", "📈 Center Growth Comparison", "Magok & Ochang Summary Table", center_comp_df, "거점구분", ["마곡 본원 (Magok)", "오창 분원 (Ochang)"])
+
+    st.write("")
+    st.markdown("---")
+    render_fullwidth_vertical_dashboard(f"🏛️ 마곡 본원 세부 사업별 실적 현황", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
+    
+    st.write("")
+    st.markdown("---")
+    render_fullwidth_vertical_dashboard(f"🏭 오창 분원 세부 사업별 실적 현황", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
+
+    st.write("")
+    st.markdown("---")
+    render_fullwidth_vertical_dashboard(f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황", "📈 All Categories Performance Diff", "All Categories Detailed Summary Table", chart_d, "표준사업구분", FULL_BI_CATEGORIES)
