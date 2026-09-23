@@ -56,7 +56,6 @@ def load_user_db():
         except Exception:
             return default_db
     else:
-        # 파일이 없으면 기본값으로 생성
         with open(USER_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(default_db, f, ensure_ascii=False, indent=4)
         return default_db
@@ -76,6 +75,10 @@ if "logged_in" not in st.session_state:
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
+
+# 수정 모드 상태 관리 키 초기화
+if "edit_target_email" not in st.session_state:
+    st.session_state["edit_target_email"] = None
 
 # 세션 유지 보완 (쿼리 파라미터 동기화)
 query_params = st.query_params
@@ -1045,7 +1048,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (JSON 저장 연동)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (이름 클릭 수정 기능 추가)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1059,7 +1062,7 @@ if st.sidebar.button("로그아웃", use_container_width=True):
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    with st.sidebar.expander("🛡️ 관리자 권한"):
+    with st.sidebar.expander("🛡️ 관리자 권한", expanded=True):
         
         st.markdown(f"##### {t['data_mgmt']}")
         if st.session_state["current_user_role"] == "admin":
@@ -1094,41 +1097,67 @@ if user_role in ["admin", "bi_user"]:
             elif r == "admin":
                 cat_admin[em] = info
         
+        # 💡 [요청 반영] 등록된 담당자 이름을 클릭하면 수정 모드로 전환되도록 버튼으로 구현
         st.markdown("<div style='margin-top: -10px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
         if cat_reception:
             for em, info in cat_reception.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -8px; padding-left: 8px;'>• {info['name']}</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -8px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("<div style='margin-top: 2px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
         if cat_reception_bi:
             for em, info in cat_reception_bi.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -8px; padding-left: 8px;'>• {info['name']}</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -8px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("<div style='margin-top: 2px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
         if cat_admin:
             for em, info in cat_admin.items():
-                st.markdown(f"<div style='font-size:11px; margin-top: -8px; padding-left: 8px;'>• {info['name']}</div>", unsafe_allow_html=True)
+                if st.sidebar.button(f"• {info['name']} ({em})", key=f"btn_edit_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
         else:
             st.markdown("<div style='font-size:11px; margin-top: -8px; padding-left: 8px; color:gray;'>• 등록된 인원이 없습니다.</div>", unsafe_allow_html=True)
             
         st.markdown("---")
-        st.markdown("#### ➕ 담당자 추가 / 🗑️ 삭제")
+        
+        # 수정 모드인지 신규 등록 모드인지 판단
+        edit_email = st.session_state.get("edit_target_email", None)
+        is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
+        
+        if is_editing:
+            st.markdown(f"#### ✏️ 담당자 정보 수정 ({edit_email})")
+            current_info = st.session_state["user_db"][edit_email]
+            default_name = current_info["name"]
+            default_pw = current_info["pw"]
+            curr_role = current_info["role"]
+            default_cat_idx = 0 if curr_role == "general_user" else (1 if curr_role == "bi_user" else 2)
+        else:
+            st.markdown("#### ➕ 담당자 추가")
+            default_name = ""
+            default_pw = ""
+            default_cat_idx = 0
+
         with st.form("add_user_form"):
-            new_email = st.text_input("아이디 또는 이메일 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr", label_visibility="collapsed")
-            new_name = st.text_input("담당자 성명", placeholder="홍길동", label_visibility="collapsed")
-            new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"], label_visibility="collapsed")
+            new_email = st.text_input("아이디 또는 이메일 (ID)", value=edit_email if is_editing else "", placeholder="예: kshan 또는 kshan@fiti.re.kr", disabled=is_editing)
+            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동")
+            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력")
+            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"], index=default_cat_idx)
             
-            submit_add = st.form_submit_button("담당자 등록", use_container_width=True)
+            btn_label = "담당자 정보 수정" if is_editing else "담당자 등록"
+            submit_add = st.form_submit_button(btn_label, use_container_width=True)
+            
             if submit_add:
-                clean_email = new_email.strip()
-                if clean_email and new_pw.strip():
-                    if "@" not in clean_email:
-                        clean_email = f"{clean_email}@fiti.re.kr"
+                target_key = edit_email if is_editing else new_email.strip()
+                if target_key and new_pw.strip():
+                    if "@" not in target_key:
+                        target_key = f"{target_key}@fiti.re.kr"
                         
                     if new_category == "접수":
                         assigned_role = "general_user"
@@ -1137,17 +1166,24 @@ if user_role in ["admin", "bi_user"]:
                     else:
                         assigned_role = "admin"
                         
-                    st.session_state["user_db"][clean_email] = {
+                    st.session_state["user_db"][target_key] = {
                         "pw": new_pw.strip(),
                         "role": assigned_role,
-                        "name": new_name.strip() if new_name.strip() else clean_email
+                        "name": new_name.strip() if new_name.strip() else target_key
                     }
                     save_user_db(st.session_state["user_db"])
-                    st.success(f"✅ {clean_email} 영구 등록 완료!")
+                    st.session_state["edit_target_email"] = None  # 수정 모드 해제
+                    st.success(f"✅ {'정보가 수정되었습니다!' if is_editing else '영구 등록 완료!'}")
                     st.rerun()
                 else:
                     st.error("아이디(이메일)와 비밀번호는 필수입니다.")
-                    
+        
+        if is_editing:
+            if st.button("❌ 수정 취소 (신규 등록 모드로)", use_container_width=True):
+                st.session_state["edit_target_email"] = None
+                st.rerun()
+
+        st.markdown("---")
         target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()), label_visibility="collapsed")
         if st.button("선택한 담당자 삭제", use_container_width=True):
             if target_delete_email != "선택하세요.":
@@ -1156,6 +1192,8 @@ if user_role in ["admin", "bi_user"]:
                 else:
                     del st.session_state["user_db"][target_delete_email]
                     save_user_db(st.session_state["user_db"])
+                    if st.session_state.get("edit_target_email") == target_delete_email:
+                        st.session_state["edit_target_email"] = None
                     st.success(f"🗑️ {target_delete_email} 영구 삭제 완료!")
                     st.rerun()
 
