@@ -90,12 +90,10 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
 # =========================================================
 # ⏱️ 10분 자동 로그아웃 로직 & 중국 시간(CST) 설정
 # =========================================================
-# 💡 [요청 반영] 서버 시간에 의존하지 않고 무조건 UTC+8 (중국 시간)으로 고정
 china_time = datetime.utcnow() + timedelta(hours=8)
 
 if st.session_state["logged_in"]:
     if "last_active_time" in st.session_state:
-        # 활동 시간 체크도 중국 시간을 기준으로 동일하게 연산 (600초 = 10분)
         if (china_time - st.session_state["last_active_time"]).total_seconds() > 600:
             st.session_state["logged_in"] = False
             st.session_state["current_user_email"] = ""
@@ -114,8 +112,7 @@ if st.session_state["logged_in"]:
 LANG_DICT = {
     "한국어": {
         "sys_title": "상해지사 실적 종합 분석 시스템",
-        # 💡 [요청 반영] 텍스트 수정 (FITI시험연구원 상해지사)
-        "sys_sub": "FITI시험연구원 상해지사 실적 종합 분석 시스템 | 사업팀",
+        "sys_sub": "飞迪商品检验（上海）有限公司 | 상해지사 사업팀",
         "data_mgmt": "📁 데이터 관리",
         "admin_upload": "공용 엑셀 업로드 (관리자 전용)",
         "admin_caption": "💡 엑셀 교체는 관리자 권한이 필요합니다.",
@@ -213,7 +210,6 @@ t = LANG_DICT.get(st.session_state["lang_select"], LANG_DICT["한국어"])
 # =========================================================
 st.markdown("""
 <style>
-    /* 💡 [요청 반영] Apple 및 Toss 스타일의 최고급 폰트 조합 적용 */
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
     html, body, [class*="css"] {
         font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, Roboto, sans-serif !important;
@@ -295,12 +291,11 @@ if not st.session_state["logged_in"]:
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
-        # 💡 [요청 반영] 로그인 화면 문구 수정
         st.markdown("""
         <div style="text-align: center; margin-bottom: 25px; color: #FFFFFF;">
             <div style="font-size: 48px; font-weight: 900; margin-bottom: 6px;">FITI Shanghai</div>
-            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">FITI시험연구원 상해지사 실적 종합 분석 시스템</div>
-            <div style="font-size: 13px; color: #38BDF8; font-weight: 600;">FITI시험연구원 상해지사 | 사업팀</div>
+            <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">상해지사 실적 종합 분석 시스템</div>
+            <div style="font-size: 13px; color: #38BDF8; font-weight: 600;">飞迪商品检验（上海）有限公司 | 상해지사 사업팀</div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -324,15 +319,11 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_email"] = matched_email
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
-                
-                # 💡 [요청 반영] 로그인 감사 로그에 중국 시간 저장
                 st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
                 save_login_history(st.session_state["login_history"])
-                
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
-                # 💡 [요청 반영] 로그인 실패 로그도 중국 시간 저장
                 st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
                 save_login_history(st.session_state["login_history"])
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
@@ -582,7 +573,6 @@ part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data
 # =========================================================
 # 9. 사이드바 네비게이션
 # =========================================================
-# 💡 [요청 반영] 언어 선택 2개 카테고리만 적용
 st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
 
 user_role = st.session_state["current_user_role"]
