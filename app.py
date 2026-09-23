@@ -122,7 +122,7 @@ LANG_DICT = {
         "admin_upload": "上传公共Excel文件 (仅限管理员)",
         "admin_caption": "💡 如需更换Excel文件，请以管理员身份登录。",
         "sync_success": "✅ 服务器公共文件及会话同步完成！",
-        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
+        "shared_file_info": "📂 服务器公共最新文件同步中",
         "file_not_found": "未找到要分析的Excel文件。请登录管理员账号上传。",
         "page_select": "📑 选择分析页面",
         "cat_select": "📌 选择类别",
@@ -447,7 +447,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바: 파일 관리, 네비게이션, 접속 계정/관리자 메뉴, 실적 기간 선택 (상하 순서 재배치)
+# 7. 사이드바: 파일 관리 및 네비게이션
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -938,8 +938,83 @@ for p_key in all_pages_keys:
 page_menu = st.session_state["current_page"]
 
 # =========================================================
-# 10. 사이드바 구성 요소 순서 재배치 (접속 계정/관리자 메뉴 ➔ [BI] 실적 기간 선택)
+# 10. 사이드바 구성 요소 순서 재배치 ([BI] 실적 기간 선택 상단 ➔ 접속 계정/관리자 메뉴 하단)
 # =========================================================
+card_unit = t["unit"]
+display_period_name = "전체 총계 누계"
+
+if page_menu.startswith("[BI_"):
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"### {t['period_select']}")
+    
+    bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
+    if "bi_period_mode" not in st.session_state:
+        st.session_state["bi_period_mode"] = bi_periods_keys[0]
+        
+    period_query = query_params.get("period", None)
+    if period_query in bi_periods_keys:
+        st.session_state["bi_period_mode"] = period_query
+
+    for bp_key in bi_periods_keys:
+        is_p_active = (st.session_state["bi_period_mode"] == bp_key)
+        p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
+        
+        period_link_html = f"""
+        <a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{p_class}" target="_self">
+            {bp_key}
+        </a>
+        """
+        st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
+            
+    bi_period_mode = st.session_state["bi_period_mode"]
+    display_period_name = t["periods"].get(bi_period_mode, bp_key)
+    
+    if "광주" in page_menu:
+        target_kpi_pack = bi_guangzhou_kpi
+        active_bi_charts = bi_guangzhou_charts
+        sub_prefix = "BI_광주"
+    elif "상해" in page_menu:
+        target_kpi_pack = bi_shanghai_kpi
+        active_bi_charts = bi_shanghai_charts
+        sub_prefix = "BI_상해"
+    else:
+        target_kpi_pack = bi_total_kpi
+        active_bi_charts = bi_total_charts
+        sub_prefix = "BI_종합"
+
+    bi_pack = target_kpi_pack.get(bi_period_mode, target_kpi_pack["전체 총계 누계"])
+    total_25 = float(bi_pack["25"])
+    total_26 = float(bi_pack["26"])
+    diff_val = float(bi_pack["diff"])
+    diff_rate = float(bi_pack["rate"])
+    card_sub_desc = f"{sub_prefix} [{display_period_name}]"
+else:
+    selected_view_for_card = "전체 사업 보기"
+    if page_menu == "[접수기준] 사업별 실적 현황":
+        if "selected_biz_view" not in st.session_state:
+            st.session_state["selected_biz_view"] = "전체 사업 보기"
+        selected_view_for_card = st.session_state["selected_biz_view"]
+    elif page_menu in ["[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"]:
+        card_key = "selected_tab3_biz" if page_menu == "[접수기준] 바이어 실적 현황" else "tab4_biz_select"
+        if card_key not in st.session_state:
+            st.session_state[card_key] = target_categories[0]
+        selected_view_for_card = st.session_state[card_key]
+
+    if selected_view_for_card != "전체 사업 보기" and selected_view_for_card in target_categories:
+        target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
+        total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
+        total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
+        display_cat_name = t["categories_map"].get(selected_view_for_card, selected_view_for_card)
+        card_sub_desc = f"[{display_cat_name}] Total"
+    else:
+        total_25 = float(summary_chart[col_25].sum())
+        total_26 = float(summary_chart[col_26].sum())
+        card_sub_desc = "TOTAL Summary"
+
+    diff_val = total_26 - total_25
+    diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
+
+# 하단에 배치된 접속 계정 및 관리자 메뉴
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
 if st.sidebar.button("로그아웃", use_container_width=True):
@@ -1020,82 +1095,8 @@ if user_role in ["admin", "bi_user"]:
             st.caption("기록된 로그인 이력이 없습니다.")
 
 # =========================================================
-# 11. 상단 종합 KPI 카드 및 [BI] 실적 기간 선택 렌더링
+# 11. 상단 종합 KPI 카드 렌더링
 # =========================================================
-card_unit = t["unit"]
-display_period_name = "전체 총계 누계"
-
-if page_menu.startswith("[BI_"):
-    st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### {t['period_select']}")
-    
-    bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
-    if "bi_period_mode" not in st.session_state:
-        st.session_state["bi_period_mode"] = bi_periods_keys[0]
-        
-    period_query = query_params.get("period", None)
-    if period_query in bi_periods_keys:
-        st.session_state["bi_period_mode"] = period_query
-
-    for bp_key in bi_periods_keys:
-        is_p_active = (st.session_state["bi_period_mode"] == bp_key)
-        p_class = "sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"
-        
-        period_link_html = f"""
-        <a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{p_class}" target="_self">
-            {bp_key}
-        </a>
-        """
-        st.sidebar.markdown(period_link_html, unsafe_allow_html=True)
-            
-    bi_period_mode = st.session_state["bi_period_mode"]
-    display_period_name = t["periods"].get(bi_period_mode, bp_key)
-    
-    if "광주" in page_menu:
-        target_kpi_pack = bi_guangzhou_kpi
-        active_bi_charts = bi_guangzhou_charts
-        sub_prefix = "BI_광주"
-    elif "상해" in page_menu:
-        target_kpi_pack = bi_shanghai_kpi
-        active_bi_charts = bi_shanghai_charts
-        sub_prefix = "BI_상해"
-    else:
-        target_kpi_pack = bi_total_kpi
-        active_bi_charts = bi_total_charts
-        sub_prefix = "BI_종합"
-
-    bi_pack = target_kpi_pack.get(bi_period_mode, target_kpi_pack["전체 총계 누계"])
-    total_25 = float(bi_pack["25"])
-    total_26 = float(bi_pack["26"])
-    diff_val = float(bi_pack["diff"])
-    diff_rate = float(bi_pack["rate"])
-    card_sub_desc = f"{sub_prefix} [{display_period_name}]"
-else:
-    selected_view_for_card = "전체 사업 보기"
-    if page_menu == "[접수기준] 사업별 실적 현황":
-        if "selected_biz_view" not in st.session_state:
-            st.session_state["selected_biz_view"] = "전체 사업 보기"
-        selected_view_for_card = st.session_state["selected_biz_view"]
-    elif page_menu in ["[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"]:
-        card_key = "selected_tab3_biz" if page_menu == "[접수기준] 바이어 실적 현황" else "tab4_biz_select"
-        if card_key not in st.session_state:
-            st.session_state[card_key] = target_categories[0]
-        selected_view_for_card = st.session_state[card_key]
-
-    if selected_view_for_card != "전체 사업 보기" and selected_view_for_card in target_categories:
-        target_row = summary_chart[summary_chart["표준사업구분"] == selected_view_for_card]
-        total_25 = float(target_row[col_25].sum()) if not target_row.empty else 0.0
-        total_26 = float(target_row[col_26].sum()) if not target_row.empty else 0.0
-        display_cat_name = t["categories_map"].get(selected_view_for_card, selected_view_for_card)
-        card_sub_desc = f"[{display_cat_name}] Total"
-    else:
-        total_25 = float(summary_chart[col_25].sum())
-        total_26 = float(summary_chart[col_26].sum())
-        card_sub_desc = "TOTAL Summary"
-
-    diff_val = total_26 - total_25
-    diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
-
 is_positive = diff_val >= 0
 diff_color = "#E11D48" if is_positive else "#2563EB"
 badge_bg = "#FFE4E6" if is_positive else "#DBEAFE"
