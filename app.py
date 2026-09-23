@@ -858,9 +858,14 @@ elif page_menu.startswith("[BI_"):
     och_df = chart_d[chart_d["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
 
     st.subheader(f"📍 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    mag_25 = mag_df["2025년 실적"].sum()
+    mag_26 = mag_df["2026년 실적"].sum()
+    och_25 = och_df["2025년 실적"].sum()
+    och_26 = och_df["2026년 실적"].sum()
+
     c_pie_df = pd.DataFrame([
-        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": mag_df["2025년 실적"].sum(), "2026년 실적": mag_df["2026년 실적"].sum()},
-        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": ochang_25 := och_df["2025년 실적"].sum(), "2026년 실적": ochang_26 := och_df["2026년 실적"].sum()}
+        {"거점구분": "마곡 본원 (Magok)", "2025년 실적": mag_25, "2026년 실적": mag_26},
+        {"거점구분": "오창 분원 (Ochang)", "2025년 실적": och_25, "2026년 실적": och_26}
     ])
     cp1, cp2 = st.columns(2)
     ccol = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
