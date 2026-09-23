@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (사이드바 간격 최소화 압축)
+# 4. 스타일 및 디자인 공통 적용 (상단 공백 완전 제거 및 컴팩트 압축)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,19 +218,18 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 사이드바 상단 공백 완전 제거 및 내부 간격 최소로 압축 */
     section[data-testid="stSidebar"] {
         padding-top: 0rem !important;
     }
     section[data-testid="stSidebar"] div.block-container {
-        padding-top: 0.3rem !important;
+        padding-top: 0.2rem !important;
         padding-bottom: 0.5rem !important;
     }
     section[data-testid="stSidebar"] div.stExpander {
         margin-bottom: 0.2rem !important;
     }
     section[data-testid="stSidebar"] hr {
-        margin: 0.5rem 0 !important;
+        margin: 0.4rem 0 !important;
     }
     
     .fiti-header {
@@ -342,7 +341,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인 보정)
+# 5. 상해 야경 테마 프리미엄 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -1025,7 +1024,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (데이터 관리, 간격 압축)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (간격 최소화 압축)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1057,7 +1056,7 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        # 💡 [요청 반영] 인식한 시트 수 안내 문구 복구 및 한 줄 표시
+        # 💡 [요청 반영] 서버 공용 파일 연동 중 시트수 문구 압축
         st.caption(f"{t['shared_file_info']} (시트수: {total_sheets_count}개)")
             
         st.markdown("---")
