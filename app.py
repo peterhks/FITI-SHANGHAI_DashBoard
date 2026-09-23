@@ -132,13 +132,11 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 사이드바 여백 초압축 */
     section[data-testid="stSidebar"] { padding-top: 0rem !important; }
     section[data-testid="stSidebar"] div.block-container { padding-top: 0.1rem !important; padding-bottom: 0.4rem !important; }
     section[data-testid="stSidebar"] div.stExpander { margin-bottom: 0.1rem !important; }
     section[data-testid="stSidebar"] hr { margin: 0.2rem 0 !important; }
     
-    /* 사이드바 내 버튼(담당자 이름 등) 컴팩트 디자인 */
     div[data-testid="stSidebar"] div.stButton > button {
         padding: 2px 6px !important;
         min-height: 22px !important;
@@ -184,7 +182,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 프리미엄 로그인 화면 (스마트 도메인)
+# 5. 상해 야경 테마 로그인 화면
 # =========================================================
 if not st.session_state["logged_in"]:
     bg_image_path = "fiti_shanghai_bg.png"
@@ -261,7 +259,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 7. 사이드바 파일 로드
+# 7. 파일 로드
 # =========================================================
 EXCEL_FILE = "performance_최신.xlsx"
 os.makedirs("downloads", exist_ok=True)
@@ -280,7 +278,7 @@ if not raw_bytes:
     st.stop()
 
 # =========================================================
-# 8. 초고속 원패스(One-Pass) 데이터 파싱 (속도 저하 완벽 해결)
+# 8. 초고속 데이터 파싱 (시트 복구 완벽 해결)
 # =========================================================
 def clean_series(series):
     cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
@@ -340,7 +338,7 @@ def load_and_parse_all_data(file_bytes_val):
     summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_cats.index(x) if x in target_cats else 99)
     summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
-    # --- 2) 바이어 및 협력사(Vendor) 파싱 ---
+    # --- 2) 바이어 및 협력사 파싱 ---
     PART_MAP = {"패션잡화": [["kc"]], "GB": [["gb"]], "글로벌 바이어": [["global", "1"], ["global", "2"]], "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]}
     part_cache, vendor_cache = {}, {}
     
@@ -353,7 +351,6 @@ def load_and_parse_all_data(file_bytes_val):
             stream.seek(0)
             raw = pd.read_excel(stream, sheet_name=sh_name, header=None)
             
-            # Buyer Parsing
             pr, pc = next(((r, c) for r in range(min(20, len(raw))) for c in range(len(raw.columns)) if "행레이블" in str(raw.iat[r, c]).replace(" ", "")), (None, None))
             if pr is not None:
                 sub_r = raw.iloc[pr:, pc:pc+6].copy().reset_index(drop=True)
@@ -371,7 +368,6 @@ def load_and_parse_all_data(file_bytes_val):
                         p_rows.append({"바이어명": b_name, "2025년 실적": clean_series(pd.Series([row[c25_b]])).iloc[0], "2026년 실적": clean_series(pd.Series([row[c26_b]])).iloc[0]})
                     if p_rows: b_dfs.append(pd.DataFrame(p_rows))
             
-            # Vendor Parsing
             hr, b_c_idx, v_c_idx = None, None, None
             for r in range(min(15, len(raw))):
                 r_vals = [str(x).strip().replace(" ", "") for x in raw.iloc[r].tolist()]
@@ -397,10 +393,25 @@ def load_and_parse_all_data(file_bytes_val):
         part_cache[cat] = pd.concat(b_dfs, ignore_index=True).groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum() if b_dfs else pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
         vendor_cache[cat] = pd.concat(v_dfs, ignore_index=True) if v_dfs else pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
-    # --- 3) BI 분석 파싱 ---
+    # --- 3) BI 분석 파싱 (완벽 복구 로직) ---
     def parse_bi(branch_name):
         s_k = branch_name.strip().lower().replace(" ", "").replace("_", "")
-        t_sn = next((s for s in all_sheets if s_k in s.strip().lower().replace(" ", "").replace("_", "")), None)
+        t_sn = None
+        
+        # 💡 [핵심 복구 1] BI 시트 명칭 정확히 매칭되도록 로직 강화
+        for s_orig in all_sheets:
+            s_clean = s_orig.strip().lower().replace(" ", "").replace("_", "")
+            if s_k == "광주" and s_clean == "bi광주": t_sn = s_orig; break
+            elif s_k == "상해" and s_clean == "bi상해": t_sn = s_orig; break
+            elif s_k == "종합" and s_clean in ["bi종합", "bi"]: t_sn = s_orig; break
+            
+        if not t_sn:
+            for s_orig in all_sheets:
+                s_clean = s_orig.strip().lower().replace("_", "").replace(" ", "")
+                if s_k == "광주" and "광주" in s_clean and "상해" not in s_clean: t_sn = s_orig; break
+                elif s_k == "상해" and "상해" in s_clean and "광주" not in s_clean: t_sn = s_orig; break
+                elif s_k == "종합" and "bi" in s_clean and "광주" not in s_clean and "상해" not in s_clean: t_sn = s_orig; break
+
         emp_kpi = {"25": 0, "26": 0, "diff": 0, "rate": 0.0}
         emp_df = pd.DataFrame({"표준사업구분": FULL_BI_CATEGORIES, "2025년 실적": [0]*len(FULL_BI_CATEGORIES), "2026년 실적": [0]*len(FULL_BI_CATEGORIES), "증감률": [0.0]*len(FULL_BI_CATEGORIES)})
         if not t_sn: return {"전체 총계 누계": emp_kpi, "사업 소계 누계": emp_kpi, "사업 소계 월계": emp_kpi}, {"누계": emp_df, "월계": emp_df}
@@ -525,7 +536,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] (이름 클릭 수정 완벽 통합)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한]
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -555,7 +566,6 @@ if user_role in ["admin", "bi_user"]:
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
         
-        # 💡 [핵심 복구] st.button을 expander 내부에 정상적으로 호출하여 누락 방지 및 클릭 수정 모드 연결
         cat_reception = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "general_user"}
         cat_reception_bi = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "bi_user"}
         cat_admin = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "admin"}
@@ -589,7 +599,6 @@ if user_role in ["admin", "bi_user"]:
             
         st.markdown("---")
         
-        # 💡 [핵심 구현] 클릭된 이메일이 있으면 수정 모드로 전환
         edit_email = st.session_state.get("edit_target_email", None)
         is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
         
@@ -667,7 +676,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 100% 복구)
+# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 100% 정상 작동)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -772,7 +781,7 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         render_fullwidth_vertical_dashboard(f"🏢 {s_v} 실적 현황", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == "전체 협력사 보기" else "바이어명", disp_v["협력사명" if s_v == "전체 협력사 보기" else "바이어명"].tolist())
 
 elif page_menu.startswith("[BI_"):
-    # 💡 [핵심 복구] BI 종합 대시보드 및 마곡/오창 시각화 100% 정상 작동 로직
+    # 💡 [핵심 복구] BI 종합, 상해, 광주 차트 렌더링 로직 (완전 정상 작동 보장)
     if "광주" in page_menu:
         chart_d = parsed_data["bi_gw_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
         center_title_prefix = "🏭 [BI_광주]"
