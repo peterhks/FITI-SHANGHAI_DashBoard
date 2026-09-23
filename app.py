@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import io
+import json
 import base64
 from datetime import datetime
 
@@ -37,15 +38,35 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (삭제 부활 원천 차단)
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (부활/휘발 원천 차단)
 # =========================================================
-if "user_db" not in st.session_state:
-    st.session_state["user_db"] = {
+USER_DB_FILE = "fiti_users_db.json"
+
+def load_user_db():
+    default_db = {
         "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"},
         "admin@fiti.re.kr": {"pw": "fiti1965", "role": "admin", "name": "시스템 관리자"},
         "leader@fiti.re.kr": {"pw": "fiti1234", "role": "bi_user", "name": "상해지사 팀장"},
         "staff@fiti.re.kr": {"pw": "fiti5678", "role": "general_user", "name": "일반 담당자"}
     }
+    if os.path.exists(USER_DB_FILE):
+        try:
+            with open(USER_DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return default_db
+    else:
+        # 파일이 없으면 기본값으로 생성
+        with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(default_db, f, ensure_ascii=False, indent=4)
+        return default_db
+
+def save_user_db(db_data):
+    with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(db_data, f, ensure_ascii=False, indent=4)
+
+if "user_db" not in st.session_state:
+    st.session_state["user_db"] = load_user_db()
 
 if "login_history" not in st.session_state:
     st.session_state["login_history"] = []
@@ -209,7 +230,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (극단적 간격 압축)
+# 4. 스타일 및 디자인 공통 적용 (간격 극단적 최소화 압축)
 # =========================================================
 st.markdown("""
 <style>
@@ -1024,7 +1045,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (극단적 간격 압축)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (JSON 저장 연동)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1121,6 +1142,7 @@ if user_role in ["admin", "bi_user"]:
                         "role": assigned_role,
                         "name": new_name.strip() if new_name.strip() else clean_email
                     }
+                    save_user_db(st.session_state["user_db"])
                     st.success(f"✅ {clean_email} 영구 등록 완료!")
                     st.rerun()
                 else:
@@ -1133,6 +1155,7 @@ if user_role in ["admin", "bi_user"]:
                     st.error("현재 로그인 중인 계정은 삭제할 수 없습니다.")
                 else:
                     del st.session_state["user_db"][target_delete_email]
+                    save_user_db(st.session_state["user_db"])
                     st.success(f"🗑️ {target_delete_email} 영구 삭제 완료!")
                     st.rerun()
 
