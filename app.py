@@ -37,7 +37,7 @@ OCHANG_CATEGORIES = [
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (삭제 계정 부활 원천 차단)
+# 2. 사용자 권한 및 로그인 로그 영구 유지 초기화 (삭제 부활 원천 차단)
 # =========================================================
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {
@@ -76,7 +76,7 @@ LANG_DICT = {
         "admin_upload": "공용 엑셀 업로드 (관리자 전용)",
         "admin_caption": "💡 엑셀 교체는 관리자 권한이 필요합니다.",
         "sync_success": "✅ 서버 파일 및 세션 동기화 완료!",
-        "shared_file_info": "📂 파일 연동 중",
+        "shared_file_info": "📂 서버 공용 최신 파일 연동 중",
         "file_not_found": "분석할 엑셀 파일을 찾을 수 없습니다. 관리자 계정으로 업로드해 주세요.",
         "page_select": "📑 분석 페이지 선택",
         "cat_select": "📌 카테고리 선택",
@@ -147,7 +147,7 @@ LANG_DICT = {
             "[BI_광주] 사업별 실적 현황": "[BI_光州] 各业务业绩现状",
         },
         "periods": {
-            "전체 총계 누계": "全体总计累计",
+            "전체 总计累计": "全体总计累计",
             "사업 소계 누계": "业务小计累计",
             "사업 소계 월계": "业务小计月度"
         },
@@ -209,7 +209,7 @@ LANG_DICT = {
 }
 
 # =========================================================
-# 4. 스타일 및 디자인 공통 적용 (간격 최소화 및 압축 스타일)
+# 4. 스타일 및 디자인 공통 적용 (간격 극단적 최소화 압축)
 # =========================================================
 st.markdown("""
 <style>
@@ -218,19 +218,19 @@ st.markdown("""
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     }
     
-    /* 💡 [요청 반영] 사이드바 상단 공백 완전 제거 및 메뉴/간격 최소화 압축 */
+    /* 💡 [요청 반영] 사이드바 상단 공백 완전 제거 및 내부 간격을 최소한으로 압축 */
     section[data-testid="stSidebar"] {
         padding-top: 0rem !important;
     }
     section[data-testid="stSidebar"] div.block-container {
-        padding-top: 0.2rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 0.1rem !important;
+        padding-bottom: 0.3rem !important;
     }
     section[data-testid="stSidebar"] div.stExpander {
-        margin-bottom: 0.15rem !important;
+        margin-bottom: 0.1rem !important;
     }
     section[data-testid="stSidebar"] hr {
-        margin: 0.3rem 0 !important;
+        margin: 0.2rem 0 !important;
     }
     
     .fiti-header {
@@ -308,14 +308,14 @@ st.markdown("""
         border-radius: 8px;
         text-align: center;
         font-weight: 700;
-        font-size: 14px;
-        padding: 7px 10px;
-        margin-bottom: 3px;
+        font-size: 13px;
+        padding: 6px 8px;
+        margin-bottom: 2px;
         border: 1.5px solid #CBD5E1;
         background-color: #F8FAFC;
         color: #0F172A;
         text-decoration: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         transition: all 0.15s ease;
     }
     .sidebar-card-btn:hover {
@@ -329,14 +329,14 @@ st.markdown("""
         border-radius: 8px;
         text-align: center;
         font-weight: 800;
-        font-size: 14px;
-        padding: 7px 10px;
-        margin-bottom: 3px;
+        font-size: 13px;
+        padding: 6px 8px;
+        margin-bottom: 2px;
         border: 1.5px solid #001E3D;
         background-color: #003876;
         color: #FFFFFF !important;
         text-decoration: none;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1025,7 +1025,7 @@ else:
     diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (초압축 및 1줄 연동 문구)
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한] 메뉴 (초압축 및 1줄 고정 적용)
 # =========================================================
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
@@ -1039,7 +1039,6 @@ if st.sidebar.button("로그아웃", use_container_width=True):
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    # 💡 [요청 반영] 명칭 변경: '관리자 권한'
     with st.sidebar.expander("🛡️ 관리자 권한"):
         
         st.markdown(f"##### {t['data_mgmt']}")
@@ -1057,8 +1056,8 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t["admin_caption"])
             
-        # 💡 [요청 반영] 서버 공용 파일 연동 중 시트수 문구를 작은 폰트로 1줄 고정 출력
-        st.markdown(f"<p style='font-size:11px; color:#64748B; margin-top:-2px; margin-bottom:4px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
+        # 💡 [요청 반영] 시트수 문구 폰트 축소 및 1줄 고정
+        st.markdown(f"<p style='font-size:11px; color:#64748B; margin-top:-2px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
             
         st.markdown("---")
         st.markdown("#### 👥 등록된 담당자 목록")
@@ -1076,21 +1075,22 @@ if user_role in ["admin", "bi_user"]:
             elif r == "admin":
                 cat_admin[em] = info
         
-        st.markdown("**[ 1번 카테고리: 접수 ]**")
+        # 💡 [요청 반영] 번호 문구 없이 접수, 접수 + BI, 관리자만 깔끔하게 노출
+        st.markdown("**[ 접수 ]**")
         if cat_reception:
             for em, info in cat_reception.items():
                 st.text(f"• {info['name']} ({em})")
         else:
             st.caption("등록된 인원이 없습니다.")
             
-        st.markdown("**[ 2번 카테고리: 접수 + BI ]**")
+        st.markdown("**[ 접수 + BI ]**")
         if cat_reception_bi:
             for em, info in cat_reception_bi.items():
                 st.text(f"• {info['name']} ({em})")
         else:
             st.caption("등록된 인원이 없습니다.")
             
-        st.markdown("**[ 3번 카테고리: 관리자 ]**")
+        st.markdown("**[ 관리자 ]**")
         if cat_admin:
             for em, info in cat_admin.items():
                 st.text(f"• {info['name']} ({em})")
@@ -1103,7 +1103,7 @@ if user_role in ["admin", "bi_user"]:
             new_email = st.text_input("아이디 또는 이메일 (ID)", placeholder="예: kshan 또는 kshan@fiti.re.kr")
             new_name = st.text_input("담당자 성명", placeholder="홍길동")
             new_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호 입력")
-            new_category = st.selectbox("권한 카테고리 지정", ["1번 카테고리: 접수", "2번 카테고리: 접수 + BI", "3번 카테고리: 관리자"])
+            new_category = st.selectbox("권한 카테고리 지정", ["접수", "접수 + BI", "관리자"])
             
             submit_add = st.form_submit_button("담당자 등록", use_container_width=True)
             if submit_add:
@@ -1112,9 +1112,9 @@ if user_role in ["admin", "bi_user"]:
                     if "@" not in clean_email:
                         clean_email = f"{clean_email}@fiti.re.kr"
                         
-                    if "1번" in new_category:
+                    if new_category == "접수":
                         assigned_role = "general_user"
-                    elif "2번" in new_category:
+                    elif new_category == "접수 + BI":
                         assigned_role = "bi_user"
                     else:
                         assigned_role = "admin"
