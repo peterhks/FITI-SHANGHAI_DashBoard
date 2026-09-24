@@ -78,11 +78,12 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_role"] = "admin"
         st.session_state["current_user_name"] = "관리자"
 
-# 💡 [버그 완벽 해결] 언어 상태를 URL Query Parameter로 동기화하여 카테고리 이동 시 리셋 현상 방지
-if "lang" in query_params:
-    st.session_state["lang_select"] = "English (영어)" if query_params["lang"] == "en" else "한국어"
-elif "lang_select" not in st.session_state:
-    st.session_state["lang_select"] = "한국어"
+# 💡 [버그 완벽 해결] 언어 상태 충돌 방지: 최초 접속 시에만 URL 파라미터 확인, 이후에는 선택값 유지
+if "lang_select" not in st.session_state:
+    if "lang" in query_params:
+        st.session_state["lang_select"] = "English (영어)" if query_params["lang"] == "en" else "한국어"
+    else:
+        st.session_state["lang_select"] = "한국어"
 
 # =========================================================
 # ⏱️ 10분 자동 로그아웃 로직 & 중국 시간(CST) 설정
@@ -388,6 +389,8 @@ except Exception:
 # =========================================================
 st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
 current_lang_code = "en" if st.session_state["lang_select"] == "English (영어)" else "ko"
+
+# 💡 [버그 완벽 해결] 사이드바 언어 갱신 시 주소창(query param)에도 언어 코드 실시간 적용
 st.query_params["lang"] = current_lang_code
 
 user_role = st.session_state["current_user_role"]
@@ -400,11 +403,11 @@ st.sidebar.markdown(f"#### {t['page_select']}")
 if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
 if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
 
-# 💡 [버그 완벽 해결] href 링크에 &lang={current_lang_code} 추가하여 리셋 방지
 for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     display_name = t["pages"].get(p_key, p_key)
+    # 카테고리 링크 클릭 시에도 &lang={current_lang_code} 가 붙어서 리셋을 완벽 방어함
     st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true&lang={current_lang_code}" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
@@ -742,7 +745,7 @@ col_25, col_26, target_categories = parsed_data["col_25"], parsed_data["col_26"]
 part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data["vendor_data_cache"]
 
 # =========================================================
-# 11. KPI 영역 채우기 (URL Parameter로 언어 상태 유지)
+# 11. KPI 영역 채우기 (URL 연동 상태 유지)
 # =========================================================
 with kpi_container:
     card_unit, display_period_name = t["unit"], t["periods"].get("전체 총계 누계", "전체 총계 누계")
@@ -754,7 +757,6 @@ with kpi_container:
         for bp_key in bi_periods_keys:
             is_p_active = (curr_p == bp_key)
             disp_bp_key = t["periods"].get(bp_key, bp_key)
-            # 💡 [버그 완벽 해결] URL 주소 뒤에 언어(&lang=en)를 강제로 붙여서 새로고침 되어도 영어로 유지되게 만듦
             st.markdown(f'<a href="?page={page_menu}&period={bp_key}&auth_ok=true&lang={current_lang_code}" class="{"sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"}" style="font-weight: {"800" if is_p_active else "700"}; background-color: {"#003876" if is_p_active else "#F8FAFC"}; color: {"#FFFFFF" if is_p_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_p_active else "#CBD5E1"};" target="_self">{disp_bp_key}</a>', unsafe_allow_html=True)
         if query_params.get("period") in bi_periods_keys: st.session_state["bi_period_mode"] = query_params.get("period")
         bi_period_mode = st.session_state.get("bi_period_mode", bi_periods_keys[0])
