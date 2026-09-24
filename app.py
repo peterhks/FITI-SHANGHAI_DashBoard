@@ -29,26 +29,20 @@ LOGIN_HISTORY_FILE = "fiti_login_history.json"
 
 def load_user_db():
     default_db = {
-        "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"},
-        "admin@fiti.re.kr": {"pw": "fiti1965", "role": "admin", "name": "시스템 관리자"},
-        "leader@fiti.re.kr": {"pw": "fiti1234", "role": "bi_user", "name": "상해지사 팀장"},
-        "staff@fiti.re.kr": {"pw": "fiti5678", "role": "general_user", "name": "일반 담당자"}
+        "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"}
     }
     if os.path.exists(USER_DB_FILE):
         try:
             with open(USER_DB_FILE, "r", encoding="utf-8") as f:
                 loaded_db = json.load(f)
-                if not isinstance(loaded_db, dict) or len(loaded_db) == 0:
-                    return default_db
-                if "kshan@fiti.re.kr" not in loaded_db:
-                    loaded_db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
-                return loaded_db
+                if isinstance(loaded_db, dict) and len(loaded_db) > 0:
+                    return loaded_db
         except Exception:
-            return default_db
-    else:
-        with open(USER_DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(default_db, f, ensure_ascii=False, indent=4)
-        return default_db
+            pass
+            
+    with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(default_db, f, ensure_ascii=False, indent=4)
+    return default_db
 
 def save_user_db(db_data):
     with open(USER_DB_FILE, "w", encoding="utf-8") as f:
@@ -67,17 +61,14 @@ def save_login_history(history_data):
     with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=4)
 
-if "user_db" not in st.session_state:
-    st.session_state["user_db"] = load_user_db()
-if "login_history" not in st.session_state:
-    st.session_state["login_history"] = load_login_history()
+if "user_db" not in st.session_state: st.session_state["user_db"] = load_user_db()
+if "login_history" not in st.session_state: st.session_state["login_history"] = load_login_history()
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
-if "edit_target_email" not in st.session_state:
-    st.session_state["edit_target_email"] = None
+if "edit_target_email" not in st.session_state: st.session_state["edit_target_email"] = None
 
 query_params = st.query_params
 if "auth_ok" in query_params and query_params["auth_ok"] == "true":
@@ -86,6 +77,12 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_email"] = "kshan@fiti.re.kr"
         st.session_state["current_user_role"] = "admin"
         st.session_state["current_user_name"] = "관리자"
+
+# 💡 [버그 완벽 해결] 언어 상태를 URL Query Parameter로 동기화하여 카테고리 이동 시 리셋 현상 방지
+if "lang" in query_params:
+    st.session_state["lang_select"] = "English (영어)" if query_params["lang"] == "en" else "한국어"
+elif "lang_select" not in st.session_state:
+    st.session_state["lang_select"] = "한국어"
 
 # =========================================================
 # ⏱️ 10분 자동 로그아웃 로직 & 중국 시간(CST) 설정
@@ -99,15 +96,14 @@ if st.session_state["logged_in"]:
             st.session_state["current_user_email"] = ""
             st.session_state["current_user_role"] = ""
             st.session_state["current_user_name"] = ""
-            if "auth_ok" in st.query_params:
-                del st.query_params["auth_ok"]
+            if "auth_ok" in st.query_params: del st.query_params["auth_ok"]
             del st.session_state["last_active_time"]
             st.session_state["auto_logout_alert"] = True
             st.rerun()
     st.session_state["last_active_time"] = china_time
 
 # =========================================================
-# 3. 다국어 텍스트 사전 및 언어 설정 (누락된 번역 완벽 보강)
+# 3. 다국어 텍스트 사전 및 언어 설정
 # =========================================================
 LANG_DICT = {
     "한국어": {
@@ -238,7 +234,6 @@ LANG_DICT = {
     }
 }
 
-if "lang_select" not in st.session_state: st.session_state["lang_select"] = "한국어"
 t = LANG_DICT.get(st.session_state["lang_select"], LANG_DICT["한국어"])
 
 # =========================================================
@@ -255,9 +250,11 @@ st.markdown("""
     section[data-testid="stSidebar"] div.stExpander { margin-bottom: 0.1rem !important; }
     section[data-testid="stSidebar"] hr { margin: 0.2rem 0 !important; }
     
-    div[data-testid="stSidebar"] div.stButton > button {
-        padding: 2px 6px !important; min-height: 22px !important; font-size: 12px !important; margin-top: -4px !important; margin-bottom: -4px !important; text-align: left !important;
+    div[data-testid="stSidebar"] div.stExpander button[kind="secondary"] {
+        background-color: transparent !important; border: none !important; color: #334155 !important; padding: 0 !important; box-shadow: none !important; font-size: 13px !important; justify-content: flex-start !important; height: auto !important; min-height: 0 !important; margin-top: -2px !important; margin-bottom: -2px !important;
     }
+    div[data-testid="stSidebar"] div.stExpander button[kind="secondary"]:hover { color: #2563EB !important; text-decoration: underline; }
+
     .fiti-header {
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
         padding: 22px 28px; border-radius: 10px; display: flex; align-items: center; gap: 22px; color: #FFFFFF; margin-bottom: 22px; box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
@@ -344,9 +341,8 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # =========================================================
-# 6. 상단 공식 배너 (다국어 매핑 적용)
+# 6. 상단 공식 배너
 # =========================================================
-# 💡 [요청 반영] 영어 번역 반영을 위한 인사말 동적 생성
 welcome_str = f"Welcome, <b>{st.session_state['current_user_name']}</b>" if st.session_state["lang_select"] == "English (영어)" else f"<b>{st.session_state['current_user_name']}</b>{t['welcome']}"
 role_str = t['role_admin'] if st.session_state['current_user_role']=='admin' else (t['role_bi'] if st.session_state['current_user_role']=='bi_user' else t['role_gen'])
 
@@ -391,6 +387,8 @@ except Exception:
 # 8. 사이드바 네비게이션
 # =========================================================
 st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
+current_lang_code = "en" if st.session_state["lang_select"] == "English (영어)" else "ko"
+st.query_params["lang"] = current_lang_code
 
 user_role = st.session_state["current_user_role"]
 all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"] if user_role == "general_user" else [
@@ -402,11 +400,12 @@ st.sidebar.markdown(f"#### {t['page_select']}")
 if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
 if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
 
+# 💡 [버그 완벽 해결] href 링크에 &lang={current_lang_code} 추가하여 리셋 방지
 for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     display_name = t["pages"].get(p_key, p_key)
-    st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true&lang={current_lang_code}" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
 kpi_container = st.sidebar.container()
@@ -415,9 +414,7 @@ kpi_container = st.sidebar.container()
 # 11. 사이드바 하단: [접속 계정] 및 [관리자 권한]
 # =========================================================
 st.sidebar.markdown("---")
-# 💡 [요청 반영] 접속 계정 텍스트 번역 연동
 st.sidebar.markdown(f"👤 **{t['account_info']}**: {st.session_state['current_user_name']}")
-# 💡 [요청 반영] 로그아웃 버튼 텍스트 번역 연동
 if st.sidebar.button(t['logout'], use_container_width=True):
     for k in ["logged_in", "current_user_email", "current_user_role", "current_user_name"]: st.session_state[k] = ""
     st.session_state["logged_in"] = False
@@ -425,7 +422,6 @@ if st.sidebar.button(t['logout'], use_container_width=True):
     st.rerun()
 
 if user_role in ["admin", "bi_user"]:
-    # 💡 [요청 반영] 관리자 권한 메뉴명 번역 연동
     with st.sidebar.expander(t["admin_menu"], expanded=False):
         st.markdown(f"##### {t['data_mgmt']}")
         if st.session_state["current_user_role"] == "admin":
@@ -746,7 +742,7 @@ col_25, col_26, target_categories = parsed_data["col_25"], parsed_data["col_26"]
 part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data["vendor_data_cache"]
 
 # =========================================================
-# 11. KPI 영역 채우기 (다국어 번역 매핑 완료)
+# 11. KPI 영역 채우기 (URL Parameter로 언어 상태 유지)
 # =========================================================
 with kpi_container:
     card_unit, display_period_name = t["unit"], t["periods"].get("전체 총계 누계", "전체 총계 누계")
@@ -757,8 +753,9 @@ with kpi_container:
         curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
         for bp_key in bi_periods_keys:
             is_p_active = (curr_p == bp_key)
-            disp_bp_key = t["periods"].get(bp_key, bp_key) # 💡 [요청 반영] 기간 선택 텍스트 번역 적용
-            st.markdown(f'<a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{"sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"}" style="font-weight: {"800" if is_p_active else "700"}; background-color: {"#003876" if is_p_active else "#F8FAFC"}; color: {"#FFFFFF" if is_p_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_p_active else "#CBD5E1"};" target="_self">{disp_bp_key}</a>', unsafe_allow_html=True)
+            disp_bp_key = t["periods"].get(bp_key, bp_key)
+            # 💡 [버그 완벽 해결] URL 주소 뒤에 언어(&lang=en)를 강제로 붙여서 새로고침 되어도 영어로 유지되게 만듦
+            st.markdown(f'<a href="?page={page_menu}&period={bp_key}&auth_ok=true&lang={current_lang_code}" class="{"sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"}" style="font-weight: {"800" if is_p_active else "700"}; background-color: {"#003876" if is_p_active else "#F8FAFC"}; color: {"#FFFFFF" if is_p_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_p_active else "#CBD5E1"};" target="_self">{disp_bp_key}</a>', unsafe_allow_html=True)
         if query_params.get("period") in bi_periods_keys: st.session_state["bi_period_mode"] = query_params.get("period")
         bi_period_mode = st.session_state.get("bi_period_mode", bi_periods_keys[0])
         display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
@@ -767,14 +764,12 @@ with kpi_container:
         bi_pack = t_kpi.get(bi_period_mode, t_kpi["전체 총계 누계"])
         total_25, total_26, diff_val, diff_rate = float(bi_pack["25"]), float(bi_pack["26"]), float(bi_pack["diff"]), float(bi_pack["rate"])
         
-        # 💡 [요청 반영] 서브 타이틀 텍스트 번역 적용
         bi_prefix = t.get("bi_gw", "BI_광주") if "광주" in page_menu else (t.get("bi_sh", "BI_상해") if "상해" in page_menu else t.get("bi_tot", "BI_종합"))
         card_sub_desc = f"{bi_prefix} [{display_period_name}]"
     else:
         all_biz_str = t.get("all_biz", "전체 사업 보기")
         sel_view = st.session_state.get("selected_biz_view", all_biz_str) if page_menu == "[접수기준] 사업별 실적 현황" else target_categories[0]
         
-        # 내부 로직 처리를 위해 한국어 키로 맵핑 복원
         logic_view = sel_view if sel_view in target_categories else "전체 사업 보기"
         
         if logic_view != "전체 사업 보기" and logic_view in target_categories:
@@ -803,7 +798,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (번역 연동)
+# 13. 본문 렌더러 및 라우팅
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -911,7 +906,6 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
         render_fullwidth_vertical_dashboard(f"🏢 {s_v}{perf_status_str}", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == all_vendor_str else "바이어명", disp_v["협력사명" if s_v == all_vendor_str else "바이어명"].tolist())
 
 elif page_menu.startswith("[BI_"):
-    # 💡 [요청 반영] 마곡/오창 거점별 실적 비교 제목까지 전부 번역 적용
     if "광주" in page_menu:
         chart_d = parsed_data["bi_gw_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
         center_title_prefix = f"🏭 [{t.get('bi_gw', 'BI_광주')}]"
