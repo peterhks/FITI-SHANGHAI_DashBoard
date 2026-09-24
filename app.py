@@ -107,7 +107,7 @@ if st.session_state["logged_in"]:
     st.session_state["last_active_time"] = china_time
 
 # =========================================================
-# 3. 다국어 텍스트 사전 및 언어 설정
+# 3. 다국어 텍스트 사전 및 언어 설정 (누락된 번역 완벽 보강)
 # =========================================================
 LANG_DICT = {
     "한국어": {
@@ -131,6 +131,27 @@ LANG_DICT = {
         "pie_title_25": "2025년 사업별 실적 비중",
         "pie_title_26": "2026년 사업별 실적 비중",
         "unit": "원",
+        "welcome": "님 환영합니다.",
+        "role_label": "권한",
+        "role_admin": "관리자",
+        "role_bi": "접수 + BI",
+        "role_gen": "접수",
+        "account_info": "접속 계정",
+        "logout": "시스템 잠금 (로그아웃)",
+        "admin_menu": "🛡️ 관리자 권한",
+        "bi_tot": "BI_종합",
+        "bi_sh": "BI_상해",
+        "bi_gw": "BI_광주",
+        "center_compare_title": "마곡 본원 vs 오창 분원 거점별 실적 비교",
+        "center_pie_25": "2025년 거점별 실적 비중",
+        "center_pie_26": "2026년 거점별 실적 비중",
+        "center_growth": "마곡 본원 vs 오창 분원 요약 비교",
+        "magok_title": "마곡 본원 세부 사업별 실적 현황",
+        "ochang_title": "오창 분원 세부 사업별 실적 현황",
+        "all_cat_title": "전체 12대 사업별 상세 실적 현황",
+        "all_biz": "전체 사업 보기",
+        "all_vendor": "전체 협력사 보기",
+        "perf_status": " 실적 현황",
         "pages": {
             "[접수기준] 종합 실적 현황": "[접수기준] 종합 실적 현황",
             "[접수기준] 사업별 실적 현황": "[접수기준] 사업별 실적 현황",
@@ -164,11 +185,6 @@ LANG_DICT = {
         "page_select": "📑 Select Page",
         "cat_select": "📌 Select Category",
         "period_select": "⏱️ [BI] Period Select",
-        "auth_title": "🔒 BI Security Auth",
-        "auth_input": "Enter password:",
-        "auth_fail": "Incorrect password.",
-        "auth_success": "🔓 BI Admin Mode Active",
-        "logout_btn": "Lock BI (Logout)",
         "kpi_25": "📅 '25 Total Performance",
         "kpi_26": "🚀 '26 Total Performance",
         "kpi_diff": "📈 Performance Diff",
@@ -178,6 +194,27 @@ LANG_DICT = {
         "pie_title_25": "2025 Performance Share by Business",
         "pie_title_26": "2026 Performance Share by Business",
         "unit": "KRW",
+        "welcome": "Welcome,",
+        "role_label": "Role",
+        "role_admin": "Admin",
+        "role_bi": "Reception + BI",
+        "role_gen": "Reception",
+        "account_info": "Account",
+        "logout": "Lock System (Logout)",
+        "admin_menu": "🛡️ Admin Privileges",
+        "bi_tot": "BI_Total",
+        "bi_sh": "BI_Shanghai",
+        "bi_gw": "BI_Gwangju",
+        "center_compare_title": "Magok vs Ochang Performance Comparison",
+        "center_pie_25": "2025 Share by Center",
+        "center_pie_26": "2026 Share by Center",
+        "center_growth": "Magok vs Ochang Summary",
+        "magok_title": "Magok Detailed Performance",
+        "ochang_title": "Ochang Detailed Performance",
+        "all_cat_title": "All 12 Categories Detailed Performance",
+        "all_biz": "All Businesses",
+        "all_vendor": "All Vendors",
+        "perf_status": " Performance",
         "pages": {
             "[접수기준] 종합 실적 현황": "[Receipt Basis] Overall Performance",
             "[접수기준] 사업별 실적 현황": "[Receipt Basis] Performance by Business",
@@ -213,52 +250,30 @@ st.markdown("""
     html, body, [class*="css"] {
         font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, Roboto, sans-serif !important;
     }
-    
     section[data-testid="stSidebar"] { padding-top: 0rem !important; }
     section[data-testid="stSidebar"] div.block-container { padding-top: 0.1rem !important; padding-bottom: 0.4rem !important; }
     section[data-testid="stSidebar"] div.stExpander { margin-bottom: 0.1rem !important; }
     section[data-testid="stSidebar"] hr { margin: 0.2rem 0 !important; }
     
     div[data-testid="stSidebar"] div.stButton > button {
-        padding: 2px 6px !important;
-        min-height: 22px !important;
-        font-size: 12px !important;
-        margin-top: -4px !important;
-        margin-bottom: -4px !important;
-        text-align: left !important;
+        padding: 2px 6px !important; min-height: 22px !important; font-size: 12px !important; margin-top: -4px !important; margin-bottom: -4px !important; text-align: left !important;
     }
-
     .fiti-header {
         background: linear-gradient(135deg, #002B5C 0%, #003876 100%);
-        padding: 22px 28px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        gap: 22px;
-        color: #FFFFFF;
-        margin-bottom: 22px;
-        box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
+        padding: 22px 28px; border-radius: 10px; display: flex; align-items: center; gap: 22px; color: #FFFFFF; margin-bottom: 22px; box-shadow: 0 4px 14px rgba(0, 43, 92, 0.18);
     }
-    .fiti-logo-text {
-        font-size: 28px; font-weight: 900; letter-spacing: -0.5px;
-        border-right: 1.5px solid rgba(255, 255, 255, 0.25); padding-right: 22px;
-    }
+    .fiti-logo-text { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; border-right: 1.5px solid rgba(255, 255, 255, 0.25); padding-right: 22px; }
     .fiti-title-main { font-size: 21px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.3px; }
     .fiti-title-sub { font-size: 13px; color: #D0E1FD; font-weight: 400; }
-
     .kpi-card {
-        background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;
-        padding: 20px 22px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
-        border-top: 4px solid #CBD5E1;
+        background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px 22px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04); border-top: 4px solid #CBD5E1;
     }
     .kpi-title { font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 8px; }
     .kpi-num { font-size: 26px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; }
     .kpi-sub { font-size: 12px; color: #94A3B8; margin-top: 6px; }
     .kpi-badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-top: 6px; }
-
     .sidebar-card-btn, .sidebar-card-btn-active {
-        display: block; width: 100%; border-radius: 8px; text-align: center;
-        font-size: 13px; padding: 6px 8px; margin-bottom: 2px; text-decoration: none;
+        display: block; width: 100%; border-radius: 8px; text-align: center; font-size: 13px; padding: 6px 8px; margin-bottom: 2px; text-decoration: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -329,8 +344,12 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # =========================================================
-# 6. 상단 공식 배너
+# 6. 상단 공식 배너 (다국어 매핑 적용)
 # =========================================================
+# 💡 [요청 반영] 영어 번역 반영을 위한 인사말 동적 생성
+welcome_str = f"Welcome, <b>{st.session_state['current_user_name']}</b>" if st.session_state["lang_select"] == "English (영어)" else f"<b>{st.session_state['current_user_name']}</b>{t['welcome']}"
+role_str = t['role_admin'] if st.session_state['current_user_role']=='admin' else (t['role_bi'] if st.session_state['current_user_role']=='bi_user' else t['role_gen'])
+
 st.markdown(f"""
 <div class="fiti-header">
     <div class="fiti-logo-text">FITI</div>
@@ -339,9 +358,9 @@ st.markdown(f"""
         <div class="fiti-title-sub">{t["sys_sub"]}</div>
     </div>
     <div style="text-align: right; font-size: 13px; color: #D0E1FD;">
-        <b>{st.session_state['current_user_name']}</b>님 환영합니다.<br>
+        {welcome_str}<br>
         <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px;">
-            권한: {'관리자' if st.session_state['current_user_role']=='admin' else ('접수 + BI' if st.session_state['current_user_role']=='bi_user' else '접수')}
+            {t['role_label']}: {role_str}
         </span>
     </div>
 </div>
@@ -362,17 +381,172 @@ elif os.path.exists(LOCAL_EXCEL_PATH):
 else:
     raw_bytes = None
 
+try:
+    temp_stream = io.BytesIO(raw_bytes)
+    total_sheets_count = len(pd.ExcelFile(temp_stream).sheet_names)
+except Exception:
+    total_sheets_count = 0
+
+# =========================================================
+# 8. 사이드바 네비게이션
+# =========================================================
+st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
+
+user_role = st.session_state["current_user_role"]
+all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"] if user_role == "general_user" else [
+    "[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황",
+    "[BI_종합] 사업별 실적 현황", "[BI_상해] 사업별 실적 현황", "[BI_광주] 사업별 실적 현황"
+]
+
+st.sidebar.markdown(f"#### {t['page_select']}")
+if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
+if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
+
+for p_key in all_pages_keys:
+    is_active = (st.session_state["current_page"] == p_key)
+    btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
+    display_name = t["pages"].get(p_key, p_key)
+    st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
+
+page_menu = st.session_state["current_page"]
+kpi_container = st.sidebar.container()
+
+# =========================================================
+# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한]
+# =========================================================
+st.sidebar.markdown("---")
+# 💡 [요청 반영] 접속 계정 텍스트 번역 연동
+st.sidebar.markdown(f"👤 **{t['account_info']}**: {st.session_state['current_user_name']}")
+# 💡 [요청 반영] 로그아웃 버튼 텍스트 번역 연동
+if st.sidebar.button(t['logout'], use_container_width=True):
+    for k in ["logged_in", "current_user_email", "current_user_role", "current_user_name"]: st.session_state[k] = ""
+    st.session_state["logged_in"] = False
+    if "auth_ok" in st.query_params: del st.query_params["auth_ok"]
+    st.rerun()
+
+if user_role in ["admin", "bi_user"]:
+    # 💡 [요청 반영] 관리자 권한 메뉴명 번역 연동
+    with st.sidebar.expander(t["admin_menu"], expanded=False):
+        st.markdown(f"##### {t['data_mgmt']}")
+        if st.session_state["current_user_role"] == "admin":
+            uploaded_file = st.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                file_bytes = uploaded_file.getvalue()
+                with open(LOCAL_EXCEL_PATH, "wb") as f: f.write(file_bytes)
+                st.session_state["persistent_file_bytes"] = file_bytes
+                st.cache_data.clear()
+                st.success(t["sync_success"])
+                st.rerun()
+        else:
+            st.caption(t["admin_caption"])
+            
+        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-5px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
+            
+        st.markdown("---")
+        st.markdown("#### 👥 등록된 담당자 목록")
+        
+        cat_reception = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "general_user"}
+        cat_reception_bi = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "bi_user"}
+        cat_admin = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "admin"}
+        
+        st.markdown("<div style='margin-top: -5px; margin-bottom: 2px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
+        if cat_reception:
+            for em, info in cat_reception.items():
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
+        else:
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
+            
+        st.markdown("<div style='margin-top: 5px; margin-bottom: 2px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
+        if cat_reception_bi:
+            for em, info in cat_reception_bi.items():
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
+        else:
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
+            
+        st.markdown("<div style='margin-top: 5px; margin-bottom: 2px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
+        if cat_admin:
+            for em, info in cat_admin.items():
+                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
+                    st.session_state["edit_target_email"] = em
+                    st.rerun()
+        else:
+            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
+            
+        st.markdown("---")
+        
+        edit_email = st.session_state.get("edit_target_email", None)
+        is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
+        
+        if is_editing:
+            st.markdown(f"#### ✏️ 담당자 수정 ({edit_email})")
+            curr_info = st.session_state["user_db"][edit_email]
+            default_name, default_pw, curr_role = curr_info["name"], curr_info["pw"], curr_info["role"]
+            default_cat_idx = 0 if curr_role == "general_user" else (1 if curr_role == "bi_user" else 2)
+        else:
+            st.markdown("#### ➕ 담당자 추가")
+            default_name, default_pw, default_cat_idx = "", "", 0
+
+        with st.form("add_user_form"):
+            new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: gdhong", disabled=is_editing, label_visibility="collapsed")
+            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동", label_visibility="collapsed")
+            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
+            new_category = st.selectbox("권한", ["접수", "접수 + BI", "관리자"], index=default_cat_idx, label_visibility="collapsed")
+            
+            btn_label = "담당자 정보 수정" if is_editing else "담당자 등록"
+            if st.form_submit_button(btn_label, type="primary", use_container_width=True):
+                target_key = edit_email if is_editing else new_email.strip()
+                if target_key and new_pw.strip():
+                    if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
+                    assigned_role = "general_user" if new_category == "접수" else ("bi_user" if new_category == "접수 + BI" else "admin")
+                    st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
+                    save_user_db(st.session_state["user_db"])
+                    st.session_state["edit_target_email"] = None
+                    st.success(f"✅ {'수정' if is_editing else '등록'} 완료!")
+                    st.rerun()
+                else: st.error("아이디와 비밀번호는 필수입니다.")
+        
+        if is_editing:
+            if st.button("➕ 신규 등록 모드로 전환", type="primary", use_container_width=True):
+                st.session_state["edit_target_email"] = None
+                st.rerun()
+
+        target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()), label_visibility="collapsed")
+        if st.button("선택한 담당자 삭제", type="primary", use_container_width=True):
+            if target_delete_email != "선택하세요.":
+                if target_delete_email == st.session_state["current_user_email"]:
+                    st.error("현재 로그인 중인 계정은 삭제 불가합니다.")
+                else:
+                    del st.session_state["user_db"][target_delete_email]
+                    save_user_db(st.session_state["user_db"])
+                    if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
+                    st.success("🗑️ 영구 삭제 완료!")
+                    st.rerun()
+
+    with st.sidebar.expander("📋 최근 로그인 감사 로그", expanded=False):
+        if st.session_state["login_history"]:
+            df_log = pd.DataFrame(st.session_state["login_history"])
+            df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
+            unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
+            sel_date = st.selectbox("날짜별 로그", unique_dates, label_visibility="collapsed")
+            f_log_df = df_log[df_log["날짜"].astype(str) == sel_date] if sel_date != "전체 날짜 보기" else df_log
+            st.dataframe(f_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
+            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
+        else:
+            st.caption("기록 없음")
+
 if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
 
 # =========================================================
-# 8. 초고속 데이터 파싱 (NameError 완전 해결)
+# 10. 초고속 데이터 파싱
 # =========================================================
 @st.cache_data
 def load_and_parse_all_data(file_bytes_val):
-    
-    # 💡 [버그 완벽 해결] Streamlit 클라우드 환경 캐싱 오류(NameError) 방지를 위해 함수 내부에 배치
     def clean_series(series):
         cleaned = series.astype(str).str.replace(',', '').str.replace('₩', '').str.strip()
         cleaned = cleaned.replace(['-', '–', '—', 'nan', 'NaN', 'None', ''], '0')
@@ -572,183 +746,46 @@ col_25, col_26, target_categories = parsed_data["col_25"], parsed_data["col_26"]
 part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data["vendor_data_cache"]
 
 # =========================================================
-# 9. 사이드바 네비게이션
+# 11. KPI 영역 채우기 (다국어 번역 매핑 완료)
 # =========================================================
-st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
+with kpi_container:
+    card_unit, display_period_name = t["unit"], t["periods"].get("전체 총계 누계", "전체 총계 누계")
+    if page_menu.startswith("[BI_"):
+        st.markdown("---")
+        st.markdown(f"#### {t['period_select']}")
+        bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
+        curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
+        for bp_key in bi_periods_keys:
+            is_p_active = (curr_p == bp_key)
+            disp_bp_key = t["periods"].get(bp_key, bp_key) # 💡 [요청 반영] 기간 선택 텍스트 번역 적용
+            st.markdown(f'<a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{"sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"}" style="font-weight: {"800" if is_p_active else "700"}; background-color: {"#003876" if is_p_active else "#F8FAFC"}; color: {"#FFFFFF" if is_p_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_p_active else "#CBD5E1"};" target="_self">{disp_bp_key}</a>', unsafe_allow_html=True)
+        if query_params.get("period") in bi_periods_keys: st.session_state["bi_period_mode"] = query_params.get("period")
+        bi_period_mode = st.session_state.get("bi_period_mode", bi_periods_keys[0])
+        display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
 
-user_role = st.session_state["current_user_role"]
-all_pages_keys = ["[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황"] if user_role == "general_user" else [
-    "[접수기준] 종합 실적 현황", "[접수기준] 사업별 실적 현황", "[접수기준] 바이어 실적 현황", "[접수기준] 협력사 실적 현황",
-    "[BI_종합] 사업별 실적 현황", "[BI_상해] 사업별 실적 현황", "[BI_광주] 사업별 실적 현황"
-]
-
-st.sidebar.markdown(f"#### {t['page_select']}")
-if "current_page" not in st.session_state or st.session_state["current_page"] not in all_pages_keys: st.session_state["current_page"] = all_pages_keys[0]
-if "page" in query_params and query_params["page"] in all_pages_keys: st.session_state["current_page"] = query_params["page"]
-
-for p_key in all_pages_keys:
-    is_active = (st.session_state["current_page"] == p_key)
-    btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
-    display_name = t["pages"].get(p_key, p_key)
-    st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
-
-page_menu = st.session_state["current_page"]
-
-# =========================================================
-# 10. 상단 KPI 기간 선택
-# =========================================================
-card_unit, display_period_name = t["unit"], "전체 총계 누계"
-if page_menu.startswith("[BI_"):
-    st.sidebar.markdown("---")
-    st.sidebar.markdown(f"#### {t['period_select']}")
-    bi_periods_keys = ["전체 총계 누계", "사업 소계 누계", "사업 소계 월계"]
-    curr_p = query_params.get("period", None) if query_params.get("period") in bi_periods_keys else st.session_state.get("bi_period_mode", bi_periods_keys[0])
-    for bp_key in bi_periods_keys:
-        is_p_active = (curr_p == bp_key)
-        st.sidebar.markdown(f'<a href="?page={page_menu}&period={bp_key}&auth_ok=true" class="{"sidebar-card-btn-active" if is_p_active else "sidebar-card-btn"}" style="font-weight: {"800" if is_p_active else "700"}; background-color: {"#003876" if is_p_active else "#F8FAFC"}; color: {"#FFFFFF" if is_p_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_p_active else "#CBD5E1"};" target="_self">{bp_key}</a>', unsafe_allow_html=True)
-    if query_params.get("period") in bi_periods_keys: st.session_state["bi_period_mode"] = query_params.get("period")
-    bi_period_mode = st.session_state.get("bi_period_mode", bi_periods_keys[0])
-    display_period_name = t["periods"].get(bi_period_mode, bi_period_mode)
-
-    t_kpi = parsed_data["bi_gw_k"] if "광주" in page_menu else (parsed_data["bi_sh_k"] if "상해" in page_menu else parsed_data["bi_tot_k"])
-    bi_pack = t_kpi.get(bi_period_mode, t_kpi["전체 총계 누계"])
-    total_25, total_26, diff_val, diff_rate = float(bi_pack["25"]), float(bi_pack["26"]), float(bi_pack["diff"]), float(bi_pack["rate"])
-    card_sub_desc = f"{'BI_광주' if '광주' in page_menu else ('BI_상해' if '상해' in page_menu else 'BI_종합')} [{display_period_name}]"
-else:
-    sel_view = st.session_state.get("selected_biz_view", "전체 사업 보기") if page_menu == "[접수기준] 사업별 실적 현황" else target_categories[0]
-    if sel_view != "전체 사업 보기" and sel_view in target_categories:
-        t_row = summary_chart[summary_chart["표준사업구분"] == sel_view]
-        total_25, total_26 = float(t_row[col_25].sum()) if not t_row.empty else 0.0, float(t_row[col_26].sum()) if not t_row.empty else 0.0
-        card_sub_desc = f"[{t['categories_map'].get(sel_view, sel_view)}] Total"
+        t_kpi = parsed_data["bi_gw_k"] if "광주" in page_menu else (parsed_data["bi_sh_k"] if "상해" in page_menu else parsed_data["bi_tot_k"])
+        bi_pack = t_kpi.get(bi_period_mode, t_kpi["전체 총계 누계"])
+        total_25, total_26, diff_val, diff_rate = float(bi_pack["25"]), float(bi_pack["26"]), float(bi_pack["diff"]), float(bi_pack["rate"])
+        
+        # 💡 [요청 반영] 서브 타이틀 텍스트 번역 적용
+        bi_prefix = t.get("bi_gw", "BI_광주") if "광주" in page_menu else (t.get("bi_sh", "BI_상해") if "상해" in page_menu else t.get("bi_tot", "BI_종합"))
+        card_sub_desc = f"{bi_prefix} [{display_period_name}]"
     else:
-        total_25, total_26 = float(summary_chart[col_25].sum()), float(summary_chart[col_26].sum())
-        card_sub_desc = "TOTAL Summary"
-    diff_val = total_26 - total_25
-    diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
-
-# =========================================================
-# 11. 사이드바 하단: [접속 계정] 및 [관리자 권한]
-# =========================================================
-st.sidebar.markdown("---")
-st.sidebar.markdown(f"👤 **접속 계정**: {st.session_state['current_user_name']}")
-if st.sidebar.button("시스템 잠금 (로그아웃)", use_container_width=True):
-    for k in ["logged_in", "current_user_email", "current_user_role", "current_user_name"]: st.session_state[k] = ""
-    st.session_state["logged_in"] = False
-    if "auth_ok" in st.query_params: del st.query_params["auth_ok"]
-    st.rerun()
-
-if user_role in ["admin", "bi_user"]:
-    with st.sidebar.expander("🛡️ 관리자 권한", expanded=False):
-        st.markdown(f"##### {t['data_mgmt']}")
-        if st.session_state["current_user_role"] == "admin":
-            uploaded_file = st.file_uploader(t["admin_upload"], type=["xlsx", "csv"], label_visibility="collapsed")
-            if uploaded_file is not None:
-                file_bytes = uploaded_file.getvalue()
-                with open(LOCAL_EXCEL_PATH, "wb") as f: f.write(file_bytes)
-                st.session_state["persistent_file_bytes"] = file_bytes
-                st.cache_data.clear()
-                st.success(t["sync_success"])
-                st.rerun()
-        else:
-            st.caption(t["admin_caption"])
-            
-        st.markdown(f"<p style='font-size:10px; color:#64748B; margin-top:-5px; margin-bottom:2px; white-space:nowrap;'>📂 파일 연동 중 (시트수: {total_sheets_count}개)</p>", unsafe_allow_html=True)
-            
-        st.markdown("---")
-        st.markdown("#### 👥 등록된 담당자 목록")
+        all_biz_str = t.get("all_biz", "전체 사업 보기")
+        sel_view = st.session_state.get("selected_biz_view", all_biz_str) if page_menu == "[접수기준] 사업별 실적 현황" else target_categories[0]
         
-        cat_reception = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "general_user"}
-        cat_reception_bi = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "bi_user"}
-        cat_admin = {em: info for em, info in st.session_state["user_db"].items() if info["role"] == "admin"}
+        # 내부 로직 처리를 위해 한국어 키로 맵핑 복원
+        logic_view = sel_view if sel_view in target_categories else "전체 사업 보기"
         
-        st.markdown("<div style='margin-top: -5px;'><b>[ 접수 ]</b></div>", unsafe_allow_html=True)
-        if cat_reception:
-            for em, info in cat_reception.items():
-                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
-                    st.session_state["edit_target_email"] = em
-                    st.rerun()
+        if logic_view != "전체 사업 보기" and logic_view in target_categories:
+            t_row = summary_chart[summary_chart["표준사업구분"] == logic_view]
+            total_25, total_26 = float(t_row[col_25].sum()) if not t_row.empty else 0.0, float(t_row[col_26].sum()) if not t_row.empty else 0.0
+            card_sub_desc = f"[{t['categories_map'].get(logic_view, logic_view)}] Total"
         else:
-            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
-            
-        st.markdown("<div style='margin-top: 5px;'><b>[ 접수 + BI ]</b></div>", unsafe_allow_html=True)
-        if cat_reception_bi:
-            for em, info in cat_reception_bi.items():
-                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
-                    st.session_state["edit_target_email"] = em
-                    st.rerun()
-        else:
-            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
-            
-        st.markdown("<div style='margin-top: 5px;'><b>[ 관리자 ]</b></div>", unsafe_allow_html=True)
-        if cat_admin:
-            for em, info in cat_admin.items():
-                if st.button(f"• {info['name']} ({em})", key=f"btn_{em}", use_container_width=True):
-                    st.session_state["edit_target_email"] = em
-                    st.rerun()
-        else:
-            st.markdown("<div style='font-size:11px; margin-top: -5px; padding-left: 10px; color:gray;'>• 인원 없음</div>", unsafe_allow_html=True)
-            
-        st.markdown("---")
-        
-        edit_email = st.session_state.get("edit_target_email", None)
-        is_editing = edit_email is not None and edit_email in st.session_state["user_db"]
-        
-        if is_editing:
-            st.markdown(f"#### ✏️ 담당자 수정 ({edit_email})")
-            curr_info = st.session_state["user_db"][edit_email]
-            default_name, default_pw, curr_role = curr_info["name"], curr_info["pw"], curr_info["role"]
-            default_cat_idx = 0 if curr_role == "general_user" else (1 if curr_role == "bi_user" else 2)
-        else:
-            st.markdown("#### ➕ 담당자 추가")
-            default_name, default_pw, default_cat_idx = "", "", 0
-
-        with st.form("add_user_form"):
-            new_email = st.text_input("아이디 또는 이메일", value=edit_email if is_editing else "", placeholder="예: gdhong", disabled=is_editing, label_visibility="collapsed")
-            new_name = st.text_input("담당자 성명", value=default_name, placeholder="홍길동", label_visibility="collapsed")
-            new_pw = st.text_input("비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-            new_category = st.selectbox("권한", ["접수", "접수 + BI", "관리자"], index=default_cat_idx, label_visibility="collapsed")
-            
-            btn_label = "담당자 정보 수정" if is_editing else "담당자 등록"
-            if st.form_submit_button(btn_label, type="primary", use_container_width=True):
-                target_key = edit_email if is_editing else new_email.strip()
-                if target_key and new_pw.strip():
-                    if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
-                    assigned_role = "general_user" if new_category == "접수" else ("bi_user" if new_category == "접수 + BI" else "admin")
-                    st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
-                    save_user_db(st.session_state["user_db"])
-                    st.session_state["edit_target_email"] = None
-                    st.success(f"✅ {'수정' if is_editing else '등록'} 완료!")
-                    st.rerun()
-                else: st.error("아이디와 비밀번호는 필수입니다.")
-        
-        if is_editing:
-            if st.button("➕ 신규 등록 모드로 전환", type="primary", use_container_width=True):
-                st.session_state["edit_target_email"] = None
-                st.rerun()
-
-        target_delete_email = st.selectbox("삭제할 담당자 선택", ["선택하세요."] + list(st.session_state["user_db"].keys()), label_visibility="collapsed")
-        if st.button("선택한 담당자 삭제", type="primary", use_container_width=True):
-            if target_delete_email != "선택하세요.":
-                if target_delete_email == st.session_state["current_user_email"]:
-                    st.error("현재 로그인 중인 계정은 삭제 불가합니다.")
-                else:
-                    del st.session_state["user_db"][target_delete_email]
-                    save_user_db(st.session_state["user_db"])
-                    if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
-                    st.success("🗑️ 영구 삭제 완료!")
-                    st.rerun()
-
-    with st.sidebar.expander("📋 최근 로그인 감사 로그", expanded=False):
-        if st.session_state["login_history"]:
-            df_log = pd.DataFrame(st.session_state["login_history"])
-            df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
-            unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
-            sel_date = st.selectbox("날짜별 로그", unique_dates, label_visibility="collapsed")
-            f_log_df = df_log[df_log["날짜"].astype(str) == sel_date] if sel_date != "전체 날짜 보기" else df_log
-            st.dataframe(f_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
-            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
-        else:
-            st.caption("기록 없음")
+            total_25, total_26 = float(summary_chart[col_25].sum()), float(summary_chart[col_26].sum())
+            card_sub_desc = "TOTAL Summary"
+        diff_val = total_26 - total_25
+        diff_rate = (diff_val / total_25 * 100) if total_25 != 0 else 0.0
 
 # =========================================================
 # 12. 상단 종합 KPI 카드 렌더링
@@ -766,7 +803,7 @@ st.write("")
 st.markdown("---")
 
 # =========================================================
-# 13. 본문 렌더러 및 라우팅 (BI 종합 대시보드 포함)
+# 13. 본문 렌더러 및 라우팅 (번역 연동)
 # =========================================================
 def wrap_text_for_axis(text, max_len=9):
     text_str = str(text)
@@ -849,9 +886,10 @@ if page_menu == "[접수기준] 종합 실적 현황":
     render_fullwidth_vertical_dashboard(f"📌 {cur_page_disp}", "📈 Business Performance Diff & Growth Rate", "Summary Table", summary_chart, "표준사업구분", target_categories)
 
 elif page_menu == "[접수기준] 사업별 실적 현황":
-    sel_v = st.selectbox("Select Business:", ["전체 사업 보기"] + target_categories, key="sel_biz_v")
-    df_v = summary_chart.copy() if sel_v == "전체 사업 보기" else calc_summary[calc_summary["표준사업구분"] == sel_v].copy()
-    render_fullwidth_vertical_dashboard(f"🏢 {cur_page_disp} ({sel_v})", "📈 Detailed Performance Diff", "Detailed Summary Table", df_v.rename(columns={col_25: "2025년 실적", col_26: "2026년 실적"}), "표준사업구분" if sel_v == "전체 사업 보기" else "세부항목", target_categories if sel_v == "전체 사업 보기" else df_v["세부항목"].unique().tolist())
+    all_biz_str = t.get("all_biz", "전체 사업 보기")
+    sel_v = st.selectbox("Select Business:", [all_biz_str] + target_categories, key="sel_biz_v")
+    df_v = summary_chart.copy() if sel_v == all_biz_str else calc_summary[calc_summary["표준사업구분"] == sel_v].copy()
+    render_fullwidth_vertical_dashboard(f"🏢 {cur_page_disp} ({sel_v})", "📈 Detailed Performance Diff", "Detailed Summary Table", df_v.rename(columns={col_25: "2025년 실적", col_26: "2026년 실적"}), "표준사업구분" if sel_v == all_biz_str else "세부항목", target_categories if sel_v == all_biz_str else df_v["세부항목"].unique().tolist())
 
 elif page_menu == "[접수기준] 바이어 실적 현황":
     sel_b = st.selectbox("Select Business:", target_categories, key="sel_t3_b")
@@ -864,27 +902,30 @@ elif page_menu == "[접수기준] 협력사 실적 현황":
     c_b, c_v = st.columns([4, 6])
     with c_b: s_b = st.selectbox("Select Business:", target_categories, key="t4_b")
     v_df = vendor_data_cache.get(s_b, pd.DataFrame())
+    all_vendor_str = t.get("all_vendor", "전체 협력사 보기")
     if not v_df.empty:
         v_sum = v_df.groupby("협력사명", as_index=False)[["2025년 실적", "2026년 실적"]].sum().sort_values(by="2026년 실적", ascending=False).reset_index(drop=True)
-        with c_v: s_v = st.selectbox("Select Vendor:", ["전체 협력사 보기"] + v_sum["협력사명"].tolist(), key="t4_v")
-        disp_v = v_sum.head(6) if s_v == "전체 협력사 보기" else v_df[v_df["협력사명"] == s_v].groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
-        render_fullwidth_vertical_dashboard(f"🏢 {s_v} 실적 현황", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == "전체 협력사 보기" else "바이어명", disp_v["협력사명" if s_v == "전체 협력사 보기" else "바이어명"].tolist())
+        with c_v: s_v = st.selectbox("Select Vendor:", [all_vendor_str] + v_sum["협력사명"].tolist(), key="t4_v")
+        disp_v = v_sum.head(6) if s_v == all_vendor_str else v_df[v_df["협력사명"] == s_v].groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum()
+        perf_status_str = t.get("perf_status", " 실적 현황")
+        render_fullwidth_vertical_dashboard(f"🏢 {s_v}{perf_status_str}", "📈 Vendor Performance Diff", "Vendor Summary Table", disp_v, "협력사명" if s_v == all_vendor_str else "바이어명", disp_v["협력사명" if s_v == all_vendor_str else "바이어명"].tolist())
 
 elif page_menu.startswith("[BI_"):
+    # 💡 [요청 반영] 마곡/오창 거점별 실적 비교 제목까지 전부 번역 적용
     if "광주" in page_menu:
         chart_d = parsed_data["bi_gw_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
-        center_title_prefix = "🏭 [BI_광주]"
+        center_title_prefix = f"🏭 [{t.get('bi_gw', 'BI_광주')}]"
     elif "상해" in page_menu:
         chart_d = parsed_data["bi_sh_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
-        center_title_prefix = "🏭 [BI_상해]"
+        center_title_prefix = f"🏭 [{t.get('bi_sh', 'BI_상해')}]"
     else:
         chart_d = parsed_data["bi_tot_c"]["누계" if bi_period_mode == "전체 총계 누계" else ("월계" if "월계" in bi_period_mode else "누계")]
-        center_title_prefix = "📊 [BI_종합]"
+        center_title_prefix = f"📊 [{t.get('bi_tot', 'BI_종합')}]"
 
     mag_df = chart_d[chart_d["표준사업구분"].isin(MAGOK_CATEGORIES)].copy()
     och_df = chart_d[chart_d["표준사업구분"].isin(OCHANG_CATEGORIES)].copy()
 
-    st.subheader(f"📍 {center_title_prefix} 마곡 본원 vs 오창 분원 거점별 실적 비교 ({display_period_name})")
+    st.subheader(f"📍 {center_title_prefix} {t.get('center_compare_title', '마곡 본원 vs 오창 분원 거점별 실적 비교')} ({display_period_name})")
     
     mag_25 = mag_df["2025년 실적"].sum()
     mag_26 = mag_df["2026년 실적"].sum()
@@ -899,12 +940,12 @@ elif page_menu.startswith("[BI_"):
     cp1, cp2 = st.columns(2)
     ccol = {"마곡 본원 (Magok)": "#1D4ED8", "오창 분원 (Ochang)": "#10B981"}
     with cp1:
-        fp1 = px.pie(c_pie_df, names="거점구분", values="2025년 실적", hole=0.6, title="2025년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
+        fp1 = px.pie(c_pie_df, names="거점구분", values="2025년 실적", hole=0.6, title=t.get("center_pie_25", "2025년 거점별 실적 비중"), color="거점구분", color_discrete_map=ccol)
         fp1.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
         fp1.update_layout(height=460, margin=dict(t=60, b=30, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5))
         st.plotly_chart(fp1, use_container_width=True)
     with cp2:
-        fp2 = px.pie(c_pie_df, names="거점구분", values="2026년 실적", hole=0.6, title="2026년 거점별 실적 비중", color="거점구분", color_discrete_map=ccol)
+        fp2 = px.pie(c_pie_df, names="거점구분", values="2026년 실적", hole=0.6, title=t.get("center_pie_26", "2026년 거점별 실적 비중"), color="거점구분", color_discrete_map=ccol)
         fp2.update_traces(textposition='inside', textinfo='label+percent', textfont=dict(size=14, color="#FFFFFF", weight="bold"))
         fp2.update_layout(height=460, margin=dict(t=60, b=30, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.22, xanchor="center", x=0.5))
         st.plotly_chart(fp2, use_container_width=True)
@@ -915,16 +956,16 @@ elif page_menu.startswith("[BI_"):
     center_comp_df = c_pie_df.copy()
     center_comp_df["증감액"] = center_comp_df["2026년 실적"] - center_comp_df["2025년 실적"]
     center_comp_df["증감률"] = ((center_comp_df["증감액"] / center_comp_df["2025년 실적"].replace(0, pd.NA)) * 100).fillna(0.0)
-    render_fullwidth_vertical_dashboard(f"{center_title_prefix} 마곡 본원 vs 오창 분원 요약 비교", "📈 Center Growth Comparison", "Magok & Ochang Summary Table", center_comp_df, "거점구분", ["마곡 본원 (Magok)", "오창 분원 (Ochang)"])
+    render_fullwidth_vertical_dashboard(f"{center_title_prefix} {t.get('center_growth', '마곡 본원 vs 오창 분원 요약 비교')}", "📈 Center Growth Comparison", "Magok & Ochang Summary Table", center_comp_df, "거점구분", ["마곡 본원 (Magok)", "오창 분원 (Ochang)"])
 
     st.write("")
     st.markdown("---")
-    render_fullwidth_vertical_dashboard(f"🏛️ 마곡 본원 세부 사업별 실적 현황", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
+    render_fullwidth_vertical_dashboard(f"🏛️ {t.get('magok_title', '마곡 본원 세부 사업별 실적 현황')}", "📈 Magok Diff", "Magok Table", mag_df, "표준사업구분", MAGOK_CATEGORIES)
     
     st.write("")
     st.markdown("---")
-    render_fullwidth_vertical_dashboard(f"🏭 오창 분원 세부 사업별 실적 현황", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
+    render_fullwidth_vertical_dashboard(f"🏭 {t.get('ochang_title', '오창 분원 세부 사업별 실적 현황')}", "📈 Ochang Diff", "Ochang Table", och_df, "표준사업구분", OCHANG_CATEGORIES)
 
     st.write("")
     st.markdown("---")
-    render_fullwidth_vertical_dashboard(f"{center_title_prefix} 전체 12대 사업별 상세 실적 현황", "📈 All Categories Performance Diff", "All Categories Detailed Summary Table", chart_d, "표준사업구분", FULL_BI_CATEGORIES)
+    render_fullwidth_vertical_dashboard(f"{center_title_prefix} {t.get('all_cat_title', '전체 12대 사업별 상세 실적 현황')}", "📈 All Categories Performance Diff", "All Categories Detailed Summary Table", chart_d, "표준사업구분", FULL_BI_CATEGORIES)
