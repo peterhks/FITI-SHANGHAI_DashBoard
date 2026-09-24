@@ -78,7 +78,7 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_role"] = "admin"
         st.session_state["current_user_name"] = "관리자"
 
-# 💡 [버그 완벽 해결] 언어 상태 충돌 방지: 최초 접속 시에만 URL 파라미터 확인, 이후에는 선택값 유지
+# 💡 언어 상태 충돌 방지: 최초 접속 시에만 URL 파라미터 확인, 이후에는 선택값 유지
 if "lang_select" not in st.session_state:
     if "lang" in query_params:
         st.session_state["lang_select"] = "English (영어)" if query_params["lang"] == "en" else "한국어"
@@ -149,6 +149,11 @@ LANG_DICT = {
         "all_biz": "전체 사업 보기",
         "all_vendor": "전체 협력사 보기",
         "perf_status": " 실적 현황",
+        # 💡 [요청 반영] 신규 텍스트 번역
+        "login_log": "로그인 기록 로그",
+        "date_range": "날짜 및 기간 지정",
+        "download_csv": "📥 다운로드 (CSV)",
+        "no_record": "기록 없음",
         "pages": {
             "[접수기준] 종합 실적 현황": "[접수기준] 종합 실적 현황",
             "[접수기준] 사업별 실적 현황": "[접수기준] 사업별 실적 현황",
@@ -212,6 +217,11 @@ LANG_DICT = {
         "all_biz": "All Businesses",
         "all_vendor": "All Vendors",
         "perf_status": " Performance",
+        # 💡 [요청 반영] 신규 텍스트 번역
+        "login_log": "Login History Log",
+        "date_range": "Select Date Range",
+        "download_csv": "📥 Download (CSV)",
+        "no_record": "No records",
         "pages": {
             "[접수기준] 종합 실적 현황": "[Receipt Basis] Overall Performance",
             "[접수기준] 사업별 실적 현황": "[Receipt Basis] Performance by Business",
@@ -389,8 +399,6 @@ except Exception:
 # =========================================================
 st.sidebar.selectbox("🌐 Language", ["한국어", "English (영어)"], key="lang_select", label_visibility="collapsed")
 current_lang_code = "en" if st.session_state["lang_select"] == "English (영어)" else "ko"
-
-# 💡 [버그 완벽 해결] 사이드바 언어 갱신 시 주소창(query param)에도 언어 코드 실시간 적용
 st.query_params["lang"] = current_lang_code
 
 user_role = st.session_state["current_user_role"]
@@ -407,7 +415,6 @@ for p_key in all_pages_keys:
     is_active = (st.session_state["current_page"] == p_key)
     btn_class = "sidebar-card-btn-active" if is_active else "sidebar-card-btn"
     display_name = t["pages"].get(p_key, p_key)
-    # 카테고리 링크 클릭 시에도 &lang={current_lang_code} 가 붙어서 리셋을 완벽 방어함
     st.sidebar.markdown(f'<a href="?page={p_key}&auth_ok=true&lang={current_lang_code}" class="{btn_class}" style="font-weight: {"800" if is_active else "700"}; background-color: {"#003876" if is_active else "#F8FAFC"}; color: {"#FFFFFF" if is_active else "#0F172A"}; border: 1.5px solid {"#001E3D" if is_active else "#CBD5E1"};" target="_self">{display_name}</a>', unsafe_allow_html=True)
 
 page_menu = st.session_state["current_page"]
@@ -525,18 +532,41 @@ if user_role in ["admin", "bi_user"]:
                     st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
-    with st.sidebar.expander("📋 최근 로그인 감사 로그", expanded=False):
-        if st.session_state["login_history"]:
-            df_log = pd.DataFrame(st.session_state["login_history"])
-            df_log["날짜"] = pd.to_datetime(df_log["time"]).dt.date
-            unique_dates = ["전체 날짜 보기"] + sorted(df_log["날짜"].astype(str).unique().tolist(), reverse=True)
-            sel_date = st.selectbox("날짜별 로그", unique_dates, label_visibility="collapsed")
-            f_log_df = df_log[df_log["날짜"].astype(str) == sel_date] if sel_date != "전체 날짜 보기" else df_log
-            st.dataframe(f_log_df[["time", "email", "name", "status"]].tail(10), hide_index=True, use_container_width=True)
-            st.download_button("📥 다운로드 (CSV)", data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
+    # 💡 [요청 반영] 로그인 기록 로그 클릭 시 실시간 데이터 호출 & 기간(Date Range) 필터 지정 적용 
+    with st.sidebar.expander(f"📋 {t.get('login_log', '로그인 기록 로그')}", expanded=False):
+        current_history = load_login_history() # 열 때마다 무조건 즉시 최신화
+        if current_history:
+            df_log = pd.DataFrame(current_history)
+            df_log["time_obj"] = pd.to_datetime(df_log["time"])
+            df_log["날짜"] = df_log["time_obj"].dt.date
+            
+            min_date = df_log["날짜"].min()
+            max_date = df_log["날짜"].max()
+            
+            # 날짜 기간(Range) 선택 입력
+            sel_date_range = st.date_input(t.get("date_range", "날짜 및 기간 지정"), value=(min_date, max_date), min_value=min_date, max_value=max_date)
+            
+            if isinstance(sel_date_range, tuple) and len(sel_date_range) == 2:
+                s_date, e_date = sel_date_range
+                f_log_df = df_log[(df_log["날짜"] >= s_date) & (df_log["날짜"] <= e_date)]
+            elif isinstance(sel_date_range, tuple) and len(sel_date_range) == 1:
+                s_date = sel_date_range[0]
+                f_log_df = df_log[df_log["날짜"] == s_date]
+            elif not isinstance(sel_date_range, tuple):
+                f_log_df = df_log[df_log["날짜"] == sel_date_range]
+            else:
+                f_log_df = df_log
+                
+            f_log_df = f_log_df.sort_values("time_obj", ascending=False) # 최신순
+            
+            st.dataframe(f_log_df[["time", "email", "name", "status"]], hide_index=True, use_container_width=True)
+            st.download_button(t.get("download_csv", "📥 다운로드 (CSV)"), data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
         else:
-            st.caption("기록 없음")
+            st.caption(t.get("no_record", "기록 없음"))
 
+# =========================================================
+# 9. 파일 유무 검증 
+# =========================================================
 if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
@@ -562,7 +592,6 @@ def load_and_parse_all_data(file_bytes_val):
             if all(k.lower().replace(" ", "").replace("_", "") in s_clean for k in keywords): return orig_name
         return None
 
-    # --- 1) 종합 요약 파싱 ---
     summary_sheet_name = get_sheet(["종합"]) or all_sheets[0]
     raw_summary = pd.read_excel(stream, sheet_name=summary_sheet_name, header=None)
     h_idx = next((idx for idx, row in raw_summary.iterrows() if "구분" in "".join(row.dropna().astype(str).tolist()) and any(k in "".join(row.dropna().astype(str).tolist()) for k in ["합계", "25", "26"])), 0)
@@ -602,7 +631,6 @@ def load_and_parse_all_data(file_bytes_val):
     summary_chart["정렬"] = summary_chart["표준사업구분"].apply(lambda x: target_cats.index(x) if x in target_cats else 99)
     summary_chart = summary_chart.sort_values("정렬").reset_index(drop=True)
 
-    # --- 2) 바이어 및 협력사 파싱 ---
     PART_MAP = {"패션잡화": [["kc"]], "GB": [["gb"]], "글로벌 바이어": [["global", "1"], ["global", "2"]], "제품평가": [["inspection", "원단"], ["inspection", "가먼트"]]}
     part_cache, vendor_cache = {}, {}
     
@@ -657,7 +685,6 @@ def load_and_parse_all_data(file_bytes_val):
         part_cache[cat] = pd.concat(b_dfs, ignore_index=True).groupby("바이어명", as_index=False)[["2025년 실적", "2026년 실적"]].sum() if b_dfs else pd.DataFrame(columns=["바이어명", "2025년 실적", "2026년 실적"])
         vendor_cache[cat] = pd.concat(v_dfs, ignore_index=True) if v_dfs else pd.DataFrame(columns=["협력사명", "바이어명", "2025년 실적", "2026년 실적"])
 
-    # --- 3) BI 분석 파싱 ---
     def parse_bi(branch_name):
         s_k = branch_name.strip().lower().replace(" ", "").replace("_", "")
         t_sn = None
