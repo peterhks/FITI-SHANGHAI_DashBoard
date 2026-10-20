@@ -22,7 +22,7 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템
+# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (초강력 방어 로직)
 # =========================================================
 USER_DB_FILE = "fiti_users_db.json"
 LOGIN_HISTORY_FILE = "fiti_login_history.json"
@@ -31,22 +31,39 @@ def load_user_db():
     default_db = {
         "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"}
     }
+    
+    # 1차: 서버에 파일이 정상적으로 살아있는지 확인
     if os.path.exists(USER_DB_FILE):
         try:
             with open(USER_DB_FILE, "r", encoding="utf-8") as f:
                 loaded_db = json.load(f)
                 if isinstance(loaded_db, dict) and len(loaded_db) > 0:
+                    if "kshan@fiti.re.kr" not in loaded_db:
+                        loaded_db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
                     return loaded_db
         except Exception:
             pass
             
+    # 💡 [2차 초강력 방어] 스트림릿 클라우드가 파일을 포맷했더라도, 메모리에 데이터가 살아있다면 강제 복구
+    if "user_db" in st.session_state and isinstance(st.session_state["user_db"], dict) and len(st.session_state["user_db"]) > 0:
+        try:
+            with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+                json.dump(st.session_state["user_db"], f, ensure_ascii=False, indent=4)
+            return st.session_state["user_db"]
+        except Exception:
+            pass
+
+    # 3차: 파일도 메모리도 완전 초기화된 최초 상태일 때만 기본값 세팅
     with open(USER_DB_FILE, "w", encoding="utf-8") as f:
         json.dump(default_db, f, ensure_ascii=False, indent=4)
     return default_db
 
 def save_user_db(db_data):
-    with open(USER_DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db_data, f, ensure_ascii=False, indent=4)
+    try:
+        with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(db_data, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
 
 def load_login_history():
     if os.path.exists(LOGIN_HISTORY_FILE):
@@ -54,12 +71,25 @@ def load_login_history():
             with open(LOGIN_HISTORY_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return []
+            pass
+            
+    # 💡 [2차 초강력 방어] 로그 파일 삭제 시 메모리에서 즉각 복구
+    if "login_history" in st.session_state and isinstance(st.session_state["login_history"], list) and len(st.session_state["login_history"]) > 0:
+        try:
+            with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(st.session_state["login_history"], f, ensure_ascii=False, indent=4)
+            return st.session_state["login_history"]
+        except Exception:
+            pass
+            
     return []
 
 def save_login_history(history_data):
-    with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history_data, f, ensure_ascii=False, indent=4)
+    try:
+        with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history_data, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
 
 if "user_db" not in st.session_state: st.session_state["user_db"] = load_user_db()
 if "login_history" not in st.session_state: st.session_state["login_history"] = load_login_history()
@@ -78,7 +108,7 @@ if "auth_ok" in query_params and query_params["auth_ok"] == "true":
         st.session_state["current_user_role"] = "admin"
         st.session_state["current_user_name"] = "관리자"
 
-# 💡 언어 상태 충돌 방지: 최초 접속 시에만 URL 파라미터 확인, 이후에는 선택값 유지
+# 언어 상태 충돌 방지: 최초 접속 시에만 URL 파라미터 확인, 이후에는 선택값 유지
 if "lang_select" not in st.session_state:
     if "lang" in query_params:
         st.session_state["lang_select"] = "English (영어)" if query_params["lang"] == "en" else "한국어"
@@ -149,7 +179,6 @@ LANG_DICT = {
         "all_biz": "전체 사업 보기",
         "all_vendor": "전체 협력사 보기",
         "perf_status": " 실적 현황",
-        # 💡 [요청 반영] 신규 텍스트 번역
         "login_log": "로그인 기록 로그",
         "date_range": "날짜 및 기간 지정",
         "download_csv": "📥 다운로드 (CSV)",
@@ -217,7 +246,6 @@ LANG_DICT = {
         "all_biz": "All Businesses",
         "all_vendor": "All Vendors",
         "perf_status": " Performance",
-        # 💡 [요청 반영] 신규 텍스트 번역
         "login_log": "Login History Log",
         "date_range": "Select Date Range",
         "download_csv": "📥 Download (CSV)",
@@ -532,9 +560,8 @@ if user_role in ["admin", "bi_user"]:
                     st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
-    # 💡 [요청 반영] 로그인 기록 로그 클릭 시 실시간 데이터 호출 & 기간(Date Range) 필터 지정 적용 
     with st.sidebar.expander(f"📋 {t.get('login_log', '로그인 기록 로그')}", expanded=False):
-        current_history = load_login_history() # 열 때마다 무조건 즉시 최신화
+        current_history = load_login_history()
         if current_history:
             df_log = pd.DataFrame(current_history)
             df_log["time_obj"] = pd.to_datetime(df_log["time"])
@@ -543,7 +570,6 @@ if user_role in ["admin", "bi_user"]:
             min_date = df_log["날짜"].min()
             max_date = df_log["날짜"].max()
             
-            # 날짜 기간(Range) 선택 입력
             sel_date_range = st.date_input(t.get("date_range", "날짜 및 기간 지정"), value=(min_date, max_date), min_value=min_date, max_value=max_date)
             
             if isinstance(sel_date_range, tuple) and len(sel_date_range) == 2:
@@ -557,7 +583,7 @@ if user_role in ["admin", "bi_user"]:
             else:
                 f_log_df = df_log
                 
-            f_log_df = f_log_df.sort_values("time_obj", ascending=False) # 최신순
+            f_log_df = f_log_df.sort_values("time_obj", ascending=False)
             
             st.dataframe(f_log_df[["time", "email", "name", "status"]], hide_index=True, use_container_width=True)
             st.download_button(t.get("download_csv", "📥 다운로드 (CSV)"), data=f_log_df.to_csv(index=False).encode('utf-8-sig'), file_name=f"fiti_log_{china_time.strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
@@ -565,7 +591,7 @@ if user_role in ["admin", "bi_user"]:
             st.caption(t.get("no_record", "기록 없음"))
 
 # =========================================================
-# 9. 파일 유무 검증 
+# 9. 파일 유무 검증
 # =========================================================
 if not raw_bytes:
     st.warning(t["file_not_found"])
@@ -772,7 +798,7 @@ col_25, col_26, target_categories = parsed_data["col_25"], parsed_data["col_26"]
 part_data_cache, vendor_data_cache = parsed_data["part_data_cache"], parsed_data["vendor_data_cache"]
 
 # =========================================================
-# 11. KPI 영역 채우기 (URL 연동 상태 유지)
+# 11. KPI 영역 채우기
 # =========================================================
 with kpi_container:
     card_unit, display_period_name = t["unit"], t["periods"].get("전체 총계 누계", "전체 총계 누계")
