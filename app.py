@@ -4,7 +4,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import io
-import json
 import base64
 from datetime import datetime, timedelta
 
@@ -22,74 +21,66 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB 영구 파일(JSON) 관리 시스템 (초강력 방어 로직)
+# 2. 사용자 권한 DB (Supabase 클라우드 영구 저장소 완벽 연동)
 # =========================================================
-USER_DB_FILE = "fiti_users_db.json"
-LOGIN_HISTORY_FILE = "fiti_login_history.json"
+try:
+    from supabase import create_client
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    supabase = None
 
 def load_user_db():
-    default_db = {
-        "kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"}
-    }
-    
-    # 1차: 서버에 파일이 정상적으로 살아있는지 확인
-    if os.path.exists(USER_DB_FILE):
+    default_db = {"kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"}}
+    if supabase:
         try:
-            with open(USER_DB_FILE, "r", encoding="utf-8") as f:
-                loaded_db = json.load(f)
-                if isinstance(loaded_db, dict) and len(loaded_db) > 0:
-                    if "kshan@fiti.re.kr" not in loaded_db:
-                        loaded_db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
-                    return loaded_db
+            res = supabase.table("fiti_users").select("*").execute()
+            if res.data:
+                db = {}
+                for row in res.data:
+                    db[row['email']] = {"pw": row['pw'], "role": row['role'], "name": row['name']}
+                return db
         except Exception:
             pass
-            
-    # 💡 [2차 초강력 방어] 스트림릿 클라우드가 파일을 포맷했더라도, 메모리에 데이터가 살아있다면 강제 복구
-    if "user_db" in st.session_state and isinstance(st.session_state["user_db"], dict) and len(st.session_state["user_db"]) > 0:
-        try:
-            with open(USER_DB_FILE, "w", encoding="utf-8") as f:
-                json.dump(st.session_state["user_db"], f, ensure_ascii=False, indent=4)
-            return st.session_state["user_db"]
-        except Exception:
-            pass
-
-    # 3차: 파일도 메모리도 완전 초기화된 최초 상태일 때만 기본값 세팅
-    with open(USER_DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(default_db, f, ensure_ascii=False, indent=4)
     return default_db
 
 def save_user_db(db_data):
-    try:
-        with open(USER_DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(db_data, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
+    if supabase:
+        try:
+            for email, info in db_data.items():
+                supabase.table("fiti_users").upsert({
+                    "email": email,
+                    "pw": info["pw"],
+                    "role": info["role"],
+                    "name": info["name"]
+                }).execute()
+        except Exception:
+            pass
+
+def delete_user_db(email):
+    if supabase:
+        try:
+            supabase.table("fiti_users").delete().eq("email", email).execute()
+        except Exception:
+            pass
 
 def load_login_history():
-    if os.path.exists(LOGIN_HISTORY_FILE):
+    if supabase:
         try:
-            with open(LOGIN_HISTORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+            res = supabase.table("login_history").select("time, email, name, status").execute()
+            if res.data:
+                return res.data
         except Exception:
             pass
-            
-    # 💡 [2차 초강력 방어] 로그 파일 삭제 시 메모리에서 즉각 복구
-    if "login_history" in st.session_state and isinstance(st.session_state["login_history"], list) and len(st.session_state["login_history"]) > 0:
-        try:
-            with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
-                json.dump(st.session_state["login_history"], f, ensure_ascii=False, indent=4)
-            return st.session_state["login_history"]
-        except Exception:
-            pass
-            
     return []
 
-def save_login_history(history_data):
-    try:
-        with open(LOGIN_HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history_data, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
+def append_login_history(record):
+    if supabase:
+        try:
+            supabase.table("login_history").insert([record]).execute()
+        except Exception:
+            pass
 
 if "user_db" not in st.session_state: st.session_state["user_db"] = load_user_db()
 if "login_history" not in st.session_state: st.session_state["login_history"] = load_login_history()
@@ -315,7 +306,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# 5. 상해 야경 테마 로그인 화면
+# 5. 상해 야경 테마 로그인 화면 (Supabase DB 연동)
 # =========================================================
 if not st.session_state["logged_in"]:
     if st.session_state.get("auto_logout_alert"):
@@ -369,13 +360,17 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_email"] = matched_email
                 st.session_state["current_user_role"] = user_record["role"]
                 st.session_state["current_user_name"] = user_record["name"]
-                st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"})
-                save_login_history(st.session_state["login_history"])
+                
+                new_log = {"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"}
+                st.session_state["login_history"].append(new_log)
+                append_login_history(new_log) # Supabase 즉시 저장
+                
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
-                st.session_state["login_history"].append({"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"})
-                save_login_history(st.session_state["login_history"])
+                new_log = {"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"}
+                st.session_state["login_history"].append(new_log)
+                append_login_history(new_log) # Supabase 즉시 저장
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
 
@@ -537,7 +532,7 @@ if user_role in ["admin", "bi_user"]:
                     if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
                     assigned_role = "general_user" if new_category == "접수" else ("bi_user" if new_category == "접수 + BI" else "admin")
                     st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
-                    save_user_db(st.session_state["user_db"])
+                    save_user_db(st.session_state["user_db"]) # Supabase 자동 저장
                     st.session_state["edit_target_email"] = None
                     st.success(f"✅ {'수정' if is_editing else '등록'} 완료!")
                     st.rerun()
@@ -555,13 +550,13 @@ if user_role in ["admin", "bi_user"]:
                     st.error("현재 로그인 중인 계정은 삭제 불가합니다.")
                 else:
                     del st.session_state["user_db"][target_delete_email]
-                    save_user_db(st.session_state["user_db"])
+                    delete_user_db(target_delete_email) # Supabase 즉시 삭제
                     if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
                     st.success("🗑️ 영구 삭제 완료!")
                     st.rerun()
 
     with st.sidebar.expander(f"📋 {t.get('login_log', '로그인 기록 로그')}", expanded=False):
-        current_history = load_login_history()
+        current_history = load_login_history() # 클릭 시마다 Supabase에서 최신 기록 호출
         if current_history:
             df_log = pd.DataFrame(current_history)
             df_log["time_obj"] = pd.to_datetime(df_log["time"])
@@ -590,9 +585,6 @@ if user_role in ["admin", "bi_user"]:
         else:
             st.caption(t.get("no_record", "기록 없음"))
 
-# =========================================================
-# 9. 파일 유무 검증
-# =========================================================
 if not raw_bytes:
     st.warning(t["file_not_found"])
     st.stop()
