@@ -1000,3 +1000,4 @@ elif page_menu.startswith("[BI_"):
     st.write("")
     st.markdown("---")
     render_fullwidth_vertical_dashboard(f"{center_title_prefix} {t.get('all_cat_title', '전체 12대 사업별 상세 실적 현황')}", "📈 All Categories Performance Diff", "All Categories Detailed Summary Table", chart_d, "표준사업구분", FULL_BI_CATEGORIES)
+# === 코드의 맨 마지막 줄입니다. 여기까지 복사되어야 합니다 ===
