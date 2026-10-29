@@ -21,54 +21,68 @@ OCHANG_CATEGORIES = ["산업(토목+부품)", "모빌리티(전장+의장)", "�
 FULL_BI_CATEGORIES = MAGOK_CATEGORIES + OCHANG_CATEGORIES
 
 # =========================================================
-# 2. 사용자 권한 DB (Supabase 클라우드 영구 저장소 완벽 연동)
+# 2. 사용자 권한 DB (Supabase 초고속 캐싱 & 영구 저장 보장)
 # =========================================================
-try:
-    from supabase import create_client
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception:
-    supabase = None
+@st.cache_resource
+def get_supabase_client():
+    try:
+        from supabase import create_client
+        url = st.secrets["SUPABASE_URL"].strip()
+        key = st.secrets["SUPABASE_KEY"].strip()
+        return create_client(url, key), None
+    except Exception as e:
+        return None, str(e)
 
-def load_user_db():
+supabase, db_conn_err = get_supabase_client()
+
+@st.cache_data(ttl=300)
+def fetch_users_from_db():
     default_db = {"kshan@fiti.re.kr": {"pw": "fb09010552", "role": "admin", "name": "관리자"}}
-    if supabase:
-        try:
-            res = supabase.table("fiti_users").select("*").execute()
-            if res.data:
-                db = {}
-                for row in res.data:
-                    db[row['email']] = {"pw": row['pw'], "role": row['role'], "name": row['name']}
-                return db
-        except Exception:
-            pass
+    if not supabase:
+        return default_db
+    try:
+        res = supabase.table("fiti_users").select("*").execute()
+        if res.data:
+            db = {}
+            for row in res.data:
+                db[row['email']] = {"pw": row['pw'], "role": row['role'], "name": row['name']}
+            if "kshan@fiti.re.kr" not in db:
+                db["kshan@fiti.re.kr"] = default_db["kshan@fiti.re.kr"]
+            return db
+    except Exception:
+        pass
     return default_db
 
-def save_user_db(db_data):
-    if supabase:
-        try:
-            for email, info in db_data.items():
-                supabase.table("fiti_users").upsert({
-                    "email": email,
-                    "pw": info["pw"],
-                    "role": info["role"],
-                    "name": info["name"]
-                }).execute()
-        except Exception:
-            pass
+def upsert_single_user(email, pw, role, name):
+    if not supabase:
+        return False, f"DB 연결 실패: {db_conn_err}"
+    try:
+        supabase.table("fiti_users").upsert({
+            "email": email,
+            "pw": pw,
+            "role": role,
+            "name": name
+        }).execute()
+        fetch_users_from_db.clear()
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 def delete_user_db(email):
-    if supabase:
-        try:
-            supabase.table("fiti_users").delete().eq("email", email).execute()
-        except Exception:
-            pass
+    if not supabase:
+        return False, "DB 연결 안됨"
+    try:
+        supabase.table("fiti_users").delete().eq("email", email).execute()
+        fetch_users_from_db.clear()
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
+@st.cache_data(ttl=60)
 def load_login_history():
     if supabase:
         try:
-            res = supabase.table("login_history").select("time, email, name, status").execute()
+            res = supabase.table("login_history").select("time, email, name, status").order("id", desc=True).limit(500).execute()
             if res.data:
                 return res.data
         except Exception:
@@ -79,17 +93,20 @@ def append_login_history(record):
     if supabase:
         try:
             supabase.table("login_history").insert([record]).execute()
+            load_login_history.clear()
         except Exception:
             pass
 
-if "user_db" not in st.session_state: st.session_state["user_db"] = load_user_db()
-if "login_history" not in st.session_state: st.session_state["login_history"] = load_login_history()
+# 항상 캐싱된 최신 DB 상태를 세션에 동기화 (속도 저하 및 리셋 완벽 방지)
+st.session_state["user_db"] = fetch_users_from_db()
+
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["current_user_email"] = ""
     st.session_state["current_user_role"] = ""
     st.session_state["current_user_name"] = ""
-if "edit_target_email" not in st.session_state: st.session_state["edit_target_email"] = None
+if "edit_target_email" not in st.session_state:
+    st.session_state["edit_target_email"] = None
 
 query_params = st.query_params
 if "auth_ok" in query_params and query_params["auth_ok"] == "true":
@@ -266,7 +283,7 @@ LANG_DICT = {
 t = LANG_DICT.get(st.session_state["lang_select"], LANG_DICT["한국어"])
 
 # =========================================================
-# 4. 스타일 및 디자인 (텍스트 노출 방지 처리 완벽 적용)
+# 4. 스타일 및 디자인
 # =========================================================
 def inject_css(css_string):
     try:
@@ -352,14 +369,12 @@ if not st.session_state["logged_in"]:
                 st.session_state["current_user_name"] = user_record["name"]
                 
                 new_log = {"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": matched_email, "name": user_record["name"], "status": "성공"}
-                st.session_state["login_history"].append(new_log)
                 append_login_history(new_log)
                 
                 st.query_params["auth_ok"] = "true"
                 st.rerun()
             else:
                 new_log = {"time": china_time.strftime("%Y-%m-%d %H:%M:%S"), "email": raw_val if raw_val else "입력없음", "name": "미인증", "status": "실패"}
-                st.session_state["login_history"].append(new_log)
                 append_login_history(new_log)
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
     st.stop()
@@ -397,6 +412,9 @@ if "persistent_file_bytes" in st.session_state:
     raw_bytes = st.session_state["persistent_file_bytes"]
 elif os.path.exists(LOCAL_EXCEL_PATH):
     with open(LOCAL_EXCEL_PATH, "rb") as f: raw_bytes = f.read()
+    st.session_state["persistent_file_bytes"] = raw_bytes
+elif os.path.exists(EXCEL_FILE):
+    with open(EXCEL_FILE, "rb") as f: raw_bytes = f.read()
     st.session_state["persistent_file_bytes"] = raw_bytes
 else:
     raw_bytes = None
@@ -521,12 +539,18 @@ if user_role in ["admin", "bi_user"]:
                 if target_key and new_pw.strip():
                     if "@" not in target_key: target_key = f"{target_key}@fiti.re.kr"
                     assigned_role = "general_user" if new_category == "접수" else ("bi_user" if new_category == "접수 + BI" else "admin")
-                    st.session_state["user_db"][target_key] = {"pw": new_pw.strip(), "role": assigned_role, "name": new_name.strip() if new_name.strip() else target_key}
-                    save_user_db(st.session_state["user_db"])
-                    st.session_state["edit_target_email"] = None
-                    st.success(f"✅ {'수정' if is_editing else '등록'} 완료!")
-                    st.rerun()
-                else: st.error("아이디와 비밀번호는 필수입니다.")
+                    final_name = new_name.strip() if new_name.strip() else target_key
+                    
+                    ok, err_msg = upsert_single_user(target_key, new_pw.strip(), assigned_role, final_name)
+                    if ok:
+                        st.session_state["user_db"] = fetch_users_from_db()
+                        st.session_state["edit_target_email"] = None
+                        st.success(f"✅ {'수정' if is_editing else '등록'} 완료! (클라우드 영구 저장됨)")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ 클라우드 DB 저장 실패 (Secrets의 API 키를 확인하세요): {err_msg}")
+                else:
+                    st.error("아이디와 비밀번호는 필수입니다.")
         
         if is_editing:
             if st.button("➕ 신규 등록 모드로 전환", type="primary", use_container_width=True):
@@ -539,11 +563,15 @@ if user_role in ["admin", "bi_user"]:
                 if target_delete_email == st.session_state["current_user_email"]:
                     st.error("현재 로그인 중인 계정은 삭제 불가합니다.")
                 else:
-                    del st.session_state["user_db"][target_delete_email]
-                    delete_user_db(target_delete_email)
-                    if st.session_state.get("edit_target_email") == target_delete_email: st.session_state["edit_target_email"] = None
-                    st.success("🗑️ 영구 삭제 완료!")
-                    st.rerun()
+                    ok, err_msg = delete_user_db(target_delete_email)
+                    if ok:
+                        st.session_state["user_db"] = fetch_users_from_db()
+                        if st.session_state.get("edit_target_email") == target_delete_email:
+                            st.session_state["edit_target_email"] = None
+                        st.success("🗑️ 영구 삭제 완료!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ 삭제 실패: {err_msg}")
 
     with st.sidebar.expander(f"📋 {t.get('login_log', '로그인 기록 로그')}", expanded=False):
         current_history = load_login_history()
